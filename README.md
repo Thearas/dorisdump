@@ -1,6 +1,6 @@
 # Dorisdump
 
-Dump schemas and queries from Doris database and audit log with anonymization.
+Dump schemas and queries from Doris database with anonymization.
 
 [![demo](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq.svg)](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq)
 
