@@ -1,15 +1,10 @@
 package src
 
-import (
-	"fmt"
+var BuiltinHashs map[string]string
 
-	"github.com/samber/lo"
-)
-
-var BuiltinFunctionHashs = lo.SliceToMap(BuiltinFunctions, func(s string) (string, string) {
-	b := hashstr(hasher, s)
-	return fmt.Sprintf(AnonymizeHashFmt, b[:AnonymizeHashBytes]), s
-})
+func SetupBuiltinHashs() {
+	BuiltinHashs = anonymizeHashSliceToMap(BuiltinFunctions)
+}
 
 // Generate from `SHOW BUILTIN FUNCTIONS`.
 var BuiltinFunctions = []string{

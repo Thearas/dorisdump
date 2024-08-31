@@ -47,11 +47,13 @@ type Dump struct {
 	SSHPassword   string
 	SSHPrivateKey string
 
-	AnonymizerEnabled bool
-	AnonymizerMethod  string
-	StripComment      bool
-	DumpSchema        bool
-	DumpQuery         bool
+	AnonymizerEnabled    bool
+	AnonymizerMethod     string
+	StripComment         bool
+	AnonymizerReserveIds []string
+
+	DumpSchema bool
+	DumpQuery  bool
 
 	Clean bool
 }
@@ -83,6 +85,10 @@ or environment variables with prefix 'DORIS_', e.g.
 			if err := cleanCmd.RunE(nil, nil); err != nil {
 				return err
 			}
+		}
+
+		if DumpConfig.AnonymizerEnabled {
+			src.SetupAnonymizer(DumpConfig.AnonymizerReserveIds...)
 		}
 
 		// dump schemas
@@ -122,6 +128,7 @@ func init() {
 
 	pFlags := dumpCmd.PersistentFlags()
 	pFlags.BoolVar(&DumpConfig.AnonymizerEnabled, "anonymize", false, "Anonymize sqls")
+	pFlags.StringSliceVar(&DumpConfig.AnonymizerReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
 	pFlags.StringVar(&DumpConfig.AnonymizerMethod, "anonymize-method", "hash", "Anonymize method, hash only for now")
 	pFlags.MarkHidden("anonymize-method")
 	pFlags.BoolVar(&DumpConfig.StripComment, "strip-comment", false, "Strip comments")

@@ -30,10 +30,10 @@ fi
 
 name=$(basename "$latest_download_url")
 
-wget "$latest_download_url" -O "/tmp/$name"
+curl -sSL $latest_download_url -o "/tmp/$name"
 tar -xzf "/tmp/$name" -C /usr/local/bin/ && mv "/usr/local/bin/$binary_name" /usr/local/bin/dorisdump
 rm -f "/tmp/$name"
 
-echo "dorisdump installed successfully"
+echo "Installed successfully."
 
 /usr/local/bin/dorisdump completion print-help
