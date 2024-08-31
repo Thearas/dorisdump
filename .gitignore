@@ -1,0 +1,13 @@
+.vscode
+.idea
+fixture
+dorisdump
+dorisdump_output
+.dorisdump
+*.cast
+*.log
+*.tokens
+*.interp
+dorisdump.yaml
+dorisdump-linux-*
+dorisdump-darwin-*
