@@ -227,6 +227,7 @@ func outputSchemas(schemas []*src.Schema) error {
 		s := s
 		g.Go(func() error {
 			if DumpConfig.AnonymizerEnabled {
+				s.DB = src.Anonymize(DumpConfig.AnonymizerMethod, s.DB)
 				s.Name = src.Anonymize(DumpConfig.AnonymizerMethod, s.Name)
 				s.CreateStmt = src.AnonymizeSql(DumpConfig.AnonymizerMethod, s.CreateStmt)
 			}
