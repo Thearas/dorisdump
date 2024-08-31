@@ -4,6 +4,12 @@ Dump schemas and queries from Doris database with anonymization.
 
 [![demo](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq.svg)](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq)
 
+## Install
+
+```sh
+curl -sSL https://raw.githubusercontent.com/Thearas/dorisdump/master/install.sh | bash
+```
+
 ## Usage
 
 ```sh
