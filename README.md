@@ -2,7 +2,7 @@
 
 Dump schemas and queries from Doris database with anonymization.
 
-[![demo](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq.svg)](https://asciinema.org/a/3V5nELbyZop80dbfYxzKpLMxq)
+[![demo](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9.svg)](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9)
 
 ## Install
 
