@@ -80,6 +80,10 @@ or environment variables with prefix 'DORIS_', e.g.
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
+		if !DumpConfig.DumpSchema && !DumpConfig.DumpQuery {
+			return errors.New("Expected at least one of --dump-schema or --dump-query")
+		}
+
 		completeDumpConfig()
 
 		if DumpConfig.Clean {
