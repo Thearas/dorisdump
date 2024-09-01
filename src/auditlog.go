@@ -10,7 +10,6 @@ import (
 	"github.com/edsrzf/mmap-go"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -44,11 +43,10 @@ func retrieveStmtFromMatch(match []byte, filterDorisDumpSelfSql bool) []byte {
 	return stmt
 }
 
-func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string) ([]string, error) {
+func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, parallel int) ([]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
-	g := errgroup.Group{}
-	g.SetLimit(10)
+	g := ParallelGroup(parallel)
 
 	hash2sqls := make([]map[[32]byte]string, len(auditlogPaths))
 	for i, auditlogPath := range auditlogPaths {

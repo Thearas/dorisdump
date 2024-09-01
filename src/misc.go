@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 	"golang.org/x/exp/rand"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -45,6 +46,14 @@ func WriteFile(path string, content string) error {
 		b = append(b, '\n')
 	}
 	return os.WriteFile(path, b, 0600)
+}
+
+func ParallelGroup(parallel int) errgroup.Group {
+	g := errgroup.Group{}
+	if parallel > 1 {
+		g.SetLimit(parallel)
+	}
+	return g
 }
 
 func GetLocalIP() string {

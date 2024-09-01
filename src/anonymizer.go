@@ -7,7 +7,6 @@ import (
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/Thearas/dorisdump/src/parser"
 )
@@ -37,15 +36,14 @@ func SetupAnonymizer(reserveIds ...string) {
 	AnonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
 }
 
-func AnonymizeSqlsInPlace(method string, sqls []string) {
+func AnonymizeSqlsInPlace(method string, sqls []string, parallel int) {
 	// check vaild
 	anonymizeF := getAnonymizeFunc(method)
 	if anonymizeF == nil {
 		return
 	}
 
-	g := errgroup.Group{}
-	g.SetLimit(10)
+	g := ParallelGroup(parallel)
 
 	for i := range sqls {
 		i, sql := i, sqls[i]

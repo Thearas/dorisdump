@@ -7,9 +7,11 @@ build:
 
 build-darwin:
 	GOOS=darwin CGO_ENABLED=1 go build -o dorisdump-darwin-$(GOARCH) -a -trimpath
+	tar czf dorisdump-darwin-$(GOARCH).tar.gz dorisdump-darwin-$(GOARCH)
 
 build-linux:
 	GOOS=linux CGO_ENABLED=1 go build -o dorisdump-linux-$(GOARCH) -a -trimpath -installsuffix cgo -ldflags "-linkmode external -extldflags -static"
+	tar czf dorisdump-linux-$(GOARCH).tar.gz dorisdump-linux-$(GOARCH)
 
 run:
 	@go run main.go $(ARGS)

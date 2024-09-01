@@ -35,6 +35,7 @@ type Global struct {
 	DataDir    string
 	OutputDir  string
 	DryRun     bool
+	Parallel   int
 
 	DBHost     string
 	DBPort     int16
@@ -84,6 +85,7 @@ func init() {
 	pFlags.StringVar(&GlobalConfig.DataDir, "data-dir", "./.dorisdump/", "Directory for storing data")
 	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./dorisdump_output/", "Directory for storing dump sql")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
+	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", 10, "Parallel dump worker")
 
 	pFlags.StringVarP(&GlobalConfig.DBHost, "host", "H", "127.0.0.1", "DB Host")
 	pFlags.Int16VarP(&GlobalConfig.DBPort, "port", "P", 9030, "DB Port")

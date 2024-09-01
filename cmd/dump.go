@@ -30,7 +30,6 @@ import (
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/Thearas/dorisdump/src"
 )
@@ -181,8 +180,7 @@ func completeDumpConfig() error {
 
 func dumpSchemas(ctx context.Context) ([]*src.Schema, error) {
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
-	g := errgroup.Group{}
-	g.SetLimit(10)
+	g := src.ParallelGroup(GlobalConfig.Parallel)
 
 	schemas := make([][]*src.Schema, len(dbs))
 	for i, db := range dbs {
@@ -221,8 +219,7 @@ func outputSchemas(schemas []*src.Schema) error {
 
 	printSql := logrus.GetLevel() == logrus.TraceLevel
 
-	g := errgroup.Group{}
-	g.SetLimit(10)
+	g := src.ParallelGroup(GlobalConfig.Parallel)
 	for _, s := range schemas {
 		s := s
 		g.Go(func() error {
@@ -287,7 +284,7 @@ func dumpQueries(ctx context.Context) ([]string, error) {
 
 	logrus.Infoln("Dumping queries from audit logs...")
 
-	queries, err := src.ExtractQueriesFromAuditLogs(GlobalConfig.DBs, auditLogFiles)
+	queries, err := src.ExtractQueriesFromAuditLogs(GlobalConfig.DBs, auditLogFiles, GlobalConfig.Parallel)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs failed, %v\n", err)
 		return nil, err
@@ -318,8 +315,7 @@ func outputQueries(queries []string) error {
 	}
 	format := fmt.Sprintf("q%%0%dd.sql", count)
 
-	g := errgroup.Group{}
-	g.SetLimit(10)
+	g := src.ParallelGroup(GlobalConfig.Parallel)
 	for i, query := range queries {
 		i, query := i, query
 		g.Go(func() error {
