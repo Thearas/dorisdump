@@ -48,12 +48,12 @@ func WriteFile(path string, content string) error {
 	return os.WriteFile(path, b, 0600)
 }
 
-func ParallelGroup(parallel int) errgroup.Group {
+func ParallelGroup(parallel int) *errgroup.Group {
 	g := errgroup.Group{}
 	if parallel > 1 {
 		g.SetLimit(parallel)
 	}
-	return g
+	return &g
 }
 
 func GetLocalIP() string {

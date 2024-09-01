@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -59,6 +60,7 @@ func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error)
 		Net:                  "tcp",
 		DBName:               db,
 		AllowNativePasswords: true,
+		Timeout:              10 * time.Second,
 	}
 	dsn := cfg.FormatDSN()
 	logrus.Traceln("Connecting:", logrus.Fields{

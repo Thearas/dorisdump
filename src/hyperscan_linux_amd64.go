@@ -10,11 +10,11 @@ import (
 )
 
 // ExtractQueryOne extracts the query from an audit log.
-func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte) (map[[32]byte]string, error) {
+func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte, queryMinCpuTimeMs int) (map[[32]byte]string, error) {
 	database, scratch, close := hs_alloc(dbs)
 	defer close()
 
-	c := hs_newContext(auditlog)
+	c := hs_newContext(auditlog, queryMinCpuTimeMs)
 	if err := database.Scan(auditlog, scratch, hs_Callback, c); err != nil {
 		logrus.Errorln("[hyperscan] Failed to scan audit log file")
 		return nil, err
@@ -66,16 +66,18 @@ func hs_alloc(dbs []string) (hyperscan.BlockDatabase, *hyperscan.Scratch, func()
 }
 
 type hyperscanContext struct {
-	content  []byte
-	hash     *blake3.Hasher
-	hash2sql map[[32]byte]string
+	content           []byte
+	queryMinCpuTimeMs int
+	hash              *blake3.Hasher
+	hash2sql          map[[32]byte]string
 }
 
-func hs_newContext(content []byte) hyperscanContext {
+func hs_newContext(content []byte, queryMinCpuTimeMs int) hyperscanContext {
 	return hyperscanContext{
-		content:  content,
-		hash:     blake3.New(),
-		hash2sql: make(map[[32]byte]string, 1024),
+		content:           content,
+		queryMinCpuTimeMs: queryMinCpuTimeMs,
+		hash:              blake3.New(),
+		hash2sql:          make(map[[32]byte]string, 1024),
 	}
 }
 
@@ -83,7 +85,7 @@ func hs_Callback(id uint, from, to uint64, _ uint, ctx any) error {
 	c, _ := ctx.(hyperscanContext)
 
 	match := c.content[from:to]
-	sql := retrieveStmtFromMatch(match, true)
+	sql := retrieveStmtFromMatch(match, c.queryMinCpuTimeMs, true)
 	if sql == nil {
 		return nil
 	}

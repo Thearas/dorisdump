@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/edsrzf/mmap-go"
@@ -18,9 +19,10 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt   = `\|Db=%s\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
-	stmtMatchStart = []byte("|Stmt=")
-	stmtMatchEnd   = []byte("|CpuTimeMS=")
+	stmtMatchFmt        = `\|Db=%s\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=\d*`
+	stmtMatchStart      = []byte("|Stmt=")
+	stmtMatchEnd        = []byte("|CpuTimeMS=")
+	cpuTimeMsMatchStart = stmtMatchEnd
 )
 
 func auditlogQueryRe(dbs []string) string {
@@ -29,10 +31,10 @@ func auditlogQueryRe(dbs []string) string {
 	return fmt.Sprintf(stmtMatchFmt, dbFilter)
 }
 
-func retrieveStmtFromMatch(match []byte, filterDorisDumpSelfSql bool) []byte {
+func retrieveStmtFromMatch(match []byte, minCpuTimeMs int, filterDorisDumpSelfSql bool) []byte {
+	// 1. Retrieve query
 	s := bytes.Index(match, stmtMatchStart)
 	e := bytes.LastIndex(match, stmtMatchEnd)
-
 	stmt := match[s+len(stmtMatchStart) : e]
 
 	// remove dorisdump self queries
@@ -40,10 +42,17 @@ func retrieveStmtFromMatch(match []byte, filterDorisDumpSelfSql bool) []byte {
 		return nil
 	}
 
+	// 2. Retrieve cpu time
+	cpuTime_ := string(match[e+len(cpuTimeMsMatchStart):])
+	cpuTimeMs, err := strconv.Atoi(cpuTime_)
+	if err != nil || cpuTimeMs < minCpuTimeMs {
+		return nil
+	}
+
 	return stmt
 }
 
-func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, parallel int) ([]string, error) {
+func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinCpuTimeMs, parallel int) ([]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
@@ -66,7 +75,7 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, parallel 
 			}
 			defer content.Unmap()
 
-			hash2sql, err := ExtractQueriesFromAuditLog(dbs, []byte(content))
+			hash2sql, err := ExtractQueriesFromAuditLog(dbs, []byte(content), queryMinCpuTimeMs)
 			if err != nil {
 				return err
 			}

@@ -9,7 +9,7 @@ import (
 )
 
 // ExtractQueryOne extracts the query from an audit log.
-func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte) (map[[32]byte]string, error) {
+func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte, queryMinCpuTimeMs int) (map[[32]byte]string, error) {
 	regex, err := regexp.Compile(auditlogQueryRe(dbs))
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte) (map[[32]byte]str
 	hash2sql := make(map[[32]byte]string, 1024)
 	h := blake3.New()
 	for _, match := range matches {
-		sql := retrieveStmtFromMatch(match, true)
+		sql := retrieveStmtFromMatch(match, queryMinCpuTimeMs, true)
 		if sql == nil {
 			continue
 		}

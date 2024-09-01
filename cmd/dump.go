@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/samber/lo"
@@ -48,11 +49,12 @@ type Dump struct {
 
 	AnonymizerEnabled    bool
 	AnonymizerMethod     string
-	StripComment         bool
 	AnonymizerReserveIds []string
 
-	DumpSchema bool
-	DumpQuery  bool
+	DumpSchema         bool
+	DumpQuery          bool
+	QueryMinDuration_  time.Duration
+	QueryMinDurationMs int
 
 	Clean bool
 }
@@ -70,7 +72,7 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_PORT=9030
 	`,
 	Aliases:          []string{"d"},
-	Example:          "dorisdump dump --audit-log /path/to/audit.log -D db1,db2 -T table1,db2.table2",
+	Example:          "dorisdump dump --dump-schema --dump-query -D db1 --audit-log /path/to/audit.log",
 	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
@@ -130,9 +132,9 @@ func init() {
 	pFlags.StringSliceVar(&DumpConfig.AnonymizerReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
 	pFlags.StringVar(&DumpConfig.AnonymizerMethod, "anonymize-method", "hash", "Anonymize method, hash only for now")
 	pFlags.MarkHidden("anonymize-method")
-	pFlags.BoolVar(&DumpConfig.StripComment, "strip-comment", false, "Strip comments")
-	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", true, "Dump schema")
+	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
+	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx, default is ssh://root@{db_host}:22/{fe_dir}/log/fe.audit.log")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
@@ -146,6 +148,10 @@ func completeDumpConfig() error {
 	DumpConfig.OutputDDLDir = filepath.Join(GlobalConfig.OutputDir, "ddl")
 	DumpConfig.OutputQueryDir = filepath.Join(GlobalConfig.OutputDir, "sql")
 	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DataDir, "auditlog")
+
+	if DumpConfig.QueryMinDuration_ > 0 {
+		DumpConfig.QueryMinDurationMs = int(DumpConfig.QueryMinDuration_.Milliseconds())
+	}
 
 	GlobalConfig.DBs, GlobalConfig.Tables = lo.Uniq(GlobalConfig.DBs), lo.Uniq(GlobalConfig.Tables)
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
@@ -284,7 +290,7 @@ func dumpQueries(ctx context.Context) ([]string, error) {
 
 	logrus.Infoln("Dumping queries from audit logs...")
 
-	queries, err := src.ExtractQueriesFromAuditLogs(GlobalConfig.DBs, auditLogFiles, GlobalConfig.Parallel)
+	queries, err := src.ExtractQueriesFromAuditLogs(GlobalConfig.DBs, auditLogFiles, DumpConfig.QueryMinDurationMs, GlobalConfig.Parallel)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs failed, %v\n", err)
 		return nil, err

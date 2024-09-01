@@ -5,10 +5,10 @@ user: root
 password: '******'
 
 # the databases and tables to dump
-dbs: [db1]
+dbs: [example]
 tables:
   - table1
-  - db1.table2
+  - example.table2
 
 # if you want to download the audit log from a remote server
 # ssh_password: '******'
