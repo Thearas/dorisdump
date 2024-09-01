@@ -87,9 +87,14 @@ func Confirm(msg string) bool {
 
 func Choose(msg string, items []string) (string, error) {
 	prompt := promptui.Select{
-		Label: msg,
-		Items: items,
-		Size:  20,
+		Label:             msg,
+		Items:             items,
+		Size:              20,
+		StartInSearchMode: true,
+		Searcher: func(input string, index int) bool {
+			item := items[index]
+			return strings.Contains(item, input)
+		},
 	}
 	_, result, err := prompt.Run()
 	return result, err
