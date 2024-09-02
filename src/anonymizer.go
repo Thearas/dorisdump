@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	AnonymizeMinLength = 3
 	AnonymizeHashBytes = 4
 	AnonymizeHashFmt   = "h%x" // add prefix 'h'
 )
 
 var (
+	AnonymizeMinLength       int
 	AnonymizerreserveIdHashs map[string]string
 
 	// Identifiers that should not be anonymized.
@@ -29,7 +29,8 @@ var (
 	}, func(s string, _ int) string { return strings.ToLower(s) })
 )
 
-func SetupAnonymizer(reserveIds ...string) {
+func SetupAnonymizer(idMinLength int, reserveIds ...string) {
+	AnonymizeMinLength = idMinLength
 	SetupBuiltinHashs()
 
 	reserveIds = append(ReserveIdentifiers, reserveIds...)
