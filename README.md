@@ -28,3 +28,12 @@ dorisdump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.audit.l
 # Auto download audit log from remote (require SSH password or private key)
 dorisdump --dbs db1 --dump-schema --dump-query --anonymize --ssh-password '******'
 ```
+
+## Build
+
+1. Install dependences:
+
+    - [re2](https://github.com/google/re2)
+    - [hyperscan](https://intel.github.io/hyperscan) (linux-amd64 only)
+
+2. Run `make`

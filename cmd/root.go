@@ -204,7 +204,7 @@ func getCompletionDB() *sqlx.DB {
 		return completionDB
 	}
 
-	db, err := src.NewDB(GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, "information_schema")
+	db, err := connectDB("information_schema")
 	if err != nil {
 		return nil
 	}

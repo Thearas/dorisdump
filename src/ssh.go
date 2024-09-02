@@ -66,7 +66,7 @@ func SshLs(ctx context.Context, privKey, remoteUrl string) ([]string, error) {
 // ScpFromRemote copies a file from a remote server to the local machine using scp.
 //
 //	privKey is the path to the private key to use for authentication.
-//	remotePath is the address of file on the remote server, format user@host:port/path.
+//	remoteUrl is the address of file on the remote server, format user@host:port/path.
 //	localPath is the path of the local file to copy to.
 func ScpFromRemote(ctx context.Context, privKey, remoteUrl, localPath string) error {
 	clientConfig, host, user, remotePath, err := sshClientConfig(remoteUrl, privKey)
