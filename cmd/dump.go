@@ -196,7 +196,7 @@ func dumpSchemas(ctx context.Context) ([]*src.Schema, error) {
 
 	schemas := make([][]*src.Schema, len(dbs))
 	for i, db := range dbs {
-		db := db
+		i, db := i, db
 		g.Go(func() error {
 			logrus.Infof("Dumping schemas from %s...\n", db)
 			conn, err := connectDB(db)
