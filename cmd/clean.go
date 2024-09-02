@@ -33,14 +33,7 @@ var cleanCmd = &cobra.Command{
 		return initConfig(cmd)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := cleanFile(GlobalConfig.DataDir); err != nil {
-			return err
-		}
-		if err := cleanFile(GlobalConfig.OutputDir); err != nil {
-			return err
-		}
-
-		return nil
+		return cleanAllFiles(false)
 	},
 }
 
@@ -48,13 +41,23 @@ func init() {
 	rootCmd.AddCommand(cleanCmd)
 }
 
-func cleanFile(path string) error {
+func cleanAllFiles(force bool) error {
+	if err := cleanFile(GlobalConfig.DataDir, force); err != nil {
+		return err
+	}
+	if err := cleanFile(GlobalConfig.OutputDir, force); err != nil {
+		return err
+	}
+	return nil
+}
+
+func cleanFile(path string, force bool) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
 
-	yes := src.Confirm(fmt.Sprintf("Delete %s", absPath))
+	yes := force || src.Confirm(fmt.Sprintf("Delete %s", absPath))
 	if yes && !GlobalConfig.DryRun {
 		err = os.RemoveAll(absPath)
 	}

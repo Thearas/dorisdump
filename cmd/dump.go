@@ -87,7 +87,7 @@ or environment variables with prefix 'DORIS_', e.g.
 		completeDumpConfig()
 
 		if DumpConfig.Clean {
-			if err := cleanCmd.RunE(nil, nil); err != nil {
+			if err := cleanAllFiles(true); err != nil {
 				return err
 			}
 		}

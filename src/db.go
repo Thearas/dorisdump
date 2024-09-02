@@ -15,6 +15,12 @@ import (
 var (
 	InternalSqlComment      = "/*dorisdump*/"
 	InternalSqlCommentBytes = []byte(InternalSqlComment)
+
+	sqlLikeReplacer = strings.NewReplacer(
+		`"`, `\"`,
+		`_`, `\_`,
+		`%`, `\%`,
+	)
 )
 
 type SchemaType string
@@ -60,7 +66,7 @@ func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error)
 		Net:                  "tcp",
 		DBName:               db,
 		AllowNativePasswords: true,
-		Timeout:              10 * time.Second,
+		Timeout:              3 * time.Second,
 	}
 	dsn := cfg.FormatDSN()
 	logrus.Traceln("Connecting:", logrus.Fields{
@@ -73,7 +79,7 @@ func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error)
 }
 
 func ShowCreateTables(ctx context.Context, conn *sqlx.DB, db string, dbTables ...string) (schemas []*Schema, err error) {
-	schemas_, err := showTables(ctx, conn, db)
+	schemas_, err := ShowTables(ctx, conn, db)
 	if err != nil {
 		return nil, err
 	}
@@ -155,9 +161,22 @@ func getStmtfromShowCreate(r *sqlx.Rows) (schema string, err error) {
 	return
 }
 
-func showTables(ctx context.Context, conn *sqlx.DB, dbname string) (tables []*Schema, err error) {
+func ShowDatabases(ctx context.Context, conn *sqlx.DB, dbnamePrefix string) ([]string, error) {
+	dbs := []string{}
+	err := conn.SelectContext(ctx, &dbs, InternalSqlComment+`SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME not in ('__internal_schema', 'information_schema', 'mysql') AND SCHEMA_NAME like ? ORDER BY SCHEMA_NAME`, SanitizeLike(dbnamePrefix)+"%")
+	if err != nil {
+		return nil, err
+	}
+	return dbs, nil
+}
+
+func ShowTables(ctx context.Context, conn *sqlx.DB, dbname string, tablenamePrefix ...string) (tables []*Schema, err error) {
 	tables = []*Schema{}
-	err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT lower(TABLE_NAME) as TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?`, dbname)
+	if len(tablenamePrefix) > 0 {
+		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT lower(TABLE_NAME) as TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME like ? ORDER BY TABLE_NAME`, dbname, SanitizeLike(tablenamePrefix[0])+"%")
+	} else {
+		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT lower(TABLE_NAME) as TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, dbname)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -195,4 +214,8 @@ func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (
 	}
 
 	return
+}
+
+func SanitizeLike(s string) string {
+	return sqlLikeReplacer.Replace(s)
 }

@@ -43,6 +43,9 @@ func retrieveStmtFromMatch(match []byte, minCpuTimeMs int, filterDorisDumpSelfSq
 	}
 
 	// 2. Retrieve cpu time
+	if minCpuTimeMs == 0 {
+		return stmt
+	}
 	cpuTime_ := string(match[e+len(cpuTimeMsMatchStart):])
 	cpuTimeMs, err := strconv.Atoi(cpuTime_)
 	if err != nil || cpuTimeMs < minCpuTimeMs {

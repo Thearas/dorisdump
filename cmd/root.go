@@ -21,13 +21,20 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/Thearas/dorisdump/src"
 )
 
-var GlobalConfig = Global{}
+var (
+	GlobalConfig = Global{}
+	completionDB *sqlx.DB
+)
 
 type Global struct {
 	ConfigFile string
@@ -93,6 +100,31 @@ func init() {
 	pFlags.StringVar(&GlobalConfig.DBPassword, "password", "", "DB password")
 	pFlags.StringSliceVarP(&GlobalConfig.DBs, "dbs", "D", []string{}, "DBs to work on")
 	pFlags.StringSliceVarP(&GlobalConfig.Tables, "tables", "T", []string{}, "Tables to work on")
+
+	// completion
+	rootCmd.RegisterFlagCompletionFunc("dbs", func(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var (
+			items      = []string{}
+			splits     = strings.SplitAfterN(toComplete, ",", 2)
+			tocomplete = splits[0]
+			err        error
+		)
+		prefix := ""
+		if len(splits) > 1 {
+			prefix = splits[1] + ","
+		}
+
+		db := getCompletionDB()
+		if db != nil {
+			items, err = src.ShowDatabases(cmd.Context(), db, tocomplete)
+		}
+		if len(items) == 0 || err != nil {
+			items = []string{}
+		}
+		return lo.Map(items, func(item string, _ int) string {
+			return prefix + item
+		}), cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -165,4 +197,16 @@ func initLog() error {
 	logrus.SetOutput(os.Stderr)
 	logrus.SetFormatter(&logrus.TextFormatter{})
 	return nil
+}
+
+func getCompletionDB() *sqlx.DB {
+	if completionDB != nil {
+		return completionDB
+	}
+
+	db, err := src.NewDB(GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, "information_schema")
+	if err != nil {
+		return nil
+	}
+	return db
 }
