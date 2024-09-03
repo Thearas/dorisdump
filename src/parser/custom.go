@@ -5,6 +5,15 @@ import (
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/samber/lo"
+)
+
+var (
+	// The properties which value contains identifier.
+	propertiesWithValueIds = lo.SliceToMap([]string{
+		"bloom_filter_columns",
+		"function_column.sequence_col",
+	}, func(s string) (string, struct{}) { return s, struct{}{} })
 )
 
 func NewListener(hideSqlComment bool, modifyIdentifier func(id string, ignoreBuiltin bool) string) DorisParserListener {
@@ -30,6 +39,13 @@ type listener struct {
 	modifyIdentifier func(id string, ignoreBuiltin bool) string
 }
 
+func (l *listener) modifySymbolText(node antlr.TerminalNode, ignoreBuiltin bool) {
+	symbol := node.GetSymbol()
+
+	id := strings.Trim(symbol.GetText(), "`")
+	symbol.SetText(l.modifyIdentifier(id, ignoreBuiltin))
+}
+
 func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 	ignoreBuiltin := true
 	child := ctx.GetChild(0)
@@ -38,18 +54,35 @@ func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 		ignoreBuiltin = false
 		child = nonReserved.GetChild(0)
 	}
-	symbol := child.(*antlr.TerminalNodeImpl).GetSymbol()
-
-	id := symbol.GetText()
-	symbol.SetText(l.modifyIdentifier(id, ignoreBuiltin))
+	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), ignoreBuiltin)
 }
 
 func (l *listener) ExitQuotedIdentifier(ctx *QuotedIdentifierContext) {
 	child := ctx.GetChild(0)
-	symbol := child.(*antlr.TerminalNodeImpl).GetSymbol()
+	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), false)
+}
 
-	id := strings.Trim(symbol.GetText(), "`")
-	symbol.SetText(l.modifyIdentifier(id, false))
+func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
+	// e.g. "bloom_filter_columns" = "col1,col2"
+	key := strings.Trim(ctx.GetKey().GetText(), `'"`)
+	if _, ok := propertiesWithValueIds[key]; !ok {
+		return
+	}
+
+	pvalue := ctx.PropertyValue()
+	if pvalue.Constant() != nil {
+		constant := pvalue.Constant()
+		rawText := constant.GetText()
+		quote := rawText[0]
+
+		ids := strings.Split(rawText[1:len(rawText)-1], ",")
+		for i, id := range ids {
+			ids[i] = l.modifyIdentifier(strings.Trim(id, "`"), false)
+		}
+
+		symbol := constant.GetChild(0).(*antlr.TerminalNodeImpl).GetSymbol()
+		symbol.SetText(fmt.Sprintf("%c%s%c", quote, strings.Join(ids, ","), quote))
+	}
 }
 
 // SimpleColumnDefContext & ColumnDefContext

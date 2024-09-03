@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 os=$(uname -s)
 if [ -n "$OS" ]; then
