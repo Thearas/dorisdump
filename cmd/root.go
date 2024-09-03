@@ -66,7 +66,7 @@ or environment variables with prefix 'DORIS_', e.g.
 	`,
 	Example:          "dorisdump dump --help",
 	SuggestFor:       []string{"dump"},
-	ValidArgs:        []string{"completion", "help", "dump", "clean"},
+	ValidArgs:        []string{"completion", "help", "clean", "dump", "anonymize"},
 	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)

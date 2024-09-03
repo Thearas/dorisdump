@@ -3,6 +3,8 @@ package src
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,11 +64,12 @@ func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error)
 	cfg := &mysql.Config{
 		User:                 user,
 		Passwd:               password,
-		Addr:                 fmt.Sprintf("%s:%d", host, port),
+		Addr:                 net.JoinHostPort(host, strconv.Itoa(int(port))),
 		Net:                  "tcp",
 		DBName:               db,
 		AllowNativePasswords: true,
 		Timeout:              3 * time.Second,
+		InterpolateParams:    true,
 	}
 	dsn := cfg.FormatDSN()
 	logrus.Traceln("Connecting:", logrus.Fields{
