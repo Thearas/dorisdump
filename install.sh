@@ -17,6 +17,8 @@ arch=$(echo "$arch" | tr  "[:upper:]" "[:lower:]")
 
 if [[ "$arch" == "aarch64" ]]; then
     arch="arm64"
+elif [[ "$arch" == "x86_64" ]]; then
+    arch="amd64"
 fi
 
 binary_name="dorisdump-${os}-${arch}"
