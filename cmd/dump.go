@@ -47,11 +47,6 @@ type Dump struct {
 	SSHPassword   string
 	SSHPrivateKey string
 
-	AnonymizerEnabled     bool
-	AnonymizerMethod      string
-	AnonymizerIdMinLength int
-	AnonymizerReserveIds  []string
-
 	DumpSchema         bool
 	DumpQuery          bool
 	QueryMinDuration_  time.Duration
@@ -93,8 +88,8 @@ or environment variables with prefix 'DORIS_', e.g.
 			}
 		}
 
-		if DumpConfig.AnonymizerEnabled {
-			src.SetupAnonymizer(DumpConfig.AnonymizerIdMinLength, DumpConfig.AnonymizerReserveIds...)
+		if AnonymizeConfig.Enabled {
+			src.SetupAnonymizer(AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
 		}
 
 		// dump schemas
@@ -133,11 +128,6 @@ func init() {
 	rootCmd.AddCommand(dumpCmd)
 
 	pFlags := dumpCmd.PersistentFlags()
-	pFlags.BoolVar(&DumpConfig.AnonymizerEnabled, "anonymize", false, "Anonymize sqls")
-	pFlags.IntVar(&DumpConfig.AnonymizerIdMinLength, "anonymize-id-min-length", 3, "Skip anonymization for id which length is less than this value")
-	pFlags.StringSliceVar(&DumpConfig.AnonymizerReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
-	pFlags.StringVar(&DumpConfig.AnonymizerMethod, "anonymize-method", "hash", "Anonymize method, hash only for now")
-	pFlags.MarkHidden("anonymize-method")
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
@@ -145,6 +135,7 @@ func init() {
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
 	pFlags.StringVar(&DumpConfig.SSHPrivateKey, "ssh-private-key", "~/.ssh/id_rsa", "File path of SSH private key for --ssh-address")
+	addAnonymizeBaseFlags(pFlags, false)
 
 	flags := dumpCmd.Flags()
 	flags.BoolVar(&DumpConfig.Clean, "clean", false, "Clean previous data and output directory")
@@ -235,10 +226,10 @@ func outputSchemas(schemas []*src.Schema) error {
 	for _, s := range schemas {
 		s := s
 		g.Go(func() error {
-			if DumpConfig.AnonymizerEnabled {
-				s.DB = src.Anonymize(DumpConfig.AnonymizerMethod, s.DB)
-				s.Name = src.Anonymize(DumpConfig.AnonymizerMethod, s.Name)
-				s.CreateStmt = src.AnonymizeSql(DumpConfig.AnonymizerMethod, s.CreateStmt)
+			if AnonymizeConfig.Enabled {
+				s.DB = src.Anonymize(AnonymizeConfig.Method, s.DB)
+				s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
+				s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, s.CreateStmt)
 			}
 
 			if printSql {
@@ -331,8 +322,8 @@ func outputQueries(queries []string) error {
 	for i, query := range queries {
 		i, query := i, query
 		g.Go(func() error {
-			if DumpConfig.AnonymizerEnabled {
-				query = src.AnonymizeSql(DumpConfig.AnonymizerMethod, query)
+			if AnonymizeConfig.Enabled {
+				query = src.AnonymizeSql(AnonymizeConfig.Method, query)
 			}
 
 			name := fmt.Sprintf(format, i)

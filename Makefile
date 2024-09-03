@@ -16,6 +16,9 @@ build-linux:
 run:
 	@go run main.go $(ARGS)
 
+install: build
+	cp dorisdump /usr/local/bin
+
 gen:
 	@go generate ./...
 
