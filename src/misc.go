@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/manifoldco/promptui"
-	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 	"golang.org/x/exp/rand"
@@ -18,13 +17,6 @@ import (
 
 var (
 	hasher = blake3.New()
-
-	IgnoreQueries = lo.Map([]string{
-		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
-		`SELECT @@max_allowed_packet`,
-		`select connection_id()`,
-		`SELECT name from mysql.help_topic WHERE name like "SHOW %"`,
-	}, func(s string, _ int) [32]byte { return hash(hasher, []byte(s)) })
 )
 
 func init() {

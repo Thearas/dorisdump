@@ -23,6 +23,15 @@ var (
 	stmtMatchStart      = []byte("|Stmt=")
 	stmtMatchEnd        = []byte("|CpuTimeMS=")
 	cpuTimeMsMatchStart = stmtMatchEnd
+
+	IgnoreQueries = lo.Map([]string{
+		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
+		`SELECT @@max_allowed_packet`,
+		`SELECT DATABASE()`,
+		`SELECT name from mysql.help_topic WHERE name like "SHOW %"`,
+		`select @@version_comment limit 1`,
+		`select connection_id()`,
+	}, func(s string, _ int) [32]byte { return hash(hasher, []byte(s)) })
 )
 
 func auditlogQueryRe(dbs []string) string {
