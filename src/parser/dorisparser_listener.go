@@ -1,4 +1,4 @@
-// Code generated from DorisParser.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from ./DorisParser.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package parser // DorisParser
 import "github.com/antlr4-go/antlr/v4"
@@ -46,8 +46,8 @@ type DorisParserListener interface {
 	// EnterSupportedAlterStatementAlias is called when entering the supportedAlterStatementAlias production.
 	EnterSupportedAlterStatementAlias(c *SupportedAlterStatementAliasContext)
 
-	// EnterMaterailizedViewStatementAlias is called when entering the materailizedViewStatementAlias production.
-	EnterMaterailizedViewStatementAlias(c *MaterailizedViewStatementAliasContext)
+	// EnterMaterializedViewStatementAlias is called when entering the materializedViewStatementAlias production.
+	EnterMaterializedViewStatementAlias(c *MaterializedViewStatementAliasContext)
 
 	// EnterConstraintStatementAlias is called when entering the constraintStatementAlias production.
 	EnterConstraintStatementAlias(c *ConstraintStatementAliasContext)
@@ -106,9 +106,6 @@ type DorisParserListener interface {
 	// EnterLoad is called when entering the load production.
 	EnterLoad(c *LoadContext)
 
-	// EnterMysqlLoad is called when entering the mysqlLoad production.
-	EnterMysqlLoad(c *MysqlLoadContext)
-
 	// EnterExport is called when entering the export production.
 	EnterExport(c *ExportContext)
 
@@ -132,6 +129,495 @@ type DorisParserListener interface {
 
 	// EnterDropCatalogRecycleBin is called when entering the dropCatalogRecycleBin production.
 	EnterDropCatalogRecycleBin(c *DropCatalogRecycleBinContext)
+
+	// EnterHelp is called when entering the help production.
+	EnterHelp(c *HelpContext)
+
+	// EnterInstallPlugin is called when entering the installPlugin production.
+	EnterInstallPlugin(c *InstallPluginContext)
+
+	// EnterUninstallPlugin is called when entering the uninstallPlugin production.
+	EnterUninstallPlugin(c *UninstallPluginContext)
+
+	// EnterLockTables is called when entering the lockTables production.
+	EnterLockTables(c *LockTablesContext)
+
+	// EnterUnlockTables is called when entering the unlockTables production.
+	EnterUnlockTables(c *UnlockTablesContext)
+
+	// EnterWarmUpCluster is called when entering the warmUpCluster production.
+	EnterWarmUpCluster(c *WarmUpClusterContext)
+
+	// EnterBackup is called when entering the backup production.
+	EnterBackup(c *BackupContext)
+
+	// EnterRestore is called when entering the restore production.
+	EnterRestore(c *RestoreContext)
+
+	// EnterUnsupportedStartTransaction is called when entering the unsupportedStartTransaction production.
+	EnterUnsupportedStartTransaction(c *UnsupportedStartTransactionContext)
+
+	// EnterWarmUpItem is called when entering the warmUpItem production.
+	EnterWarmUpItem(c *WarmUpItemContext)
+
+	// EnterLockTable is called when entering the lockTable production.
+	EnterLockTable(c *LockTableContext)
+
+	// EnterShowSqlBlockRule is called when entering the showSqlBlockRule production.
+	EnterShowSqlBlockRule(c *ShowSqlBlockRuleContext)
+
+	// EnterShowRowPolicy is called when entering the showRowPolicy production.
+	EnterShowRowPolicy(c *ShowRowPolicyContext)
+
+	// EnterShowStoragePolicy is called when entering the showStoragePolicy production.
+	EnterShowStoragePolicy(c *ShowStoragePolicyContext)
+
+	// EnterShowStages is called when entering the showStages production.
+	EnterShowStages(c *ShowStagesContext)
+
+	// EnterShowStorageVault is called when entering the showStorageVault production.
+	EnterShowStorageVault(c *ShowStorageVaultContext)
+
+	// EnterShowCreateRepository is called when entering the showCreateRepository production.
+	EnterShowCreateRepository(c *ShowCreateRepositoryContext)
+
+	// EnterShowWhitelist is called when entering the showWhitelist production.
+	EnterShowWhitelist(c *ShowWhitelistContext)
+
+	// EnterShowVariables is called when entering the showVariables production.
+	EnterShowVariables(c *ShowVariablesContext)
+
+	// EnterShowOpenTables is called when entering the showOpenTables production.
+	EnterShowOpenTables(c *ShowOpenTablesContext)
+
+	// EnterShowTableStatus is called when entering the showTableStatus production.
+	EnterShowTableStatus(c *ShowTableStatusContext)
+
+	// EnterShowTables is called when entering the showTables production.
+	EnterShowTables(c *ShowTablesContext)
+
+	// EnterShowViews is called when entering the showViews production.
+	EnterShowViews(c *ShowViewsContext)
+
+	// EnterShowTableId is called when entering the showTableId production.
+	EnterShowTableId(c *ShowTableIdContext)
+
+	// EnterShowProcessList is called when entering the showProcessList production.
+	EnterShowProcessList(c *ShowProcessListContext)
+
+	// EnterShowStatus is called when entering the showStatus production.
+	EnterShowStatus(c *ShowStatusContext)
+
+	// EnterShowTriggers is called when entering the showTriggers production.
+	EnterShowTriggers(c *ShowTriggersContext)
+
+	// EnterShowEvents is called when entering the showEvents production.
+	EnterShowEvents(c *ShowEventsContext)
+
+	// EnterShowPlugins is called when entering the showPlugins production.
+	EnterShowPlugins(c *ShowPluginsContext)
+
+	// EnterShowStorageEngines is called when entering the showStorageEngines production.
+	EnterShowStorageEngines(c *ShowStorageEnginesContext)
+
+	// EnterShowAuthors is called when entering the showAuthors production.
+	EnterShowAuthors(c *ShowAuthorsContext)
+
+	// EnterShowCreateTable is called when entering the showCreateTable production.
+	EnterShowCreateTable(c *ShowCreateTableContext)
+
+	// EnterShowCreateView is called when entering the showCreateView production.
+	EnterShowCreateView(c *ShowCreateViewContext)
+
+	// EnterShowMaterializedView is called when entering the showMaterializedView production.
+	EnterShowMaterializedView(c *ShowMaterializedViewContext)
+
+	// EnterShowCreateDatabase is called when entering the showCreateDatabase production.
+	EnterShowCreateDatabase(c *ShowCreateDatabaseContext)
+
+	// EnterShowCreateCatalog is called when entering the showCreateCatalog production.
+	EnterShowCreateCatalog(c *ShowCreateCatalogContext)
+
+	// EnterShowCreateFunction is called when entering the showCreateFunction production.
+	EnterShowCreateFunction(c *ShowCreateFunctionContext)
+
+	// EnterShowDatabases is called when entering the showDatabases production.
+	EnterShowDatabases(c *ShowDatabasesContext)
+
+	// EnterShowDatabaseId is called when entering the showDatabaseId production.
+	EnterShowDatabaseId(c *ShowDatabaseIdContext)
+
+	// EnterShowDataTypes is called when entering the showDataTypes production.
+	EnterShowDataTypes(c *ShowDataTypesContext)
+
+	// EnterShowCatalogs is called when entering the showCatalogs production.
+	EnterShowCatalogs(c *ShowCatalogsContext)
+
+	// EnterShowCatalog is called when entering the showCatalog production.
+	EnterShowCatalog(c *ShowCatalogContext)
+
+	// EnterShowDynamicPartition is called when entering the showDynamicPartition production.
+	EnterShowDynamicPartition(c *ShowDynamicPartitionContext)
+
+	// EnterShowColumns is called when entering the showColumns production.
+	EnterShowColumns(c *ShowColumnsContext)
+
+	// EnterShowCollation is called when entering the showCollation production.
+	EnterShowCollation(c *ShowCollationContext)
+
+	// EnterShowCharset is called when entering the showCharset production.
+	EnterShowCharset(c *ShowCharsetContext)
+
+	// EnterShowProc is called when entering the showProc production.
+	EnterShowProc(c *ShowProcContext)
+
+	// EnterShowWaringErrorCount is called when entering the showWaringErrorCount production.
+	EnterShowWaringErrorCount(c *ShowWaringErrorCountContext)
+
+	// EnterShowWaringErrors is called when entering the showWaringErrors production.
+	EnterShowWaringErrors(c *ShowWaringErrorsContext)
+
+	// EnterShowLoadWarings is called when entering the showLoadWarings production.
+	EnterShowLoadWarings(c *ShowLoadWaringsContext)
+
+	// EnterShowLoad is called when entering the showLoad production.
+	EnterShowLoad(c *ShowLoadContext)
+
+	// EnterShowExport is called when entering the showExport production.
+	EnterShowExport(c *ShowExportContext)
+
+	// EnterShowDelete is called when entering the showDelete production.
+	EnterShowDelete(c *ShowDeleteContext)
+
+	// EnterShowAlterTable is called when entering the showAlterTable production.
+	EnterShowAlterTable(c *ShowAlterTableContext)
+
+	// EnterShowDataSkew is called when entering the showDataSkew production.
+	EnterShowDataSkew(c *ShowDataSkewContext)
+
+	// EnterShowData is called when entering the showData production.
+	EnterShowData(c *ShowDataContext)
+
+	// EnterShowPartitions is called when entering the showPartitions production.
+	EnterShowPartitions(c *ShowPartitionsContext)
+
+	// EnterShowPartitionId is called when entering the showPartitionId production.
+	EnterShowPartitionId(c *ShowPartitionIdContext)
+
+	// EnterShowTabletId is called when entering the showTabletId production.
+	EnterShowTabletId(c *ShowTabletIdContext)
+
+	// EnterShowTabletBelong is called when entering the showTabletBelong production.
+	EnterShowTabletBelong(c *ShowTabletBelongContext)
+
+	// EnterShowTabletsFromTable is called when entering the showTabletsFromTable production.
+	EnterShowTabletsFromTable(c *ShowTabletsFromTableContext)
+
+	// EnterShowUserProperties is called when entering the showUserProperties production.
+	EnterShowUserProperties(c *ShowUserPropertiesContext)
+
+	// EnterShowAllProperties is called when entering the showAllProperties production.
+	EnterShowAllProperties(c *ShowAllPropertiesContext)
+
+	// EnterShowBackup is called when entering the showBackup production.
+	EnterShowBackup(c *ShowBackupContext)
+
+	// EnterShowRestore is called when entering the showRestore production.
+	EnterShowRestore(c *ShowRestoreContext)
+
+	// EnterShowBroker is called when entering the showBroker production.
+	EnterShowBroker(c *ShowBrokerContext)
+
+	// EnterShowResources is called when entering the showResources production.
+	EnterShowResources(c *ShowResourcesContext)
+
+	// EnterShowWorkloadGroups is called when entering the showWorkloadGroups production.
+	EnterShowWorkloadGroups(c *ShowWorkloadGroupsContext)
+
+	// EnterShowBackends is called when entering the showBackends production.
+	EnterShowBackends(c *ShowBackendsContext)
+
+	// EnterShowTrash is called when entering the showTrash production.
+	EnterShowTrash(c *ShowTrashContext)
+
+	// EnterShowFrontends is called when entering the showFrontends production.
+	EnterShowFrontends(c *ShowFrontendsContext)
+
+	// EnterShowRepositories is called when entering the showRepositories production.
+	EnterShowRepositories(c *ShowRepositoriesContext)
+
+	// EnterShowSnapshot is called when entering the showSnapshot production.
+	EnterShowSnapshot(c *ShowSnapshotContext)
+
+	// EnterShowGrants is called when entering the showGrants production.
+	EnterShowGrants(c *ShowGrantsContext)
+
+	// EnterShowGrantsForUser is called when entering the showGrantsForUser production.
+	EnterShowGrantsForUser(c *ShowGrantsForUserContext)
+
+	// EnterShowRoles is called when entering the showRoles production.
+	EnterShowRoles(c *ShowRolesContext)
+
+	// EnterShowPrivileges is called when entering the showPrivileges production.
+	EnterShowPrivileges(c *ShowPrivilegesContext)
+
+	// EnterShowFunctions is called when entering the showFunctions production.
+	EnterShowFunctions(c *ShowFunctionsContext)
+
+	// EnterShowGlobalFunctions is called when entering the showGlobalFunctions production.
+	EnterShowGlobalFunctions(c *ShowGlobalFunctionsContext)
+
+	// EnterShowTypeCast is called when entering the showTypeCast production.
+	EnterShowTypeCast(c *ShowTypeCastContext)
+
+	// EnterShowSmallFiles is called when entering the showSmallFiles production.
+	EnterShowSmallFiles(c *ShowSmallFilesContext)
+
+	// EnterShowIndex is called when entering the showIndex production.
+	EnterShowIndex(c *ShowIndexContext)
+
+	// EnterShowView is called when entering the showView production.
+	EnterShowView(c *ShowViewContext)
+
+	// EnterShowTransaction is called when entering the showTransaction production.
+	EnterShowTransaction(c *ShowTransactionContext)
+
+	// EnterShowQueryProfile is called when entering the showQueryProfile production.
+	EnterShowQueryProfile(c *ShowQueryProfileContext)
+
+	// EnterShowLoadProfile is called when entering the showLoadProfile production.
+	EnterShowLoadProfile(c *ShowLoadProfileContext)
+
+	// EnterShowCacheHotSpot is called when entering the showCacheHotSpot production.
+	EnterShowCacheHotSpot(c *ShowCacheHotSpotContext)
+
+	// EnterShowEncryptKeys is called when entering the showEncryptKeys production.
+	EnterShowEncryptKeys(c *ShowEncryptKeysContext)
+
+	// EnterShowSyncJob is called when entering the showSyncJob production.
+	EnterShowSyncJob(c *ShowSyncJobContext)
+
+	// EnterShowTableCreation is called when entering the showTableCreation production.
+	EnterShowTableCreation(c *ShowTableCreationContext)
+
+	// EnterShowLastInsert is called when entering the showLastInsert production.
+	EnterShowLastInsert(c *ShowLastInsertContext)
+
+	// EnterShowCreateMaterializedView is called when entering the showCreateMaterializedView production.
+	EnterShowCreateMaterializedView(c *ShowCreateMaterializedViewContext)
+
+	// EnterShowCatalogRecycleBin is called when entering the showCatalogRecycleBin production.
+	EnterShowCatalogRecycleBin(c *ShowCatalogRecycleBinContext)
+
+	// EnterShowQueryStats is called when entering the showQueryStats production.
+	EnterShowQueryStats(c *ShowQueryStatsContext)
+
+	// EnterShowBuildIndex is called when entering the showBuildIndex production.
+	EnterShowBuildIndex(c *ShowBuildIndexContext)
+
+	// EnterShowClusters is called when entering the showClusters production.
+	EnterShowClusters(c *ShowClustersContext)
+
+	// EnterShowConvertLsc is called when entering the showConvertLsc production.
+	EnterShowConvertLsc(c *ShowConvertLscContext)
+
+	// EnterShowReplicaStatus is called when entering the showReplicaStatus production.
+	EnterShowReplicaStatus(c *ShowReplicaStatusContext)
+
+	// EnterShowREplicaDistribution is called when entering the showREplicaDistribution production.
+	EnterShowREplicaDistribution(c *ShowREplicaDistributionContext)
+
+	// EnterShowTabletStorageFormat is called when entering the showTabletStorageFormat production.
+	EnterShowTabletStorageFormat(c *ShowTabletStorageFormatContext)
+
+	// EnterShowDiagnoseTablet is called when entering the showDiagnoseTablet production.
+	EnterShowDiagnoseTablet(c *ShowDiagnoseTabletContext)
+
+	// EnterShowCopy is called when entering the showCopy production.
+	EnterShowCopy(c *ShowCopyContext)
+
+	// EnterShowWarmUpJob is called when entering the showWarmUpJob production.
+	EnterShowWarmUpJob(c *ShowWarmUpJobContext)
+
+	// EnterMysqlLoad is called when entering the mysqlLoad production.
+	EnterMysqlLoad(c *MysqlLoadContext)
+
+	// EnterCreateDataSyncJob is called when entering the createDataSyncJob production.
+	EnterCreateDataSyncJob(c *CreateDataSyncJobContext)
+
+	// EnterStopDataSyncJob is called when entering the stopDataSyncJob production.
+	EnterStopDataSyncJob(c *StopDataSyncJobContext)
+
+	// EnterResumeDataSyncJob is called when entering the resumeDataSyncJob production.
+	EnterResumeDataSyncJob(c *ResumeDataSyncJobContext)
+
+	// EnterPauseDataSyncJob is called when entering the pauseDataSyncJob production.
+	EnterPauseDataSyncJob(c *PauseDataSyncJobContext)
+
+	// EnterCreateRoutineLoadJob is called when entering the createRoutineLoadJob production.
+	EnterCreateRoutineLoadJob(c *CreateRoutineLoadJobContext)
+
+	// EnterPauseRoutineLoad is called when entering the pauseRoutineLoad production.
+	EnterPauseRoutineLoad(c *PauseRoutineLoadContext)
+
+	// EnterPauseAllRoutineLoad is called when entering the pauseAllRoutineLoad production.
+	EnterPauseAllRoutineLoad(c *PauseAllRoutineLoadContext)
+
+	// EnterResumeRoutineLoad is called when entering the resumeRoutineLoad production.
+	EnterResumeRoutineLoad(c *ResumeRoutineLoadContext)
+
+	// EnterResumeAllRoutineLoad is called when entering the resumeAllRoutineLoad production.
+	EnterResumeAllRoutineLoad(c *ResumeAllRoutineLoadContext)
+
+	// EnterStopRoutineLoad is called when entering the stopRoutineLoad production.
+	EnterStopRoutineLoad(c *StopRoutineLoadContext)
+
+	// EnterShowRoutineLoad is called when entering the showRoutineLoad production.
+	EnterShowRoutineLoad(c *ShowRoutineLoadContext)
+
+	// EnterShowRoutineLoadTask is called when entering the showRoutineLoadTask production.
+	EnterShowRoutineLoadTask(c *ShowRoutineLoadTaskContext)
+
+	// EnterShowCreateRoutineLoad is called when entering the showCreateRoutineLoad production.
+	EnterShowCreateRoutineLoad(c *ShowCreateRoutineLoadContext)
+
+	// EnterShowCreateLoad is called when entering the showCreateLoad production.
+	EnterShowCreateLoad(c *ShowCreateLoadContext)
+
+	// EnterSync is called when entering the sync production.
+	EnterSync(c *SyncContext)
+
+	// EnterImportSequenceStatementAlias is called when entering the importSequenceStatementAlias production.
+	EnterImportSequenceStatementAlias(c *ImportSequenceStatementAliasContext)
+
+	// EnterImportPrecedingFilterStatementAlias is called when entering the importPrecedingFilterStatementAlias production.
+	EnterImportPrecedingFilterStatementAlias(c *ImportPrecedingFilterStatementAliasContext)
+
+	// EnterImportWhereStatementAlias is called when entering the importWhereStatementAlias production.
+	EnterImportWhereStatementAlias(c *ImportWhereStatementAliasContext)
+
+	// EnterImportDeleteOnStatementAlias is called when entering the importDeleteOnStatementAlias production.
+	EnterImportDeleteOnStatementAlias(c *ImportDeleteOnStatementAliasContext)
+
+	// EnterImportColumnsStatementAlias is called when entering the importColumnsStatementAlias production.
+	EnterImportColumnsStatementAlias(c *ImportColumnsStatementAliasContext)
+
+	// EnterSeparator is called when entering the separator production.
+	EnterSeparator(c *SeparatorContext)
+
+	// EnterImportColumns is called when entering the importColumns production.
+	EnterImportColumns(c *ImportColumnsContext)
+
+	// EnterImportPrecedingFilter is called when entering the importPrecedingFilter production.
+	EnterImportPrecedingFilter(c *ImportPrecedingFilterContext)
+
+	// EnterImportWhere is called when entering the importWhere production.
+	EnterImportWhere(c *ImportWhereContext)
+
+	// EnterImportDeleteOn is called when entering the importDeleteOn production.
+	EnterImportDeleteOn(c *ImportDeleteOnContext)
+
+	// EnterImportSequence is called when entering the importSequence production.
+	EnterImportSequence(c *ImportSequenceContext)
+
+	// EnterImportPartitions is called when entering the importPartitions production.
+	EnterImportPartitions(c *ImportPartitionsContext)
+
+	// EnterImportSequenceStatement is called when entering the importSequenceStatement production.
+	EnterImportSequenceStatement(c *ImportSequenceStatementContext)
+
+	// EnterImportDeleteOnStatement is called when entering the importDeleteOnStatement production.
+	EnterImportDeleteOnStatement(c *ImportDeleteOnStatementContext)
+
+	// EnterImportWhereStatement is called when entering the importWhereStatement production.
+	EnterImportWhereStatement(c *ImportWhereStatementContext)
+
+	// EnterImportPrecedingFilterStatement is called when entering the importPrecedingFilterStatement production.
+	EnterImportPrecedingFilterStatement(c *ImportPrecedingFilterStatementContext)
+
+	// EnterImportColumnsStatement is called when entering the importColumnsStatement production.
+	EnterImportColumnsStatement(c *ImportColumnsStatementContext)
+
+	// EnterImportColumnDesc is called when entering the importColumnDesc production.
+	EnterImportColumnDesc(c *ImportColumnDescContext)
+
+	// EnterChannelDescriptions is called when entering the channelDescriptions production.
+	EnterChannelDescriptions(c *ChannelDescriptionsContext)
+
+	// EnterChannelDescription is called when entering the channelDescription production.
+	EnterChannelDescription(c *ChannelDescriptionContext)
+
+	// EnterRefreshTable is called when entering the refreshTable production.
+	EnterRefreshTable(c *RefreshTableContext)
+
+	// EnterRefreshDatabase is called when entering the refreshDatabase production.
+	EnterRefreshDatabase(c *RefreshDatabaseContext)
+
+	// EnterRefreshCatalog is called when entering the refreshCatalog production.
+	EnterRefreshCatalog(c *RefreshCatalogContext)
+
+	// EnterRefreshLdap is called when entering the refreshLdap production.
+	EnterRefreshLdap(c *RefreshLdapContext)
+
+	// EnterCleanLabel is called when entering the cleanLabel production.
+	EnterCleanLabel(c *CleanLabelContext)
+
+	// EnterCleanAllProfile is called when entering the cleanAllProfile production.
+	EnterCleanAllProfile(c *CleanAllProfileContext)
+
+	// EnterCleanQueryStats is called when entering the cleanQueryStats production.
+	EnterCleanQueryStats(c *CleanQueryStatsContext)
+
+	// EnterCleanAllQueryStats is called when entering the cleanAllQueryStats production.
+	EnterCleanAllQueryStats(c *CleanAllQueryStatsContext)
+
+	// EnterCreateJob is called when entering the createJob production.
+	EnterCreateJob(c *CreateJobContext)
+
+	// EnterPauseJob is called when entering the pauseJob production.
+	EnterPauseJob(c *PauseJobContext)
+
+	// EnterDropJob is called when entering the dropJob production.
+	EnterDropJob(c *DropJobContext)
+
+	// EnterResumeJob is called when entering the resumeJob production.
+	EnterResumeJob(c *ResumeJobContext)
+
+	// EnterCancelJobTask is called when entering the cancelJobTask production.
+	EnterCancelJobTask(c *CancelJobTaskContext)
+
+	// EnterCancelLoad is called when entering the cancelLoad production.
+	EnterCancelLoad(c *CancelLoadContext)
+
+	// EnterCancelExport is called when entering the cancelExport production.
+	EnterCancelExport(c *CancelExportContext)
+
+	// EnterCancelAlterTable is called when entering the cancelAlterTable production.
+	EnterCancelAlterTable(c *CancelAlterTableContext)
+
+	// EnterCancelBuildIndex is called when entering the cancelBuildIndex production.
+	EnterCancelBuildIndex(c *CancelBuildIndexContext)
+
+	// EnterCancelDecommisionBackend is called when entering the cancelDecommisionBackend production.
+	EnterCancelDecommisionBackend(c *CancelDecommisionBackendContext)
+
+	// EnterCancelBackup is called when entering the cancelBackup production.
+	EnterCancelBackup(c *CancelBackupContext)
+
+	// EnterCancelRestore is called when entering the cancelRestore production.
+	EnterCancelRestore(c *CancelRestoreContext)
+
+	// EnterCancelWarmUp is called when entering the cancelWarmUp production.
+	EnterCancelWarmUp(c *CancelWarmUpContext)
+
+	// EnterRecoverDatabase is called when entering the recoverDatabase production.
+	EnterRecoverDatabase(c *RecoverDatabaseContext)
+
+	// EnterRecoverTable is called when entering the recoverTable production.
+	EnterRecoverTable(c *RecoverTableContext)
+
+	// EnterRecoverPartition is called when entering the recoverPartition production.
+	EnterRecoverPartition(c *RecoverPartitionContext)
 
 	// EnterAdminShowReplicaStatus is called when entering the adminShowReplicaStatus production.
 	EnterAdminShowReplicaStatus(c *AdminShowReplicaStatusContext)
@@ -270,6 +756,9 @@ type DorisParserListener interface {
 
 	// EnterAlterUser is called when entering the alterUser production.
 	EnterAlterUser(c *AlterUserContext)
+
+	// EnterAlterRole is called when entering the alterRole production.
+	EnterAlterRole(c *AlterRoleContext)
 
 	// EnterAlterRepository is called when entering the alterRepository production.
 	EnterAlterRepository(c *AlterRepositoryContext)
@@ -448,6 +937,12 @@ type DorisParserListener interface {
 	// EnterDropStage is called when entering the dropStage production.
 	EnterDropStage(c *DropStageContext)
 
+	// EnterAnalyzeTable is called when entering the analyzeTable production.
+	EnterAnalyzeTable(c *AnalyzeTableContext)
+
+	// EnterAnalyzeDatabase is called when entering the analyzeDatabase production.
+	EnterAnalyzeDatabase(c *AnalyzeDatabaseContext)
+
 	// EnterAlterTableStats is called when entering the alterTableStats production.
 	EnterAlterTableStats(c *AlterTableStatsContext)
 
@@ -465,6 +960,36 @@ type DorisParserListener interface {
 
 	// EnterDropAanalyzeJob is called when entering the dropAanalyzeJob production.
 	EnterDropAanalyzeJob(c *DropAanalyzeJobContext)
+
+	// EnterKillAnalyzeJob is called when entering the killAnalyzeJob production.
+	EnterKillAnalyzeJob(c *KillAnalyzeJobContext)
+
+	// EnterShowTableStats is called when entering the showTableStats production.
+	EnterShowTableStats(c *ShowTableStatsContext)
+
+	// EnterShowIndexStats is called when entering the showIndexStats production.
+	EnterShowIndexStats(c *ShowIndexStatsContext)
+
+	// EnterShowColumnStats is called when entering the showColumnStats production.
+	EnterShowColumnStats(c *ShowColumnStatsContext)
+
+	// EnterShowColumnHistogramStats is called when entering the showColumnHistogramStats production.
+	EnterShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
+
+	// EnterShowAnalyze is called when entering the showAnalyze production.
+	EnterShowAnalyze(c *ShowAnalyzeContext)
+
+	// EnterShowAnalyzeFromJobId is called when entering the showAnalyzeFromJobId production.
+	EnterShowAnalyzeFromJobId(c *ShowAnalyzeFromJobIdContext)
+
+	// EnterShowAutoAnalyzeJobs is called when entering the showAutoAnalyzeJobs production.
+	EnterShowAutoAnalyzeJobs(c *ShowAutoAnalyzeJobsContext)
+
+	// EnterShowAnalyzeTask is called when entering the showAnalyzeTask production.
+	EnterShowAnalyzeTask(c *ShowAnalyzeTaskContext)
+
+	// EnterAnalyzeProperties is called when entering the analyzeProperties production.
+	EnterAnalyzeProperties(c *AnalyzePropertiesContext)
 
 	// EnterCreateDatabase is called when entering the createDatabase production.
 	EnterCreateDatabase(c *CreateDatabaseContext)
@@ -508,9 +1033,6 @@ type DorisParserListener interface {
 	// EnterCreateEncryptkey is called when entering the createEncryptkey production.
 	EnterCreateEncryptkey(c *CreateEncryptkeyContext)
 
-	// EnterCreateDataSyncJob is called when entering the createDataSyncJob production.
-	EnterCreateDataSyncJob(c *CreateDataSyncJobContext)
-
 	// EnterCreateSqlBlockRule is called when entering the createSqlBlockRule production.
 	EnterCreateSqlBlockRule(c *CreateSqlBlockRuleContext)
 
@@ -522,12 +1044,6 @@ type DorisParserListener interface {
 
 	// EnterCreateStage is called when entering the createStage production.
 	EnterCreateStage(c *CreateStageContext)
-
-	// EnterChannelDescriptions is called when entering the channelDescriptions production.
-	EnterChannelDescriptions(c *ChannelDescriptionsContext)
-
-	// EnterChannelDescription is called when entering the channelDescription production.
-	EnterChannelDescription(c *ChannelDescriptionContext)
 
 	// EnterWorkloadPolicyActions is called when entering the workloadPolicyActions production.
 	EnterWorkloadPolicyActions(c *WorkloadPolicyActionsContext)
@@ -612,6 +1128,12 @@ type DorisParserListener interface {
 
 	// EnterTruncateTable is called when entering the truncateTable production.
 	EnterTruncateTable(c *TruncateTableContext)
+
+	// EnterCopyInto is called when entering the copyInto production.
+	EnterCopyInto(c *CopyIntoContext)
+
+	// EnterStageAndPattern is called when entering the stageAndPattern production.
+	EnterStageAndPattern(c *StageAndPatternContext)
 
 	// EnterKillConnection is called when entering the killConnection production.
 	EnterKillConnection(c *KillConnectionContext)
@@ -1297,8 +1819,8 @@ type DorisParserListener interface {
 	// ExitSupportedAlterStatementAlias is called when exiting the supportedAlterStatementAlias production.
 	ExitSupportedAlterStatementAlias(c *SupportedAlterStatementAliasContext)
 
-	// ExitMaterailizedViewStatementAlias is called when exiting the materailizedViewStatementAlias production.
-	ExitMaterailizedViewStatementAlias(c *MaterailizedViewStatementAliasContext)
+	// ExitMaterializedViewStatementAlias is called when exiting the materializedViewStatementAlias production.
+	ExitMaterializedViewStatementAlias(c *MaterializedViewStatementAliasContext)
 
 	// ExitConstraintStatementAlias is called when exiting the constraintStatementAlias production.
 	ExitConstraintStatementAlias(c *ConstraintStatementAliasContext)
@@ -1357,9 +1879,6 @@ type DorisParserListener interface {
 	// ExitLoad is called when exiting the load production.
 	ExitLoad(c *LoadContext)
 
-	// ExitMysqlLoad is called when exiting the mysqlLoad production.
-	ExitMysqlLoad(c *MysqlLoadContext)
-
 	// ExitExport is called when exiting the export production.
 	ExitExport(c *ExportContext)
 
@@ -1383,6 +1902,495 @@ type DorisParserListener interface {
 
 	// ExitDropCatalogRecycleBin is called when exiting the dropCatalogRecycleBin production.
 	ExitDropCatalogRecycleBin(c *DropCatalogRecycleBinContext)
+
+	// ExitHelp is called when exiting the help production.
+	ExitHelp(c *HelpContext)
+
+	// ExitInstallPlugin is called when exiting the installPlugin production.
+	ExitInstallPlugin(c *InstallPluginContext)
+
+	// ExitUninstallPlugin is called when exiting the uninstallPlugin production.
+	ExitUninstallPlugin(c *UninstallPluginContext)
+
+	// ExitLockTables is called when exiting the lockTables production.
+	ExitLockTables(c *LockTablesContext)
+
+	// ExitUnlockTables is called when exiting the unlockTables production.
+	ExitUnlockTables(c *UnlockTablesContext)
+
+	// ExitWarmUpCluster is called when exiting the warmUpCluster production.
+	ExitWarmUpCluster(c *WarmUpClusterContext)
+
+	// ExitBackup is called when exiting the backup production.
+	ExitBackup(c *BackupContext)
+
+	// ExitRestore is called when exiting the restore production.
+	ExitRestore(c *RestoreContext)
+
+	// ExitUnsupportedStartTransaction is called when exiting the unsupportedStartTransaction production.
+	ExitUnsupportedStartTransaction(c *UnsupportedStartTransactionContext)
+
+	// ExitWarmUpItem is called when exiting the warmUpItem production.
+	ExitWarmUpItem(c *WarmUpItemContext)
+
+	// ExitLockTable is called when exiting the lockTable production.
+	ExitLockTable(c *LockTableContext)
+
+	// ExitShowSqlBlockRule is called when exiting the showSqlBlockRule production.
+	ExitShowSqlBlockRule(c *ShowSqlBlockRuleContext)
+
+	// ExitShowRowPolicy is called when exiting the showRowPolicy production.
+	ExitShowRowPolicy(c *ShowRowPolicyContext)
+
+	// ExitShowStoragePolicy is called when exiting the showStoragePolicy production.
+	ExitShowStoragePolicy(c *ShowStoragePolicyContext)
+
+	// ExitShowStages is called when exiting the showStages production.
+	ExitShowStages(c *ShowStagesContext)
+
+	// ExitShowStorageVault is called when exiting the showStorageVault production.
+	ExitShowStorageVault(c *ShowStorageVaultContext)
+
+	// ExitShowCreateRepository is called when exiting the showCreateRepository production.
+	ExitShowCreateRepository(c *ShowCreateRepositoryContext)
+
+	// ExitShowWhitelist is called when exiting the showWhitelist production.
+	ExitShowWhitelist(c *ShowWhitelistContext)
+
+	// ExitShowVariables is called when exiting the showVariables production.
+	ExitShowVariables(c *ShowVariablesContext)
+
+	// ExitShowOpenTables is called when exiting the showOpenTables production.
+	ExitShowOpenTables(c *ShowOpenTablesContext)
+
+	// ExitShowTableStatus is called when exiting the showTableStatus production.
+	ExitShowTableStatus(c *ShowTableStatusContext)
+
+	// ExitShowTables is called when exiting the showTables production.
+	ExitShowTables(c *ShowTablesContext)
+
+	// ExitShowViews is called when exiting the showViews production.
+	ExitShowViews(c *ShowViewsContext)
+
+	// ExitShowTableId is called when exiting the showTableId production.
+	ExitShowTableId(c *ShowTableIdContext)
+
+	// ExitShowProcessList is called when exiting the showProcessList production.
+	ExitShowProcessList(c *ShowProcessListContext)
+
+	// ExitShowStatus is called when exiting the showStatus production.
+	ExitShowStatus(c *ShowStatusContext)
+
+	// ExitShowTriggers is called when exiting the showTriggers production.
+	ExitShowTriggers(c *ShowTriggersContext)
+
+	// ExitShowEvents is called when exiting the showEvents production.
+	ExitShowEvents(c *ShowEventsContext)
+
+	// ExitShowPlugins is called when exiting the showPlugins production.
+	ExitShowPlugins(c *ShowPluginsContext)
+
+	// ExitShowStorageEngines is called when exiting the showStorageEngines production.
+	ExitShowStorageEngines(c *ShowStorageEnginesContext)
+
+	// ExitShowAuthors is called when exiting the showAuthors production.
+	ExitShowAuthors(c *ShowAuthorsContext)
+
+	// ExitShowCreateTable is called when exiting the showCreateTable production.
+	ExitShowCreateTable(c *ShowCreateTableContext)
+
+	// ExitShowCreateView is called when exiting the showCreateView production.
+	ExitShowCreateView(c *ShowCreateViewContext)
+
+	// ExitShowMaterializedView is called when exiting the showMaterializedView production.
+	ExitShowMaterializedView(c *ShowMaterializedViewContext)
+
+	// ExitShowCreateDatabase is called when exiting the showCreateDatabase production.
+	ExitShowCreateDatabase(c *ShowCreateDatabaseContext)
+
+	// ExitShowCreateCatalog is called when exiting the showCreateCatalog production.
+	ExitShowCreateCatalog(c *ShowCreateCatalogContext)
+
+	// ExitShowCreateFunction is called when exiting the showCreateFunction production.
+	ExitShowCreateFunction(c *ShowCreateFunctionContext)
+
+	// ExitShowDatabases is called when exiting the showDatabases production.
+	ExitShowDatabases(c *ShowDatabasesContext)
+
+	// ExitShowDatabaseId is called when exiting the showDatabaseId production.
+	ExitShowDatabaseId(c *ShowDatabaseIdContext)
+
+	// ExitShowDataTypes is called when exiting the showDataTypes production.
+	ExitShowDataTypes(c *ShowDataTypesContext)
+
+	// ExitShowCatalogs is called when exiting the showCatalogs production.
+	ExitShowCatalogs(c *ShowCatalogsContext)
+
+	// ExitShowCatalog is called when exiting the showCatalog production.
+	ExitShowCatalog(c *ShowCatalogContext)
+
+	// ExitShowDynamicPartition is called when exiting the showDynamicPartition production.
+	ExitShowDynamicPartition(c *ShowDynamicPartitionContext)
+
+	// ExitShowColumns is called when exiting the showColumns production.
+	ExitShowColumns(c *ShowColumnsContext)
+
+	// ExitShowCollation is called when exiting the showCollation production.
+	ExitShowCollation(c *ShowCollationContext)
+
+	// ExitShowCharset is called when exiting the showCharset production.
+	ExitShowCharset(c *ShowCharsetContext)
+
+	// ExitShowProc is called when exiting the showProc production.
+	ExitShowProc(c *ShowProcContext)
+
+	// ExitShowWaringErrorCount is called when exiting the showWaringErrorCount production.
+	ExitShowWaringErrorCount(c *ShowWaringErrorCountContext)
+
+	// ExitShowWaringErrors is called when exiting the showWaringErrors production.
+	ExitShowWaringErrors(c *ShowWaringErrorsContext)
+
+	// ExitShowLoadWarings is called when exiting the showLoadWarings production.
+	ExitShowLoadWarings(c *ShowLoadWaringsContext)
+
+	// ExitShowLoad is called when exiting the showLoad production.
+	ExitShowLoad(c *ShowLoadContext)
+
+	// ExitShowExport is called when exiting the showExport production.
+	ExitShowExport(c *ShowExportContext)
+
+	// ExitShowDelete is called when exiting the showDelete production.
+	ExitShowDelete(c *ShowDeleteContext)
+
+	// ExitShowAlterTable is called when exiting the showAlterTable production.
+	ExitShowAlterTable(c *ShowAlterTableContext)
+
+	// ExitShowDataSkew is called when exiting the showDataSkew production.
+	ExitShowDataSkew(c *ShowDataSkewContext)
+
+	// ExitShowData is called when exiting the showData production.
+	ExitShowData(c *ShowDataContext)
+
+	// ExitShowPartitions is called when exiting the showPartitions production.
+	ExitShowPartitions(c *ShowPartitionsContext)
+
+	// ExitShowPartitionId is called when exiting the showPartitionId production.
+	ExitShowPartitionId(c *ShowPartitionIdContext)
+
+	// ExitShowTabletId is called when exiting the showTabletId production.
+	ExitShowTabletId(c *ShowTabletIdContext)
+
+	// ExitShowTabletBelong is called when exiting the showTabletBelong production.
+	ExitShowTabletBelong(c *ShowTabletBelongContext)
+
+	// ExitShowTabletsFromTable is called when exiting the showTabletsFromTable production.
+	ExitShowTabletsFromTable(c *ShowTabletsFromTableContext)
+
+	// ExitShowUserProperties is called when exiting the showUserProperties production.
+	ExitShowUserProperties(c *ShowUserPropertiesContext)
+
+	// ExitShowAllProperties is called when exiting the showAllProperties production.
+	ExitShowAllProperties(c *ShowAllPropertiesContext)
+
+	// ExitShowBackup is called when exiting the showBackup production.
+	ExitShowBackup(c *ShowBackupContext)
+
+	// ExitShowRestore is called when exiting the showRestore production.
+	ExitShowRestore(c *ShowRestoreContext)
+
+	// ExitShowBroker is called when exiting the showBroker production.
+	ExitShowBroker(c *ShowBrokerContext)
+
+	// ExitShowResources is called when exiting the showResources production.
+	ExitShowResources(c *ShowResourcesContext)
+
+	// ExitShowWorkloadGroups is called when exiting the showWorkloadGroups production.
+	ExitShowWorkloadGroups(c *ShowWorkloadGroupsContext)
+
+	// ExitShowBackends is called when exiting the showBackends production.
+	ExitShowBackends(c *ShowBackendsContext)
+
+	// ExitShowTrash is called when exiting the showTrash production.
+	ExitShowTrash(c *ShowTrashContext)
+
+	// ExitShowFrontends is called when exiting the showFrontends production.
+	ExitShowFrontends(c *ShowFrontendsContext)
+
+	// ExitShowRepositories is called when exiting the showRepositories production.
+	ExitShowRepositories(c *ShowRepositoriesContext)
+
+	// ExitShowSnapshot is called when exiting the showSnapshot production.
+	ExitShowSnapshot(c *ShowSnapshotContext)
+
+	// ExitShowGrants is called when exiting the showGrants production.
+	ExitShowGrants(c *ShowGrantsContext)
+
+	// ExitShowGrantsForUser is called when exiting the showGrantsForUser production.
+	ExitShowGrantsForUser(c *ShowGrantsForUserContext)
+
+	// ExitShowRoles is called when exiting the showRoles production.
+	ExitShowRoles(c *ShowRolesContext)
+
+	// ExitShowPrivileges is called when exiting the showPrivileges production.
+	ExitShowPrivileges(c *ShowPrivilegesContext)
+
+	// ExitShowFunctions is called when exiting the showFunctions production.
+	ExitShowFunctions(c *ShowFunctionsContext)
+
+	// ExitShowGlobalFunctions is called when exiting the showGlobalFunctions production.
+	ExitShowGlobalFunctions(c *ShowGlobalFunctionsContext)
+
+	// ExitShowTypeCast is called when exiting the showTypeCast production.
+	ExitShowTypeCast(c *ShowTypeCastContext)
+
+	// ExitShowSmallFiles is called when exiting the showSmallFiles production.
+	ExitShowSmallFiles(c *ShowSmallFilesContext)
+
+	// ExitShowIndex is called when exiting the showIndex production.
+	ExitShowIndex(c *ShowIndexContext)
+
+	// ExitShowView is called when exiting the showView production.
+	ExitShowView(c *ShowViewContext)
+
+	// ExitShowTransaction is called when exiting the showTransaction production.
+	ExitShowTransaction(c *ShowTransactionContext)
+
+	// ExitShowQueryProfile is called when exiting the showQueryProfile production.
+	ExitShowQueryProfile(c *ShowQueryProfileContext)
+
+	// ExitShowLoadProfile is called when exiting the showLoadProfile production.
+	ExitShowLoadProfile(c *ShowLoadProfileContext)
+
+	// ExitShowCacheHotSpot is called when exiting the showCacheHotSpot production.
+	ExitShowCacheHotSpot(c *ShowCacheHotSpotContext)
+
+	// ExitShowEncryptKeys is called when exiting the showEncryptKeys production.
+	ExitShowEncryptKeys(c *ShowEncryptKeysContext)
+
+	// ExitShowSyncJob is called when exiting the showSyncJob production.
+	ExitShowSyncJob(c *ShowSyncJobContext)
+
+	// ExitShowTableCreation is called when exiting the showTableCreation production.
+	ExitShowTableCreation(c *ShowTableCreationContext)
+
+	// ExitShowLastInsert is called when exiting the showLastInsert production.
+	ExitShowLastInsert(c *ShowLastInsertContext)
+
+	// ExitShowCreateMaterializedView is called when exiting the showCreateMaterializedView production.
+	ExitShowCreateMaterializedView(c *ShowCreateMaterializedViewContext)
+
+	// ExitShowCatalogRecycleBin is called when exiting the showCatalogRecycleBin production.
+	ExitShowCatalogRecycleBin(c *ShowCatalogRecycleBinContext)
+
+	// ExitShowQueryStats is called when exiting the showQueryStats production.
+	ExitShowQueryStats(c *ShowQueryStatsContext)
+
+	// ExitShowBuildIndex is called when exiting the showBuildIndex production.
+	ExitShowBuildIndex(c *ShowBuildIndexContext)
+
+	// ExitShowClusters is called when exiting the showClusters production.
+	ExitShowClusters(c *ShowClustersContext)
+
+	// ExitShowConvertLsc is called when exiting the showConvertLsc production.
+	ExitShowConvertLsc(c *ShowConvertLscContext)
+
+	// ExitShowReplicaStatus is called when exiting the showReplicaStatus production.
+	ExitShowReplicaStatus(c *ShowReplicaStatusContext)
+
+	// ExitShowREplicaDistribution is called when exiting the showREplicaDistribution production.
+	ExitShowREplicaDistribution(c *ShowREplicaDistributionContext)
+
+	// ExitShowTabletStorageFormat is called when exiting the showTabletStorageFormat production.
+	ExitShowTabletStorageFormat(c *ShowTabletStorageFormatContext)
+
+	// ExitShowDiagnoseTablet is called when exiting the showDiagnoseTablet production.
+	ExitShowDiagnoseTablet(c *ShowDiagnoseTabletContext)
+
+	// ExitShowCopy is called when exiting the showCopy production.
+	ExitShowCopy(c *ShowCopyContext)
+
+	// ExitShowWarmUpJob is called when exiting the showWarmUpJob production.
+	ExitShowWarmUpJob(c *ShowWarmUpJobContext)
+
+	// ExitMysqlLoad is called when exiting the mysqlLoad production.
+	ExitMysqlLoad(c *MysqlLoadContext)
+
+	// ExitCreateDataSyncJob is called when exiting the createDataSyncJob production.
+	ExitCreateDataSyncJob(c *CreateDataSyncJobContext)
+
+	// ExitStopDataSyncJob is called when exiting the stopDataSyncJob production.
+	ExitStopDataSyncJob(c *StopDataSyncJobContext)
+
+	// ExitResumeDataSyncJob is called when exiting the resumeDataSyncJob production.
+	ExitResumeDataSyncJob(c *ResumeDataSyncJobContext)
+
+	// ExitPauseDataSyncJob is called when exiting the pauseDataSyncJob production.
+	ExitPauseDataSyncJob(c *PauseDataSyncJobContext)
+
+	// ExitCreateRoutineLoadJob is called when exiting the createRoutineLoadJob production.
+	ExitCreateRoutineLoadJob(c *CreateRoutineLoadJobContext)
+
+	// ExitPauseRoutineLoad is called when exiting the pauseRoutineLoad production.
+	ExitPauseRoutineLoad(c *PauseRoutineLoadContext)
+
+	// ExitPauseAllRoutineLoad is called when exiting the pauseAllRoutineLoad production.
+	ExitPauseAllRoutineLoad(c *PauseAllRoutineLoadContext)
+
+	// ExitResumeRoutineLoad is called when exiting the resumeRoutineLoad production.
+	ExitResumeRoutineLoad(c *ResumeRoutineLoadContext)
+
+	// ExitResumeAllRoutineLoad is called when exiting the resumeAllRoutineLoad production.
+	ExitResumeAllRoutineLoad(c *ResumeAllRoutineLoadContext)
+
+	// ExitStopRoutineLoad is called when exiting the stopRoutineLoad production.
+	ExitStopRoutineLoad(c *StopRoutineLoadContext)
+
+	// ExitShowRoutineLoad is called when exiting the showRoutineLoad production.
+	ExitShowRoutineLoad(c *ShowRoutineLoadContext)
+
+	// ExitShowRoutineLoadTask is called when exiting the showRoutineLoadTask production.
+	ExitShowRoutineLoadTask(c *ShowRoutineLoadTaskContext)
+
+	// ExitShowCreateRoutineLoad is called when exiting the showCreateRoutineLoad production.
+	ExitShowCreateRoutineLoad(c *ShowCreateRoutineLoadContext)
+
+	// ExitShowCreateLoad is called when exiting the showCreateLoad production.
+	ExitShowCreateLoad(c *ShowCreateLoadContext)
+
+	// ExitSync is called when exiting the sync production.
+	ExitSync(c *SyncContext)
+
+	// ExitImportSequenceStatementAlias is called when exiting the importSequenceStatementAlias production.
+	ExitImportSequenceStatementAlias(c *ImportSequenceStatementAliasContext)
+
+	// ExitImportPrecedingFilterStatementAlias is called when exiting the importPrecedingFilterStatementAlias production.
+	ExitImportPrecedingFilterStatementAlias(c *ImportPrecedingFilterStatementAliasContext)
+
+	// ExitImportWhereStatementAlias is called when exiting the importWhereStatementAlias production.
+	ExitImportWhereStatementAlias(c *ImportWhereStatementAliasContext)
+
+	// ExitImportDeleteOnStatementAlias is called when exiting the importDeleteOnStatementAlias production.
+	ExitImportDeleteOnStatementAlias(c *ImportDeleteOnStatementAliasContext)
+
+	// ExitImportColumnsStatementAlias is called when exiting the importColumnsStatementAlias production.
+	ExitImportColumnsStatementAlias(c *ImportColumnsStatementAliasContext)
+
+	// ExitSeparator is called when exiting the separator production.
+	ExitSeparator(c *SeparatorContext)
+
+	// ExitImportColumns is called when exiting the importColumns production.
+	ExitImportColumns(c *ImportColumnsContext)
+
+	// ExitImportPrecedingFilter is called when exiting the importPrecedingFilter production.
+	ExitImportPrecedingFilter(c *ImportPrecedingFilterContext)
+
+	// ExitImportWhere is called when exiting the importWhere production.
+	ExitImportWhere(c *ImportWhereContext)
+
+	// ExitImportDeleteOn is called when exiting the importDeleteOn production.
+	ExitImportDeleteOn(c *ImportDeleteOnContext)
+
+	// ExitImportSequence is called when exiting the importSequence production.
+	ExitImportSequence(c *ImportSequenceContext)
+
+	// ExitImportPartitions is called when exiting the importPartitions production.
+	ExitImportPartitions(c *ImportPartitionsContext)
+
+	// ExitImportSequenceStatement is called when exiting the importSequenceStatement production.
+	ExitImportSequenceStatement(c *ImportSequenceStatementContext)
+
+	// ExitImportDeleteOnStatement is called when exiting the importDeleteOnStatement production.
+	ExitImportDeleteOnStatement(c *ImportDeleteOnStatementContext)
+
+	// ExitImportWhereStatement is called when exiting the importWhereStatement production.
+	ExitImportWhereStatement(c *ImportWhereStatementContext)
+
+	// ExitImportPrecedingFilterStatement is called when exiting the importPrecedingFilterStatement production.
+	ExitImportPrecedingFilterStatement(c *ImportPrecedingFilterStatementContext)
+
+	// ExitImportColumnsStatement is called when exiting the importColumnsStatement production.
+	ExitImportColumnsStatement(c *ImportColumnsStatementContext)
+
+	// ExitImportColumnDesc is called when exiting the importColumnDesc production.
+	ExitImportColumnDesc(c *ImportColumnDescContext)
+
+	// ExitChannelDescriptions is called when exiting the channelDescriptions production.
+	ExitChannelDescriptions(c *ChannelDescriptionsContext)
+
+	// ExitChannelDescription is called when exiting the channelDescription production.
+	ExitChannelDescription(c *ChannelDescriptionContext)
+
+	// ExitRefreshTable is called when exiting the refreshTable production.
+	ExitRefreshTable(c *RefreshTableContext)
+
+	// ExitRefreshDatabase is called when exiting the refreshDatabase production.
+	ExitRefreshDatabase(c *RefreshDatabaseContext)
+
+	// ExitRefreshCatalog is called when exiting the refreshCatalog production.
+	ExitRefreshCatalog(c *RefreshCatalogContext)
+
+	// ExitRefreshLdap is called when exiting the refreshLdap production.
+	ExitRefreshLdap(c *RefreshLdapContext)
+
+	// ExitCleanLabel is called when exiting the cleanLabel production.
+	ExitCleanLabel(c *CleanLabelContext)
+
+	// ExitCleanAllProfile is called when exiting the cleanAllProfile production.
+	ExitCleanAllProfile(c *CleanAllProfileContext)
+
+	// ExitCleanQueryStats is called when exiting the cleanQueryStats production.
+	ExitCleanQueryStats(c *CleanQueryStatsContext)
+
+	// ExitCleanAllQueryStats is called when exiting the cleanAllQueryStats production.
+	ExitCleanAllQueryStats(c *CleanAllQueryStatsContext)
+
+	// ExitCreateJob is called when exiting the createJob production.
+	ExitCreateJob(c *CreateJobContext)
+
+	// ExitPauseJob is called when exiting the pauseJob production.
+	ExitPauseJob(c *PauseJobContext)
+
+	// ExitDropJob is called when exiting the dropJob production.
+	ExitDropJob(c *DropJobContext)
+
+	// ExitResumeJob is called when exiting the resumeJob production.
+	ExitResumeJob(c *ResumeJobContext)
+
+	// ExitCancelJobTask is called when exiting the cancelJobTask production.
+	ExitCancelJobTask(c *CancelJobTaskContext)
+
+	// ExitCancelLoad is called when exiting the cancelLoad production.
+	ExitCancelLoad(c *CancelLoadContext)
+
+	// ExitCancelExport is called when exiting the cancelExport production.
+	ExitCancelExport(c *CancelExportContext)
+
+	// ExitCancelAlterTable is called when exiting the cancelAlterTable production.
+	ExitCancelAlterTable(c *CancelAlterTableContext)
+
+	// ExitCancelBuildIndex is called when exiting the cancelBuildIndex production.
+	ExitCancelBuildIndex(c *CancelBuildIndexContext)
+
+	// ExitCancelDecommisionBackend is called when exiting the cancelDecommisionBackend production.
+	ExitCancelDecommisionBackend(c *CancelDecommisionBackendContext)
+
+	// ExitCancelBackup is called when exiting the cancelBackup production.
+	ExitCancelBackup(c *CancelBackupContext)
+
+	// ExitCancelRestore is called when exiting the cancelRestore production.
+	ExitCancelRestore(c *CancelRestoreContext)
+
+	// ExitCancelWarmUp is called when exiting the cancelWarmUp production.
+	ExitCancelWarmUp(c *CancelWarmUpContext)
+
+	// ExitRecoverDatabase is called when exiting the recoverDatabase production.
+	ExitRecoverDatabase(c *RecoverDatabaseContext)
+
+	// ExitRecoverTable is called when exiting the recoverTable production.
+	ExitRecoverTable(c *RecoverTableContext)
+
+	// ExitRecoverPartition is called when exiting the recoverPartition production.
+	ExitRecoverPartition(c *RecoverPartitionContext)
 
 	// ExitAdminShowReplicaStatus is called when exiting the adminShowReplicaStatus production.
 	ExitAdminShowReplicaStatus(c *AdminShowReplicaStatusContext)
@@ -1521,6 +2529,9 @@ type DorisParserListener interface {
 
 	// ExitAlterUser is called when exiting the alterUser production.
 	ExitAlterUser(c *AlterUserContext)
+
+	// ExitAlterRole is called when exiting the alterRole production.
+	ExitAlterRole(c *AlterRoleContext)
 
 	// ExitAlterRepository is called when exiting the alterRepository production.
 	ExitAlterRepository(c *AlterRepositoryContext)
@@ -1699,6 +2710,12 @@ type DorisParserListener interface {
 	// ExitDropStage is called when exiting the dropStage production.
 	ExitDropStage(c *DropStageContext)
 
+	// ExitAnalyzeTable is called when exiting the analyzeTable production.
+	ExitAnalyzeTable(c *AnalyzeTableContext)
+
+	// ExitAnalyzeDatabase is called when exiting the analyzeDatabase production.
+	ExitAnalyzeDatabase(c *AnalyzeDatabaseContext)
+
 	// ExitAlterTableStats is called when exiting the alterTableStats production.
 	ExitAlterTableStats(c *AlterTableStatsContext)
 
@@ -1716,6 +2733,36 @@ type DorisParserListener interface {
 
 	// ExitDropAanalyzeJob is called when exiting the dropAanalyzeJob production.
 	ExitDropAanalyzeJob(c *DropAanalyzeJobContext)
+
+	// ExitKillAnalyzeJob is called when exiting the killAnalyzeJob production.
+	ExitKillAnalyzeJob(c *KillAnalyzeJobContext)
+
+	// ExitShowTableStats is called when exiting the showTableStats production.
+	ExitShowTableStats(c *ShowTableStatsContext)
+
+	// ExitShowIndexStats is called when exiting the showIndexStats production.
+	ExitShowIndexStats(c *ShowIndexStatsContext)
+
+	// ExitShowColumnStats is called when exiting the showColumnStats production.
+	ExitShowColumnStats(c *ShowColumnStatsContext)
+
+	// ExitShowColumnHistogramStats is called when exiting the showColumnHistogramStats production.
+	ExitShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
+
+	// ExitShowAnalyze is called when exiting the showAnalyze production.
+	ExitShowAnalyze(c *ShowAnalyzeContext)
+
+	// ExitShowAnalyzeFromJobId is called when exiting the showAnalyzeFromJobId production.
+	ExitShowAnalyzeFromJobId(c *ShowAnalyzeFromJobIdContext)
+
+	// ExitShowAutoAnalyzeJobs is called when exiting the showAutoAnalyzeJobs production.
+	ExitShowAutoAnalyzeJobs(c *ShowAutoAnalyzeJobsContext)
+
+	// ExitShowAnalyzeTask is called when exiting the showAnalyzeTask production.
+	ExitShowAnalyzeTask(c *ShowAnalyzeTaskContext)
+
+	// ExitAnalyzeProperties is called when exiting the analyzeProperties production.
+	ExitAnalyzeProperties(c *AnalyzePropertiesContext)
 
 	// ExitCreateDatabase is called when exiting the createDatabase production.
 	ExitCreateDatabase(c *CreateDatabaseContext)
@@ -1759,9 +2806,6 @@ type DorisParserListener interface {
 	// ExitCreateEncryptkey is called when exiting the createEncryptkey production.
 	ExitCreateEncryptkey(c *CreateEncryptkeyContext)
 
-	// ExitCreateDataSyncJob is called when exiting the createDataSyncJob production.
-	ExitCreateDataSyncJob(c *CreateDataSyncJobContext)
-
 	// ExitCreateSqlBlockRule is called when exiting the createSqlBlockRule production.
 	ExitCreateSqlBlockRule(c *CreateSqlBlockRuleContext)
 
@@ -1773,12 +2817,6 @@ type DorisParserListener interface {
 
 	// ExitCreateStage is called when exiting the createStage production.
 	ExitCreateStage(c *CreateStageContext)
-
-	// ExitChannelDescriptions is called when exiting the channelDescriptions production.
-	ExitChannelDescriptions(c *ChannelDescriptionsContext)
-
-	// ExitChannelDescription is called when exiting the channelDescription production.
-	ExitChannelDescription(c *ChannelDescriptionContext)
 
 	// ExitWorkloadPolicyActions is called when exiting the workloadPolicyActions production.
 	ExitWorkloadPolicyActions(c *WorkloadPolicyActionsContext)
@@ -1863,6 +2901,12 @@ type DorisParserListener interface {
 
 	// ExitTruncateTable is called when exiting the truncateTable production.
 	ExitTruncateTable(c *TruncateTableContext)
+
+	// ExitCopyInto is called when exiting the copyInto production.
+	ExitCopyInto(c *CopyIntoContext)
+
+	// ExitStageAndPattern is called when exiting the stageAndPattern production.
+	ExitStageAndPattern(c *StageAndPatternContext)
 
 	// ExitKillConnection is called when exiting the killConnection production.
 	ExitKillConnection(c *KillConnectionContext)

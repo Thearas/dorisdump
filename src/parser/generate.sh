@@ -72,4 +72,4 @@ sd -fms -n1 '^@members\s*\{.*^\}$' "$parserReplacer" DorisParser.g4.new
 mv DorisParser.g4.new DorisParser.g4
 
 echo "Generating Go antlr4 parser code ..."
-# antlr4 -Dlanguage=Go -package parser ./*.g4
+antlr4 -Dlanguage=Go -package parser ./*.g4
