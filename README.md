@@ -37,3 +37,9 @@ dorisdump dump --dbs db1 --dump-schema --dump-query --anonymize --ssh-password '
     - [hyperscan](https://intel.github.io/hyperscan) (linux-amd64 only)
 
 2. Run `make`
+
+## Update Doris Parser
+
+```sh
+make gen
+```
