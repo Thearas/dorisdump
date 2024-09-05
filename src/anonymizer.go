@@ -37,35 +37,13 @@ func SetupAnonymizer(idMinLength int, reserveIds ...string) {
 	AnonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
 }
 
-func AnonymizeSqlsInPlace(method string, sqls []string, parallel int) {
-	// check vaild
-	anonymizeF := getAnonymizeFunc(method)
-	if anonymizeF == nil {
-		return
-	}
-
-	g := ParallelGroup(parallel)
-
-	for i := range sqls {
-		i, sql := i, sqls[i]
-		g.Go(func() error {
-			sqls[i] = AnonymizeSql(method, sql)
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		logrus.Warnln("Anonymization sql error:", err)
-	}
-}
-
-func AnonymizeSql(method string, sql string) string {
+func AnonymizeSql(method string, sqlId, sql string) string {
 	anonymizeF := getAnonymizeFunc(method)
 	if anonymizeF == nil {
 		return sql
 	}
 
-	p := parser.NewParser(sql, parser.NewListener(true, anonymizeF))
+	p := parser.NewParser(sqlId, sql, parser.NewListener(true, anonymizeF))
 
 	return p.ToSQL()
 }

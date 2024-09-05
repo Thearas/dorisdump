@@ -20,7 +20,7 @@ PROPERTIES (
 'bloom_filter_columns' = "dt_month,company_code"
 );`
 
-	p := NewParser(sql, NewListener(false, func(s string, _ bool) string { return "foo" }))
+	p := NewParser("1", sql, NewListener(false, func(s string, _ bool) string { return "foo" }))
 	assert.Equal(t, `CREATE TABLE foo (
 foo varchar(6) NULL,
 foo varchar(40) NULL
@@ -68,7 +68,7 @@ PROPERTIES (
 	}
 
 	for _, sql := range sqls {
-		p := NewParser(sql, NewListener(false, func(s string, _ bool) string { return s }))
+		p := NewParser("1", sql, NewListener(false, func(s string, _ bool) string { return s }))
 
 		sql = strings.ReplaceAll(sql, "`", "")
 

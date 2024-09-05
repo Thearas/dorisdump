@@ -63,7 +63,7 @@ var anonymizeCmd = &cobra.Command{
 
 		src.SetupAnonymizer(AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
 
-		sql := src.AnonymizeSql(AnonymizeConfig.Method, string(input))
+		sql := src.AnonymizeSql(AnonymizeConfig.Method, "", string(input))
 		fmt.Println(sql)
 
 		return nil

@@ -226,17 +226,21 @@ func outputSchemas(schemas []*src.Schema) error {
 	for _, s := range schemas {
 		s := s
 		g.Go(func() error {
+			var filename string
 			if AnonymizeConfig.Enabled {
 				s.DB = src.Anonymize(AnonymizeConfig.Method, s.DB)
 				s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
-				s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, s.CreateStmt)
+			}
+
+			filename = fmt.Sprintf("%s.%s.%s.sql", s.DB, s.Name, s.Type.Lower())
+			if AnonymizeConfig.Enabled {
+				s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, filename, s.CreateStmt)
 			}
 
 			if printSql {
 				logrus.Tracef("schema: %+v\n", *s)
 			}
 
-			filename := fmt.Sprintf("%s.%s.%s.sql", s.DB, s.Name, s.Type.Lower())
 			path := filepath.Join(DumpConfig.OutputDDLDir, filename)
 			if GlobalConfig.DryRun {
 				return nil
@@ -322,11 +326,10 @@ func outputQueries(queries []string) error {
 	for i, query := range queries {
 		i, query := i, query
 		g.Go(func() error {
-			if AnonymizeConfig.Enabled {
-				query = src.AnonymizeSql(AnonymizeConfig.Method, query)
-			}
-
 			name := fmt.Sprintf(format, i)
+			if AnonymizeConfig.Enabled {
+				query = src.AnonymizeSql(AnonymizeConfig.Method, name, query)
+			}
 
 			if printSql {
 				logrus.Tracef("queries %s: %+v\n", name, query)

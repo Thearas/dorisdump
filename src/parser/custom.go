@@ -6,6 +6,7 @@ import (
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/samber/lo"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -20,17 +21,32 @@ func NewListener(hideSqlComment bool, modifyIdentifier func(id string, ignoreBui
 	return &listener{hideSqlComment: hideSqlComment, modifyIdentifier: modifyIdentifier}
 }
 
-func NewParser(sqls string, listeners ...antlr.ParseTreeListener) *DorisParser {
+func NewErrListener(sqlId string) antlr.ErrorListener {
+	return &errListener{ConsoleErrorListener: antlr.NewConsoleErrorListener(), sqlId: sqlId}
+}
+
+func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) *DorisParser {
 	input := antlr.NewInputStream(sqls)
 	lexer := NewDorisLexer(input)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := NewDorisParser(stream)
+	p.RemoveErrorListeners()
+	p.AddErrorListener(NewErrListener(sqlId))
 
 	for _, listener := range listeners {
 		p.AddParseListener(listener)
 	}
 
 	return p
+}
+
+type errListener struct {
+	*antlr.ConsoleErrorListener
+	sqlId string
+}
+
+func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, _ antlr.RecognitionException) {
+	logrus.Errorf("sql %s parse error at line %d:%d %s\n", l.sqlId, line, column, msg)
 }
 
 type listener struct {
