@@ -18,11 +18,11 @@ var (
 	//
 	// NOTE: A bit hacky, but it works for now.
 	//
-	// Tested on v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt        = `\|Db=%s\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=\d*`
-	stmtMatchStart      = []byte("|Stmt=")
-	stmtMatchEnd        = []byte("|CpuTimeMS=")
-	cpuTimeMsMatchStart = stmtMatchEnd
+	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
+	stmtMatchFmt   = `\|Db=%s\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Time(?:\(ms\))?=(\d*)\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|IsQuery=true\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Stmt=((?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*)\|CpuTimeMS=`
+	stmtMatchStart = []byte("|Stmt=")
+	stmtMatchEnd   = []byte("|CpuTimeMS=")
+	timeMatchStart = []byte("|Time") // some is '|Time(ms)'
 
 	IgnoreQueries = lo.Map([]string{
 		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
@@ -36,32 +36,34 @@ var (
 
 func auditlogQueryRe(dbs []string) string {
 	allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
-	dbFilter := "(?:" + strings.Join(allowDBs, "|") + ")"
+
+	var dbFilter string
+	if len(dbs) > 0 {
+		dbFilter = "(?:" + strings.Join(allowDBs, "|") + ")"
+	} else {
+		dbFilter = ".*"
+	}
+
 	return fmt.Sprintf(stmtMatchFmt, dbFilter)
 }
 
-func retrieveStmtFromMatch(match []byte, minCpuTimeMs int, filterDorisDumpSelfSql bool) []byte {
-	// 1. Retrieve query
-	s := bytes.Index(match, stmtMatchStart)
-	e := bytes.LastIndex(match, stmtMatchEnd)
-	stmt := match[s+len(stmtMatchStart) : e]
+func filterStmtFromMatch(queryMinDurationMs int, stmtTimeMs, stmt []byte) bool {
+	if queryMinDurationMs > 0 {
+		if len(stmtTimeMs) == 0 {
+			return false
+		}
+		ms, err := strconv.Atoi(string(stmtTimeMs))
+		if err != nil || ms < queryMinDurationMs {
+			return false
+		}
+	}
 
 	// remove dorisdump self queries
-	if filterDorisDumpSelfSql && bytes.HasPrefix(stmt, InternalSqlCommentBytes) {
-		return nil
+	if bytes.HasPrefix(stmt, InternalSqlCommentBytes) {
+		return false
 	}
 
-	// 2. Retrieve cpu time
-	if minCpuTimeMs == 0 {
-		return stmt
-	}
-	cpuTime_ := string(match[e+len(cpuTimeMsMatchStart):])
-	cpuTimeMs, err := strconv.Atoi(cpuTime_)
-	if err != nil || cpuTimeMs < minCpuTimeMs {
-		return nil
-	}
-
-	return stmt
+	return true
 }
 
 func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinCpuTimeMs, parallel int) ([]string, error) {

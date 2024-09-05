@@ -83,7 +83,7 @@ func getAnonymizeFunc(method string) func(string, bool) string {
 			return id
 		}
 
-		// FIXME: db name is case-insensitive
+		// FIXME: db/table name is case-insensitive
 		lowerid := strings.ToLower(id)
 
 		// only take the first AnonymizeHashBytes bytes of hash.
