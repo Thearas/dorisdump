@@ -176,9 +176,9 @@ func ShowDatabases(ctx context.Context, conn *sqlx.DB, dbnamePrefix string) ([]s
 func ShowTables(ctx context.Context, conn *sqlx.DB, dbname string, tablenamePrefix ...string) (tables []*Schema, err error) {
 	tables = []*Schema{}
 	if len(tablenamePrefix) > 0 {
-		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT lower(TABLE_NAME) as TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME like ? ORDER BY TABLE_NAME`, dbname, SanitizeLike(tablenamePrefix[0])+"%")
+		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME like ? ORDER BY TABLE_NAME`, dbname, SanitizeLike(tablenamePrefix[0])+"%")
 	} else {
-		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT lower(TABLE_NAME) as TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, dbname)
+		err = conn.SelectContext(ctx, &tables, InternalSqlComment+`SELECT TABLE_NAME, TABLE_TYPE, TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, dbname)
 	}
 	if err != nil {
 		return nil, err

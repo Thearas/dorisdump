@@ -9,6 +9,7 @@ dorisdump_output
 *.tokens
 *.interp
 *.g4.orig
+*.tar.gz
 dorisdump.yaml
 dorisdump-linux-*
 dorisdump-darwin-*

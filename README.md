@@ -33,8 +33,8 @@ dorisdump dump --dbs db1 --dump-schema --dump-query --anonymize --ssh-password '
 
 1. Install dependences:
 
-    - [re2](https://github.com/google/re2)
-    - [hyperscan](https://intel.github.io/hyperscan) (linux-amd64 only)
+    - On macOS: [vectorscan](https://github.com/VectorCamp/vectorscan) with Chimera support
+    - On Linux: [hyperscan](https://intel.github.io/hyperscan) with Chimera support
 
 2. Run `make`
 
