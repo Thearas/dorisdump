@@ -19,10 +19,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt   = `\|Db=%s\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Time(?:\(ms\))?=(\d*)\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|IsQuery=true\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Stmt=((?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*)\|CpuTimeMS=`
-	stmtMatchStart = []byte("|Stmt=")
-	stmtMatchEnd   = []byte("|CpuTimeMS=")
-	timeMatchStart = []byte("|Time") // some is '|Time(ms)'
+	stmtMatchFmt = `\|Db=%s\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Time(?:\(ms\))?=(\d*)\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|IsQuery=true\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Stmt=((?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*)\|CpuTimeMS=`
 
 	IgnoreQueries = lo.Map([]string{
 		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
