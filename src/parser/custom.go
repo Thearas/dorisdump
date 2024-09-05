@@ -49,10 +49,11 @@ func (l *listener) modifySymbolText(node antlr.TerminalNode, ignoreBuiltin bool)
 func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 	ignoreBuiltin := true
 	child := ctx.GetChild(0)
-	nonReserved, ok := child.(*NonReservedContext)
+	_, ok := child.(*NonReservedContext)
 	if ok {
-		ignoreBuiltin = false
-		child = nonReserved.GetChild(0)
+		// ignoreBuiltin = true
+		// child = nonReserved.GetChild(0)
+		return
 	}
 	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), ignoreBuiltin)
 }
