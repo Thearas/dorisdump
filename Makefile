@@ -7,7 +7,7 @@ build:
 	CXX=$(CXX) go build -tags chimera,hyperscan_v54 -o dorisdump main.go
 
 build-darwin:
-	CXX=$(CXX) GOOS=darwin CGO_ENABLED=1 GOEXPERIMENT=newinliner go build -tags chimera,hyperscan_v54 -o dorisdump-darwin-$(GOARCH) -a -trimpath -ldflags "-s"
+	CXX=$(CXX) GOOS=darwin CGO_ENABLED=1 GOEXPERIMENT=newinliner CGO_LDFLAGS='-static-libstdc++' go build -tags chimera,hyperscan_v54 -o dorisdump-darwin-$(GOARCH) -a -trimpath -ldflags "-s"
 	tar czf dorisdump-darwin-$(GOARCH).tar.gz dorisdump-darwin-$(GOARCH)
 
 build-linux:
