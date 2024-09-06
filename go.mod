@@ -7,8 +7,8 @@ require (
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/edsrzf/mmap-go v1.1.0
 	github.com/flier/gohs v1.2.2
-	github.com/go-sql-driver/mysql v1.8.1
-	github.com/jmoiron/sqlx v1.4.0
+	github.com/go-sql-driver/mysql v1.7.1
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/manifoldco/promptui v0.9.0
 	github.com/samber/lo v1.47.0
 	github.com/sirupsen/logrus v1.9.3
@@ -23,7 +23,6 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
