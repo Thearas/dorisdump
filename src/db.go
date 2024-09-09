@@ -1,6 +1,7 @@
 package src
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 )
 
 var (
@@ -49,6 +51,12 @@ func (s SchemaType) sanitize() SchemaType {
 	}
 }
 
+type DBSchema struct {
+	Name    string        `yaml:"db"`
+	Schemas []*Schema     `yaml:"-"`
+	Stats   []*TableStats `yaml:"tables,omitempty"`
+}
+
 type Schema struct {
 	Name       string     `db:"TABLE_NAME"`
 	Type       SchemaType `db:"TABLE_TYPE"`
@@ -58,6 +66,23 @@ type Schema struct {
 
 func (s *Schema) String() string {
 	return fmt.Sprintf("%s.%s", s.DB, s.Name)
+}
+
+type TableStats struct {
+	Name     string         `yaml:"name"`
+	RowCount int64          `yaml:"row_count"`
+	Columns  []*ColumnStats `yaml:"columns,omitempty"`
+}
+
+type ColumnStats struct {
+	Name        string `yaml:"name"`
+	Count       int64  `yaml:"-"`
+	Ndv         int64  `yaml:"ndv"`
+	NullCount   int64  `yaml:"null_count"`
+	DataSize    int64  `yaml:"data_size"`
+	AvgSizeByte int64  `yaml:"avg_size_byte"`
+	Min         string `yaml:"min"`
+	Max         string `yaml:"max"`
 }
 
 func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error) {
@@ -160,6 +185,9 @@ func getStmtfromShowCreate(r *sqlx.Rows) (schema string, err error) {
 		// the second column is the create statement
 		schema = *vals[1].(*string)
 	}
+	if err := r.Err(); err != nil {
+		return schema, err
+	}
 
 	return
 }
@@ -215,8 +243,83 @@ func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (
 			break
 		}
 	}
+	if err := r.Err(); err != nil {
+		return dir, err
+	}
 
 	return
+}
+
+func GetTablesStats(ctx context.Context, conn *sqlx.DB, dbname string, tables ...string) ([]*TableStats, error) {
+	if len(tables) == 0 {
+		return []*TableStats{}, nil
+	}
+
+	stats := make([]*TableStats, 0, len(tables))
+	for _, table := range tables {
+		s, err := getTableStats(ctx, conn, dbname, table)
+		if err != nil {
+			logrus.Errorf("get table stats failed: db: %s, table: %s, err: %v", dbname, table, err)
+			return nil, err
+		}
+		if s == nil {
+			continue
+		}
+		stats = append(stats, s)
+	}
+
+	return stats, nil
+}
+
+func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*TableStats, error) {
+	logrus.Debugln("get table stats:", table)
+
+	// show column stats of all table.
+	r, err := conn.QueryxContext(ctx, InternalSqlComment+fmt.Sprintf(`SHOW COLUMN STATS %s.%s`, dbname, table))
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	cols := []*ColumnStats{}
+	for r.Next() {
+		vals := map[string]any{}
+		if err := r.MapScan(vals); err != nil {
+			return nil, err
+		}
+
+		min, max := vals["min"].([]byte), vals["max"].([]byte)
+		if bytes.HasPrefix(min, []byte(`'`)) {
+			min = bytes.ReplaceAll(min[1:len(min)-1], []byte(`''`), []byte(`'`))
+		}
+		if bytes.HasPrefix(max, []byte(`'`)) {
+			max = bytes.ReplaceAll(max[1:len(max)-1], []byte(`''`), []byte(`'`))
+		}
+		cols = append(cols, &ColumnStats{
+			Name:        cast.ToString(vals["column_name"]),
+			Count:       int64(cast.ToFloat64((string(vals["count"].([]byte))))),
+			Ndv:         int64(cast.ToFloat64((string(vals["ndv"].([]byte))))),
+			NullCount:   int64(cast.ToFloat64((string(vals["num_null"].([]byte))))),
+			AvgSizeByte: int64(cast.ToFloat64((string(vals["avg_size_byte"].([]byte))))),
+			DataSize:    int64(cast.ToFloat64((string(vals["data_size"].([]byte))))),
+			Min:         string(min),
+			Max:         string(max),
+		})
+	}
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	if len(cols) == 0 {
+		logrus.Warnf("no column stats found for %s.%s\n", dbname, table)
+		return nil, nil
+	}
+
+	tbl := &TableStats{
+		Name:     table,
+		RowCount: cols[0].Count,
+		Columns:  cols,
+	}
+	return tbl, nil
 }
 
 func SanitizeLike(s string) string {

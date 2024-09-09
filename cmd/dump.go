@@ -23,7 +23,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Thearas/dorisdump/src"
 )
@@ -49,6 +49,7 @@ type Dump struct {
 
 	DumpSchema         bool
 	DumpQuery          bool
+	DumpStats          bool
 	QueryMinDuration_  time.Duration
 	QueryMinDurationMs int
 
@@ -99,7 +100,7 @@ or environment variables with prefix 'DORIS_', e.g.
 				return err
 			}
 
-			logrus.Infof("Found %d schema(s)\n", len(schemas))
+			logrus.Infof("Found %d schema(s)\n", lo.SumBy(schemas, func(s *src.DBSchema) int { return len(s.Schemas) }))
 
 			if err := outputSchemas(schemas); err != nil {
 				return err
@@ -130,6 +131,7 @@ func init() {
 	pFlags := dumpCmd.PersistentFlags()
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
+	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
@@ -181,11 +183,11 @@ func completeDumpConfig() error {
 	return nil
 }
 
-func dumpSchemas(ctx context.Context) ([]*src.Schema, error) {
+func dumpSchemas(ctx context.Context) ([]*src.DBSchema, error) {
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
 	g := src.ParallelGroup(GlobalConfig.Parallel)
 
-	schemas := make([][]*src.Schema, len(dbs))
+	schemas := make([]*src.DBSchema, len(dbs))
 	for i, db := range dbs {
 		i, db := i, db
 		g.Go(func() error {
@@ -196,8 +198,29 @@ func dumpSchemas(ctx context.Context) ([]*src.Schema, error) {
 			}
 			defer conn.Close()
 
-			schemas[i], err = src.ShowCreateTables(ctx, conn, db, tables...)
-			return err
+			// dump schema
+			createTables, err := src.ShowCreateTables(ctx, conn, db, tables...)
+			if err != nil {
+				return err
+			}
+
+			// dump stats
+			if !DumpConfig.DumpStats {
+				return nil
+			}
+			tbls := lo.Map(createTables, func(s *src.Schema, _ int) string { return s.Name })
+			stats, err := src.GetTablesStats(ctx, conn, db, tbls...)
+			if err != nil {
+				return err
+			}
+
+			schemas[i] = &src.DBSchema{
+				Name:    db,
+				Schemas: createTables,
+				Stats:   stats,
+			}
+
+			return nil
 		})
 	}
 
@@ -205,10 +228,10 @@ func dumpSchemas(ctx context.Context) ([]*src.Schema, error) {
 		return nil, err
 	}
 
-	return slices.Concat(schemas...), nil
+	return schemas, nil
 }
 
-func outputSchemas(schemas []*src.Schema) error {
+func outputSchemas(schemas []*src.DBSchema) error {
 	if len(schemas) == 0 {
 		return nil
 	}
@@ -226,26 +249,62 @@ func outputSchemas(schemas []*src.Schema) error {
 	for _, s := range schemas {
 		s := s
 		g.Go(func() error {
-			var filename string
-			if AnonymizeConfig.Enabled {
-				s.DB = src.Anonymize(AnonymizeConfig.Method, s.DB)
-				s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
+			// 1. write each schema into split file
+			for _, s := range s.Schemas {
+				var filename string
+				if AnonymizeConfig.Enabled {
+					s.DB = src.Anonymize(AnonymizeConfig.Method, s.DB)
+					s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
+				}
+
+				filename = fmt.Sprintf("%s.%s.%s.sql", s.DB, s.Name, s.Type.Lower())
+				if AnonymizeConfig.Enabled {
+					s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, filename, s.CreateStmt)
+				}
+
+				if printSql {
+					logrus.Tracef("schema: %+v\n", *s)
+				}
+
+				path := filepath.Join(DumpConfig.OutputDDLDir, filename)
+				if GlobalConfig.DryRun {
+					return nil
+				}
+				if err := src.WriteFile(path, s.CreateStmt); err != nil {
+					return err
+				}
+
 			}
 
-			filename = fmt.Sprintf("%s.%s.%s.sql", s.DB, s.Name, s.Type.Lower())
-			if AnonymizeConfig.Enabled {
-				s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, filename, s.CreateStmt)
+			// 2. write all stats into one file
+			if len(s.Stats) == 0 {
+				return nil
 			}
+			if AnonymizeConfig.Enabled {
+				s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
+				for _, s := range s.Stats {
+					s.Name = src.Anonymize(AnonymizeConfig.Method, s.Name)
+					for _, c := range s.Columns {
+						c.Name = src.Anonymize(AnonymizeConfig.Method, c.Name)
+					}
+				}
+			}
+			yml_, err := yaml.Marshal(s)
+			if err != nil {
+				return err
+			}
+			yml := string(yml_)
 
 			if printSql {
-				logrus.Tracef("schema: %+v\n", *s)
+				logrus.Tracef("stats: \n%s\n", yml)
 			}
-
-			path := filepath.Join(DumpConfig.OutputDDLDir, filename)
 			if GlobalConfig.DryRun {
 				return nil
 			}
-			return src.WriteFile(path, s.CreateStmt)
+
+			filename := fmt.Sprintf("%s.stats.yaml", s.Name)
+			path := filepath.Join(DumpConfig.OutputDDLDir, filename)
+			return src.WriteFile(path, yml)
 		})
 	}
 
