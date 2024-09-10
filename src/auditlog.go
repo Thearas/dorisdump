@@ -19,7 +19,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `\|Db=%s\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Time(?:\(ms\))?=(\d*)\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|IsQuery=true\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Stmt=((?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[query\] \|Client=(.+)\|.*\|Db=%s\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Time(?:\(ms\))?=(\d*)\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|IsQuery=true\|(?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*\|Stmt=((?:(?!^\d{4}-\d{2}-\d{2})(?:.|\n))*)\|CpuTimeMS=`
 
 	IgnoreQueries = lo.Map([]string{
 		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
@@ -63,12 +63,16 @@ func filterStmtFromMatch(queryMinDurationMs int, stmtTimeMs, stmt []byte) bool {
 	return true
 }
 
-func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinCpuTimeMs, parallel int) ([]string, error) {
+// ExtractQueriesFromAuditLog extracts the query from an audit log.
+// In unique mode: we will aggregate all queries in the first slot, the remaining slots will be empty.
+// In non-unique mode: we will return all queries in the order of auditlogPath slots.
+func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinCpuTimeMs, parallel int, unique bool) ([][]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
 
 	hash2sqls := make([]map[[32]byte]string, len(auditlogPaths))
+	sqlss := make([][]string, len(auditlogPaths))
 	for i, auditlogPath := range auditlogPaths {
 		i, auditlogPath := i, auditlogPath
 		g.Go(func() error {
@@ -86,17 +90,23 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinC
 			}
 			defer content.Unmap()
 
-			hash2sql, err := ExtractQueriesFromAuditLog(dbs, []byte(content), queryMinCpuTimeMs)
+			logrus.Debugln("Extracting queries from audit log:", auditlogPath)
+
+			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, []byte(content), queryMinCpuTimeMs, unique)
 			if err != nil {
 				return err
 			}
 
 			// remove ignored queries
-			for _, q := range IgnoreQueries {
-				delete(hash2sql, q)
+			// FIXME: do we need to remove ignored queries when not in unique output mode?
+			if len(hash2sql) > 0 {
+				for _, q := range IgnoreQueries {
+					delete(hash2sql, q)
+				}
 			}
 
 			hash2sqls[i] = hash2sql
+			sqlss[i] = sqls
 
 			return nil
 		})
@@ -106,5 +116,8 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinC
 		return nil, err
 	}
 
-	return lo.Values(lo.Assign(hash2sqls...)), nil
+	if unique {
+		return [][]string{lo.Values(lo.Assign(hash2sqls...))}, nil
+	}
+	return sqlss, nil
 }

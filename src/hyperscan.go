@@ -4,6 +4,8 @@
 package src
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/flier/gohs/chimera"
@@ -12,29 +14,43 @@ import (
 )
 
 // ExtractQueryOne extracts the query from an audit log.
-func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte, queryMinCpuTimeMs int) (map[[32]byte]string, error) {
+func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
 	database, scratch, close := hs_alloc(dbs)
 	defer close()
 
-	c := hs_newContext(auditlog, queryMinCpuTimeMs)
-	if err := database.Scan(auditlog, scratch, &hs_handler{}, c); err != nil {
+	c := hs_newContext(auditlog, queryMinCpuTimeMs, unique)
+	if err := database.Scan(auditlog, scratch, &hs_handler{}, &c); err != nil {
 		logrus.Errorln("[hyperscan] Failed to scan audit log file")
-		return nil, err
+		return nil, nil, err
 	}
 
-	return c.hash2sql, nil
+	return c.hash2sql, c.sqls, nil
 }
 
 type hs_handler struct{}
 
 // OnMatch will be invoked whenever a match is located in the target data during the execution of a scan.
 func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimera.Capture, ctx any) chimera.Callback {
-	c, _ := ctx.(hyperscanContext)
+	c, _ := ctx.(*hyperscanContext)
 
-	timeMs, stmt := captured[1].Bytes, captured[2].Bytes
+	time, client, durationMs, stmt := captured[1].Bytes, captured[2].Bytes, captured[3].Bytes, captured[4].Bytes
 
-	ok := filterStmtFromMatch(c.queryMinCpuTimeMs, timeMs, stmt)
+	ok := filterStmtFromMatch(c.queryMinCpuTimeMs, durationMs, stmt)
 	if !ok {
+		return chimera.Continue
+	}
+
+	// unique sqls
+	if !c.unique {
+		// replace all newline into space
+		stmt_ := strings.ReplaceAll(string(stmt), "\n", " ")
+
+		// add leading comment in JSON with time and client
+		time := string(time)
+		client := anonymizeHashStr(c.hash, string(client))
+		stmt_ = fmt.Sprintf(`/*{"time": "%s", "client": "%s"}*/ %s`, time, client, stmt_)
+
+		c.sqls = append(c.sqls, stmt_)
 		return chimera.Continue
 	}
 
@@ -97,15 +113,22 @@ func hs_alloc(dbs []string) (chimera.BlockDatabase, *chimera.Scratch, func()) {
 type hyperscanContext struct {
 	content           []byte
 	queryMinCpuTimeMs int
-	hash              *blake3.Hasher
-	hash2sql          map[[32]byte]string
+	unique            bool
+
+	// when unique
+	hash     *blake3.Hasher
+	hash2sql map[[32]byte]string
+	// when not unique
+	sqls []string
 }
 
-func hs_newContext(content []byte, queryMinCpuTimeMs int) hyperscanContext {
+func hs_newContext(content []byte, queryMinCpuTimeMs int, unique bool) hyperscanContext {
 	return hyperscanContext{
 		content:           content,
 		queryMinCpuTimeMs: queryMinCpuTimeMs,
+		unique:            unique,
 		hash:              blake3.New(),
 		hash2sql:          make(map[[32]byte]string, 1024),
+		sqls:              make([]string, 0, 1024),
 	}
 }

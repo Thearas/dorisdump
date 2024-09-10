@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,8 +49,9 @@ type Dump struct {
 	SSHPrivateKey string
 
 	DumpSchema         bool
-	DumpQuery          bool
 	DumpStats          bool
+	DumpQuery          bool
+	QueryOutputMode    string
 	QueryMinDuration_  time.Duration
 	QueryMinDurationMs int
 
@@ -114,9 +116,9 @@ or environment variables with prefix 'DORIS_', e.g.
 				return err
 			}
 
-			logrus.Infof("Found %d query(s)\n", len(queries))
+			logrus.Infof("Found %d query(s)\n", lo.SumBy(queries, func(s []string) int { return len(s) }))
 
-			if err := outputQueries(queries); err != nil {
+			if err := outputQueries(queries, DumpConfig.QueryOutputMode == "unique"); err != nil {
 				return err
 			}
 		}
@@ -130,8 +132,9 @@ func init() {
 
 	pFlags := dumpCmd.PersistentFlags()
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
-	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
 	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats")
+	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
+	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
@@ -311,7 +314,7 @@ func outputSchemas(schemas []*src.DBSchema) error {
 	return g.Wait()
 }
 
-func dumpQueries(ctx context.Context) ([]string, error) {
+func dumpQueries(ctx context.Context) ([][]string, error) {
 	auditLogs := DumpConfig.AuditLogPaths
 	if len(auditLogs) == 0 {
 		sshUrl, err := chooseRemoteAuditLog(ctx)
@@ -350,7 +353,13 @@ func dumpQueries(ctx context.Context) ([]string, error) {
 
 	logrus.Infoln("Dumping queries from audit logs...")
 
-	queries, err := src.ExtractQueriesFromAuditLogs(GlobalConfig.DBs, auditLogFiles, DumpConfig.QueryMinDurationMs, GlobalConfig.Parallel)
+	queries, err := src.ExtractQueriesFromAuditLogs(
+		GlobalConfig.DBs,
+		auditLogFiles,
+		DumpConfig.QueryMinDurationMs,
+		GlobalConfig.Parallel,
+		DumpConfig.QueryOutputMode == "unique",
+	)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs failed, %v\n", err)
 		return nil, err
@@ -359,11 +368,7 @@ func dumpQueries(ctx context.Context) ([]string, error) {
 	return queries, nil
 }
 
-func outputQueries(queries []string) error {
-	if len(queries) == 0 {
-		return nil
-	}
-
+func outputQueries(queries [][]string, unique bool) error {
 	if !GlobalConfig.DryRun {
 		if err := os.MkdirAll(DumpConfig.OutputQueryDir, 0755); err != nil {
 			logrus.Errorln("Create output query directory failed, ", err)
@@ -373,13 +378,20 @@ func outputQueries(queries []string) error {
 
 	printSql := logrus.GetLevel() == logrus.TraceLevel
 
-	count := 0
-	size := len(queries)
-	for size != 0 {
-		size /= 10
-		count++
+	if unique {
+		return outputUniqueQueries(queries, printSql)
 	}
-	format := fmt.Sprintf("q%%0%dd.sql", count)
+	return outputDefaultQueries(queries, printSql)
+}
+
+func outputUniqueQueries(queriess [][]string, printSql bool) error {
+	if len(queriess) == 0 || len(queriess[0]) == 0 {
+		return nil
+	}
+
+	// we will aggregate all queries into the first slot
+	queries := queriess[0]
+	format := outputQueryFileNameFormat(len(queries))
 
 	g := src.ParallelGroup(GlobalConfig.Parallel)
 	for i, query := range queries {
@@ -403,6 +415,63 @@ func outputQueries(queries []string) error {
 	}
 
 	return g.Wait()
+}
+
+func outputDefaultQueries(queriess [][]string, printSql bool) error {
+	if len(queriess) == 0 {
+		return nil
+	}
+
+	format := outputQueryFileNameFormat(len(queriess))
+
+	g := src.ParallelGroup(GlobalConfig.Parallel)
+	for i, queries := range queriess {
+		i, queries := i, queries
+		g.Go(func() (err error) {
+			name := fmt.Sprintf(format, i)
+			path := filepath.Join(DumpConfig.OutputQueryDir, name)
+
+			if AnonymizeConfig.Enabled {
+				for i, query := range queries {
+					queries[i] = src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
+				}
+			}
+
+			var f *os.File
+			if !GlobalConfig.DryRun {
+				f, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+			}
+			for i, query := range queries {
+				if printSql {
+					logrus.Tracef("queries %s: %+v\n", name+"#"+strconv.Itoa(i), query)
+				}
+				if GlobalConfig.DryRun {
+					continue
+				}
+				_, err = f.WriteString(query + "\n")
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	return g.Wait()
+}
+
+func outputQueryFileNameFormat(total int) string {
+	count := 0
+	for total != 0 {
+		total /= 10
+		count++
+	}
+
+	return fmt.Sprintf("q%%0%dd.sql", count)
 }
 
 func chooseRemoteAuditLog(ctx context.Context) (string, error) {
