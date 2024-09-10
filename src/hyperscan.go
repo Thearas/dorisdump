@@ -41,24 +41,25 @@ func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimer
 	}
 
 	// unique sqls
-	if !c.unique {
-		// replace all newline into space
-		stmt_ := strings.ReplaceAll(string(stmt), "\n", " ")
-
-		// add leading comment in JSON with time and client
-		time := string(time)
-		client := anonymizeHashStr(c.hash, string(client))
-		stmt_ = fmt.Sprintf(`/*{"time": "%s", "client": "%s"}*/ %s`, time, client, stmt_)
-
-		c.sqls = append(c.sqls, stmt_)
+	if c.unique {
+		// not unique sqls
+		hash := hash(c.hash, stmt)
+		if _, ok := c.hash2sql[hash]; !ok {
+			c.hash2sql[hash] = string(stmt)
+		}
 		return chimera.Continue
 	}
 
-	hash := hash(c.hash, stmt)
-	if _, ok := c.hash2sql[hash]; !ok {
-		c.hash2sql[hash] = string(stmt)
-	}
+	// not unique sqls
+	// replace all newline into space
+	stmt_ := strings.ReplaceAll(string(stmt), "\n", " ")
 
+	// add leading comment in JSON with time and client
+	time_ := string(time)
+	client_ := anonymizeHashStr(c.hash, string(client))
+	stmt_ = fmt.Sprintf(`/*{"time": "%s", "client": "%s"}*/ %s`, time_, client_, stmt_)
+
+	c.sqls = append(c.sqls, stmt_)
 	return chimera.Continue
 }
 
