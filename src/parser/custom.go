@@ -51,19 +51,43 @@ func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, m
 
 type listener struct {
 	*BaseDorisParserListener
-	hideSqlComment   bool
-	modifyIdentifier func(id string, ignoreBuiltin bool) string
+	hideSqlComment         bool
+	modifyIdentifier       func(id string, ignoreBuiltin bool) string
+	lastModifiedIdentifier string
 }
 
-func (l *listener) modifySymbolText(node antlr.TerminalNode, ignoreBuiltin bool) {
-	symbol := node.GetSymbol()
-
-	id := strings.Trim(symbol.GetText(), "`")
-	symbol.SetText(l.modifyIdentifier(id, ignoreBuiltin))
+// Do not modify variable name.
+func (l *listener) ExitUserVariable(ctx *UserVariableContext) {
+	childern := ctx.GetChildren()
+	id, ok := childern[len(childern)-1].GetChild(0).GetChild(0).GetChild(0).(*antlr.TerminalNodeImpl)
+	if !ok {
+		return
+	}
+	l.recoverSymbolText(id)
 }
 
+// Do not modify variable name.
+func (l *listener) ExitSystemVariable(ctx *SystemVariableContext) {
+	childern := ctx.GetChildren()
+	id, ok := childern[len(childern)-1].GetChild(0).GetChild(0).(*antlr.TerminalNodeImpl)
+	if !ok {
+		return
+	}
+	l.recoverSymbolText(id)
+}
+
+// Do not modify function name.
+func (l *listener) ExitFunctionNameIdentifier(ctx *FunctionNameIdentifierContext) {
+	id, ok := ctx.GetChild(0).GetChild(0).GetChild(0).(*antlr.TerminalNodeImpl)
+	if !ok {
+		fmt.Println("asdadad", ctx.GetChild(0).GetChild(0).GetChild(0))
+		return
+	}
+	l.recoverSymbolText(id)
+}
+
+// Modify id.
 func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
-	ignoreBuiltin := true
 	child := ctx.GetChild(0)
 	_, ok := child.(*NonReservedContext)
 	if ok {
@@ -71,14 +95,16 @@ func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 		// child = nonReserved.GetChild(0)
 		return
 	}
-	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), ignoreBuiltin)
+	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), true)
 }
 
+// Modify `id`.
 func (l *listener) ExitQuotedIdentifier(ctx *QuotedIdentifierContext) {
 	child := ctx.GetChild(0)
 	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), false)
 }
 
+// Modify property value
 func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
 	// e.g. "bloom_filter_columns" = "col1,col2"
 	key := strings.Trim(ctx.GetKey().GetText(), `'"`)
@@ -102,13 +128,32 @@ func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
 	}
 }
 
-// SimpleColumnDefContext & ColumnDefContext
+func (l *listener) modifySymbolText(node antlr.TerminalNode, ignoreBuiltin bool) {
+	symbol := node.GetSymbol()
+	text := symbol.GetText()
+
+	id := strings.Trim(text, "`")
+	symbol.SetText(l.modifyIdentifier(id, ignoreBuiltin))
+
+	// record original identifier text
+	l.lastModifiedIdentifier = text
+}
+
+func (l *listener) recoverSymbolText(node antlr.TerminalNode) {
+	if l.lastModifiedIdentifier != "" {
+		node.GetSymbol().SetText(l.lastModifiedIdentifier)
+		l.lastModifiedIdentifier = ""
+	}
+}
+
+// Hide COMMENT '***'
 func (l *listener) ExitSimpleColumnDef(ctx *SimpleColumnDefContext) {
 	if l.hideSqlComment {
 		hideComment(ctx, ctx.GetComment())
 	}
 }
 
+// Hide COMMENT '***'
 func (l *listener) ExitColumnDef(ctx *ColumnDefContext) {
 	if l.hideSqlComment {
 		hideComment(ctx, ctx.GetComment())

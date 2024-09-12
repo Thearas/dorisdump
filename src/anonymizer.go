@@ -23,6 +23,7 @@ var (
 	// Identifiers that should not be anonymized.
 	ReserveIdentifiers = lo.Map([]string{
 		"olap",
+		"global",
 		"internal",
 		"__internal_schema",
 		"information_schema",
@@ -31,7 +32,6 @@ var (
 
 func SetupAnonymizer(idMinLength int, reserveIds ...string) {
 	AnonymizeMinLength = idMinLength
-	SetupBuiltinHashs()
 
 	reserveIds = append(ReserveIdentifiers, reserveIds...)
 	AnonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
@@ -69,10 +69,6 @@ func getAnonymizeFunc(method string) func(string, bool) string {
 
 		// do not anoymize reserve ids.
 		if _, ok := AnonymizerreserveIdHashs[hash]; ok {
-			return id
-		}
-		// do not anoymize builtin functions.
-		if _, ok := BuiltinHashs[hash]; ignoreBuiltin && ok {
 			return id
 		}
 
