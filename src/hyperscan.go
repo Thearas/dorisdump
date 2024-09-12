@@ -4,7 +4,10 @@
 package src
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -13,15 +16,50 @@ import (
 	"github.com/zeebo/blake3"
 )
 
-// ExtractQueryOne extracts the query from an audit log.
-func ExtractQueriesFromAuditLog(dbs []string, auditlog []byte, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
+func ExtractQueriesFromAuditLog(dbs []string, auditlog *os.File, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
+	c := hs_newContext(queryMinCpuTimeMs, unique)
 	database, scratch, close := hs_alloc(dbs)
 	defer close()
 
-	c := hs_newContext(auditlog, queryMinCpuTimeMs, unique)
-	if err := database.Scan(auditlog, scratch, &hs_handler{}, &c); err != nil {
-		logrus.Errorln("[hyperscan] Failed to scan audit log file")
-		return nil, nil, err
+	// read log file line by line
+	buf := bufio.NewScanner(auditlog)
+	if !buf.Scan() {
+		logrus.Errorf("Failed to scan audit log file %s, maybe empty?\n", auditlog.Name())
+		return c.hash2sql, c.sqls, nil
+	}
+	var (
+		line   = buf.Bytes()
+		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+	)
+
+outer:
+	for {
+		oneLog := line
+
+		// one log may have multiple lines
+		// a line not starts with 'yyyy-mm-dd' is considered belonging to the previous line
+		for {
+			if !buf.Scan() {
+				break outer
+			}
+			line = buf.Bytes()
+
+			const minLenToMatch = len("yyyy-mm-dd")
+			if len(line) >= minLenToMatch && lineRe.Match(line[:minLenToMatch+1]) {
+				break
+			}
+
+			// append to previous line
+			oneLog = append(oneLog, '\n')
+			oneLog = append(oneLog, line...)
+		}
+
+		// parse log
+		if err := database.Scan(oneLog, scratch, &hs_handler{}, &c); err != nil {
+			logrus.Errorln("[hyperscan] Failed to scan audit log file")
+			return nil, nil, err
+		}
+		oneLog = nil
 	}
 
 	return c.hash2sql, c.sqls, nil
@@ -33,12 +71,14 @@ type hs_handler struct{}
 func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimera.Capture, ctx any) chimera.Callback {
 	c, _ := ctx.(*hyperscanContext)
 
-	time, client, durationMs, stmt := captured[1].Bytes, captured[2].Bytes, captured[3].Bytes, captured[4].Bytes
+	time, client, durationMs, stmt := captured[1].Bytes[:], captured[2].Bytes[:], captured[3].Bytes[:], captured[4].Bytes[:]
 
 	ok := filterStmtFromMatch(c.queryMinCpuTimeMs, durationMs, stmt)
 	if !ok {
 		return chimera.Continue
 	}
+
+	stmt = ShortenTabSpaces(stmt)
 
 	// unique sqls
 	if c.unique {
@@ -66,14 +106,15 @@ func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimer
 
 // OnError will be invoked when an error event occurs during matching;
 // this indicates that some matches for a given expression may not be reported.
-func (h *hs_handler) OnError(_ chimera.ErrorEvent, _ uint, _, _ any) chimera.Callback {
+func (h *hs_handler) OnError(event chimera.ErrorEvent, _ uint, _, _ any) chimera.Callback {
+	logrus.Errorln("[hyperscan] OnError:", event.Error())
 	return chimera.Continue
 }
 
 func hs_makeAuditLogQueryRegex(dbs []string) hyperscanAlloc {
 	re := auditlogQueryRe(dbs)
 
-	pattern := chimera.NewPattern(re, chimera.MultiLine)
+	pattern := chimera.NewPattern(re, chimera.MultiLine|chimera.DotAll|chimera.SingleMatch)
 	database, err := chimera.NewBlockDatabase(pattern)
 	if err != nil {
 		logrus.Fatalf(`[hyperscan] Unable to compile pattern "%s": %v\n`, pattern.String(), err)
@@ -113,7 +154,6 @@ func hs_alloc(dbs []string) (chimera.BlockDatabase, *chimera.Scratch, func()) {
 }
 
 type hyperscanContext struct {
-	content           []byte
 	queryMinCpuTimeMs int
 	unique            bool
 
@@ -124,9 +164,8 @@ type hyperscanContext struct {
 	sqls []string
 }
 
-func hs_newContext(content []byte, queryMinCpuTimeMs int, unique bool) hyperscanContext {
+func hs_newContext(queryMinCpuTimeMs int, unique bool) hyperscanContext {
 	return hyperscanContext{
-		content:           content,
 		queryMinCpuTimeMs: queryMinCpuTimeMs,
 		unique:            unique,
 		hash:              blake3.New(),

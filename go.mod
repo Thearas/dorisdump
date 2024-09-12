@@ -5,7 +5,6 @@ go 1.22.6
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
-	github.com/edsrzf/mmap-go v1.1.0
 	github.com/flier/gohs v1.2.2
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/jmoiron/sqlx v1.3.5

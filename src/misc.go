@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,11 +17,16 @@ import (
 )
 
 var (
-	hasher = blake3.New()
+	hasher     = blake3.New()
+	tabSpaceRe = regexp.MustCompile(`\t+|\s+`)
 )
 
 func init() {
 	rand.Seed(uint64(time.Now().UnixNano()))
+}
+
+func ShortenTabSpaces(s []byte) []byte {
+	return tabSpaceRe.ReplaceAll(s, []byte(" "))
 }
 
 func ExpandHome(path string) string {

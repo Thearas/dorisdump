@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/edsrzf/mmap-go"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 )
@@ -83,16 +82,9 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinC
 			}
 			defer f.Close()
 
-			content, err := mmap.Map(f, mmap.RDONLY, 0)
-			if err != nil {
-				logrus.Errorln("Unable to mmap audit log file:", auditlogPath)
-				return err
-			}
-			defer content.Unmap()
-
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath)
 
-			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, []byte(content), queryMinCpuTimeMs, unique)
+			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, f, queryMinCpuTimeMs, unique)
 			if err != nil {
 				return err
 			}
