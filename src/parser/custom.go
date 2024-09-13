@@ -58,6 +58,10 @@ type listener struct {
 
 // Do not modify variable name.
 func (l *listener) ExitUserVariable(ctx *UserVariableContext) {
+	if ctx.IdentifierOrText().Identifier() == nil {
+		return
+	}
+
 	childern := ctx.GetChildren()
 	id, ok := childern[len(childern)-1].GetChild(0).GetChild(0).GetChild(0).(*antlr.TerminalNodeImpl)
 	if !ok {
@@ -78,9 +82,12 @@ func (l *listener) ExitSystemVariable(ctx *SystemVariableContext) {
 
 // Do not modify function name.
 func (l *listener) ExitFunctionNameIdentifier(ctx *FunctionNameIdentifierContext) {
+	if ctx.Identifier() == nil {
+		return
+	}
+
 	id, ok := ctx.GetChild(0).GetChild(0).GetChild(0).(*antlr.TerminalNodeImpl)
 	if !ok {
-		fmt.Println("asdadad", ctx.GetChild(0).GetChild(0).GetChild(0))
 		return
 	}
 	l.recoverSymbolText(id)

@@ -6,6 +6,7 @@ dorisdump_output
 .dorisdump
 *.cast
 *.log
+*.sql
 *.tokens
 *.interp
 *.g4.orig

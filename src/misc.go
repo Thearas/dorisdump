@@ -18,7 +18,7 @@ import (
 
 var (
 	hasher     = blake3.New()
-	tabSpaceRe = regexp.MustCompile(`\t+|\s+`)
+	tabSpaceRe = regexp.MustCompile(`\t+|[^\S\n]+`)
 )
 
 func init() {
