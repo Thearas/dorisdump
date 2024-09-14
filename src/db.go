@@ -146,11 +146,11 @@ func ShowCreateTables(ctx context.Context, conn *sqlx.DB, db string, dbTables ..
 }
 
 func showCreateTable(ctx context.Context, conn *sqlx.DB, db, table string) (schema string, isMaterializedView bool, err error) {
-	r, err := conn.QueryxContext(ctx, fmt.Sprintf(InternalSqlComment+`SHOW CREATE TABLE %s.%s`, db, table))
+	r, err := conn.QueryxContext(ctx, fmt.Sprintf(InternalSqlComment+"SHOW CREATE TABLE `%s`.`%s`", db, table))
 	if err != nil {
 		// may be a materialized view
 		var err_ error
-		r, err_ = conn.QueryxContext(ctx, fmt.Sprintf(InternalSqlComment+`SHOW CREATE MATERIALIZED VIEW %s.%s`, db, table))
+		r, err_ = conn.QueryxContext(ctx, fmt.Sprintf(InternalSqlComment+"SHOW CREATE MATERIALIZED VIEW `%s`.`%s`", db, table))
 		if err_ != nil {
 			return "", false, err
 		}
@@ -275,7 +275,7 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 	logrus.Debugln("get table stats:", table)
 
 	// show column stats of all table.
-	r, err := conn.QueryxContext(ctx, InternalSqlComment+fmt.Sprintf(`SHOW COLUMN STATS %s.%s`, dbname, table))
+	r, err := conn.QueryxContext(ctx, InternalSqlComment+fmt.Sprintf("SHOW COLUMN STATS `%s`.`%s`", dbname, table))
 	if err != nil {
 		return nil, err
 	}
