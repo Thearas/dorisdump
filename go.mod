@@ -7,6 +7,7 @@ require (
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/flier/gohs v1.2.2
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/manifoldco/promptui v0.9.0
 	github.com/samber/lo v1.47.0
@@ -20,6 +21,7 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
 	golang.org/x/sync v0.8.0
+	golang.org/x/text v0.18.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -42,6 +44,5 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )

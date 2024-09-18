@@ -1,6 +1,7 @@
 package src
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/text/encoding"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[query\] \|Client=(.+)\|.*\|Db=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*).*\|Db=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
 
 	IgnoreQueries = lo.Map([]string{
 		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
@@ -37,7 +39,7 @@ func auditlogQueryRe(dbs []string) string {
 	if len(dbs) > 0 {
 		dbFilter = "(?:" + strings.Join(allowDBs, "|") + ")"
 	} else {
-		dbFilter = ".*"
+		dbFilter = "[^|]*"
 	}
 
 	return fmt.Sprintf(stmtMatchFmt, dbFilter)
@@ -62,10 +64,31 @@ func filterStmtFromMatch(queryMinDurationMs int, stmtTimeMs, stmt []byte) bool {
 	return true
 }
 
+func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {
+	// detect encoding
+	var err error
+	if encoding == "auto" {
+		// detect encoding
+		encoding, err = DetectCharset(bufio.NewReader(f))
+		if err != nil {
+			return nil, fmt.Errorf("cannot detect charset of audit log %s: %v", f.Name(), err)
+		}
+		if _, err = f.Seek(0, 0); err != nil {
+			return nil, fmt.Errorf("cannot seek audit log %s: %v", f.Name(), err)
+		}
+	}
+	enc, err := GetEncoding(encoding)
+	if err != nil {
+		return nil, err
+	}
+
+	return enc, nil
+}
+
 // ExtractQueriesFromAuditLog extracts the query from an audit log.
 // In unique mode: we will aggregate all queries in the first slot, the remaining slots will be empty.
 // In non-unique mode: we will return all queries in the order of auditlogPath slots.
-func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinCpuTimeMs, parallel int, unique bool) ([][]string, error) {
+func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, encoding string, queryMinCpuTimeMs, parallel int, unique bool) ([][]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
@@ -82,9 +105,15 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, queryMinC
 			}
 			defer f.Close()
 
-			logrus.Debugln("Extracting queries from audit log:", auditlogPath)
+			// detect encoding
+			enc, err := detectAuditLogEncoding(encoding, f)
+			if err != nil {
+				return err
+			}
 
-			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, f, queryMinCpuTimeMs, unique)
+			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
+
+			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, f, enc, queryMinCpuTimeMs, unique)
 			if err != nil {
 				return err
 			}

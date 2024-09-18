@@ -5,6 +5,7 @@ package src
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -14,15 +15,17 @@ import (
 	"github.com/flier/gohs/chimera"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
-func ExtractQueriesFromAuditLog(dbs []string, auditlog *os.File, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
+func ExtractQueriesFromAuditLog(dbs []string, auditlog *os.File, encoding encoding.Encoding, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
 	c := hs_newContext(queryMinCpuTimeMs, unique)
 	database, scratch, close := hs_alloc(dbs)
 	defer close()
 
 	// read log file line by line
-	buf := bufio.NewScanner(auditlog)
+	buf := bufio.NewScanner(transform.NewReader(auditlog, encoding.NewDecoder()))
 	if !buf.Scan() {
 		logrus.Errorf("Failed to scan audit log file %s, maybe empty?\n", auditlog.Name())
 		return c.hash2sql, c.sqls, nil
@@ -30,17 +33,18 @@ func ExtractQueriesFromAuditLog(dbs []string, auditlog *os.File, queryMinCpuTime
 	var (
 		line   = buf.Bytes()
 		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+		eof    = false
 	)
 
-outer:
 	for {
-		oneLog := line
+		oneLog := bytes.Clone(line)
 
 		// one log may have multiple lines
 		// a line not starts with 'yyyy-mm-dd' is considered belonging to the previous line
 		for {
 			if !buf.Scan() {
-				break outer
+				eof = true
+				break
 			}
 			line = buf.Bytes()
 
@@ -59,6 +63,9 @@ outer:
 			logrus.Errorln("[hyperscan] Failed to scan audit log file")
 			return nil, nil, err
 		}
+		if eof {
+			break
+		}
 		oneLog = nil
 	}
 
@@ -71,14 +78,12 @@ type hs_handler struct{}
 func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimera.Capture, ctx any) chimera.Callback {
 	c, _ := ctx.(*hyperscanContext)
 
-	time, client, durationMs, stmt := captured[1].Bytes[:], captured[2].Bytes[:], captured[3].Bytes[:], captured[4].Bytes[:]
+	time, durationMs, stmt := captured[1].Bytes, captured[2].Bytes, captured[3].Bytes
 
 	ok := filterStmtFromMatch(c.queryMinCpuTimeMs, durationMs, stmt)
 	if !ok {
 		return chimera.Continue
 	}
-
-	stmt = ShortenTabSpaces(stmt)
 
 	// unique sqls
 	if c.unique {
@@ -93,12 +98,11 @@ func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimer
 	// not unique sqls
 	// add leading comment in JSON with time and client
 	time_ := string(time)
-	client_ := anonymizeHashStr(c.hash, string(client))
 	stmt_ := strings.TrimSpace(string(stmt))
 	if !strings.HasSuffix(stmt_, ";") {
 		stmt_ = stmt_ + ";"
 	}
-	stmt_ = fmt.Sprintf(`/*{"time": "%s", "client": "%s"}*/ %s`, time_, client_, stmt_)
+	stmt_ = fmt.Sprintf(`/*{"time": "%s"}*/ %s`, time_, stmt_)
 
 	c.sqls = append(c.sqls, stmt_)
 	return chimera.Continue
@@ -114,7 +118,7 @@ func (h *hs_handler) OnError(event chimera.ErrorEvent, _ uint, _, _ any) chimera
 func hs_makeAuditLogQueryRegex(dbs []string) hyperscanAlloc {
 	re := auditlogQueryRe(dbs)
 
-	pattern := chimera.NewPattern(re, chimera.MultiLine|chimera.DotAll|chimera.SingleMatch)
+	pattern := chimera.NewPattern(re, chimera.MultiLine|chimera.DotAll|chimera.SingleMatch|chimera.Utf8Mode|chimera.UnicodeProperty)
 	database, err := chimera.NewBlockDatabase(pattern)
 	if err != nil {
 		logrus.Fatalf(`[hyperscan] Unable to compile pattern "%s": %v\n`, pattern.String(), err)

@@ -43,6 +43,7 @@ type Dump struct {
 	OutputDDLDir          string
 	OutputQueryDir        string
 	LocalAuditLogCacheDir string
+	AuditLogEncoding      string
 
 	SSHAddress    string
 	SSHPassword   string
@@ -137,6 +138,7 @@ func init() {
 	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
+	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
 	pFlags.StringVar(&DumpConfig.SSHPrivateKey, "ssh-private-key", "~/.ssh/id_rsa", "File path of SSH private key for --ssh-address")
@@ -356,6 +358,7 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 	queries, err := src.ExtractQueriesFromAuditLogs(
 		GlobalConfig.DBs,
 		auditLogFiles,
+		DumpConfig.AuditLogEncoding,
 		DumpConfig.QueryMinDurationMs,
 		GlobalConfig.Parallel,
 		DumpConfig.QueryOutputMode == "unique",
