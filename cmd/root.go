@@ -64,10 +64,11 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
-	Example:          "dorisdump dump --help",
-	SuggestFor:       []string{"dump"},
-	ValidArgs:        []string{"completion", "help", "clean", "dump", "anonymize"},
-	TraverseChildren: true,
+	Example:                    "dorisdump dump --help",
+	SuggestFor:                 []string{"dump"},
+	ValidArgs:                  []string{"completion", "help", "clean", "dump", "anonymize", "replay"},
+	TraverseChildren:           true,
+	SuggestionsMinimumDistance: 2,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
@@ -128,7 +129,7 @@ func init() {
 }
 
 // initConfig reads in config file and ENV variables if set.
-func initConfig(cmd *cobra.Command) error {
+func initConfig(cmd *cobra.Command, prefixs ...string) error {
 	cfgFile := GlobalConfig.ConfigFile
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -155,7 +156,7 @@ func initConfig(cmd *cobra.Command) error {
 		return err
 	}
 
-	bindFlags(cmd, viper.GetViper())
+	bindFlags(cmd, viper.GetViper(), prefixs...)
 
 	if err := initLog(); err != nil {
 		return err
@@ -166,10 +167,14 @@ func initConfig(cmd *cobra.Command) error {
 }
 
 // Bind each cobra flag to its associated viper configuration (config file and environment variable)
-func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+func bindFlags(cmd *cobra.Command, v *viper.Viper, prefixs ...string) {
+	prefix := ""
+	if len(prefixs) > 0 {
+		prefix = strings.Join(prefixs, ".") + "."
+	}
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// Determine the naming convention of the flags when represented in the config file
-		configName := f.Name
+		configName := prefix + f.Name
 		// Apply the viper config value to the flag when the flag is not set and viper has a value
 		if !f.Changed && v.IsSet(configName) {
 			val := v.Get(configName)

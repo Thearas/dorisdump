@@ -9,9 +9,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dlclark/regexp2"
+	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"github.com/zeebo/blake3"
 	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
 var (
@@ -20,16 +24,22 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*).*\|Db=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*).*\|Db=(%s)\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
 
-	IgnoreQueries = lo.Map([]string{
-		`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
-		`SELECT @@max_allowed_packet`,
-		`SELECT DATABASE()`,
-		`SELECT name from mysql.help_topic WHERE name like "SHOW %"`,
-		`select @@version_comment limit 1`,
-		`select connection_id()`,
-	}, func(s string, _ int) [32]byte { return hash(hasher, []byte(s)) })
+	unescapeReplacer = strings.NewReplacer(
+		"\\n", "\n",
+		"\\t", "\t",
+		"\\r", "\r",
+	)
+
+	// IgnoreQueries = lo.Map([]string{
+	// 	`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
+	// 	`SELECT @@max_allowed_packet`,
+	// 	`SELECT DATABASE()`,
+	// 	`SELECT name from mysql.help_topic WHERE name like "SHOW %"`,
+	// 	`select @@version_comment limit 1`,
+	// 	`select connection_id()`,
+	// }, func(s string, _ int) [32]byte { return hash(hasher, []byte(s)) })
 )
 
 func auditlogQueryRe(dbs []string) string {
@@ -37,31 +47,12 @@ func auditlogQueryRe(dbs []string) string {
 
 	var dbFilter string
 	if len(dbs) > 0 {
-		dbFilter = "(?:" + strings.Join(allowDBs, "|") + ")"
+		dbFilter = strings.Join(allowDBs, "|")
 	} else {
 		dbFilter = "[^|]*"
 	}
 
 	return fmt.Sprintf(stmtMatchFmt, dbFilter)
-}
-
-func filterStmtFromMatch(queryMinDurationMs int, stmtTimeMs, stmt []byte) bool {
-	if queryMinDurationMs > 0 {
-		if len(stmtTimeMs) == 0 {
-			return false
-		}
-		ms, err := strconv.Atoi(string(stmtTimeMs))
-		if err != nil || ms < queryMinDurationMs {
-			return false
-		}
-	}
-
-	// remove dorisdump self queries
-	if bytes.HasPrefix(stmt, InternalSqlCommentBytes) {
-		return false
-	}
-
-	return true
 }
 
 func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {
@@ -86,14 +77,19 @@ func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, err
 }
 
 // ExtractQueriesFromAuditLog extracts the query from an audit log.
-// In unique mode: we will aggregate all queries in the first slot, the remaining slots will be empty.
-// In non-unique mode: we will return all queries in the order of auditlogPath slots.
-func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, encoding string, queryMinCpuTimeMs, parallel int, unique bool) ([][]string, error) {
+func ExtractQueriesFromAuditLogs(
+	dbs []string,
+	auditlogPaths []string,
+	encoding string,
+	queryMinCpuTimeMs int,
+	parallel int,
+	unique, uniqueNormalize bool,
+	unescape bool,
+) ([][]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
 
-	hash2sqls := make([]map[[32]byte]string, len(auditlogPaths))
 	sqlss := make([][]string, len(auditlogPaths))
 	for i, auditlogPath := range auditlogPaths {
 		i, auditlogPath := i, auditlogPath
@@ -110,23 +106,17 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, encoding 
 			if err != nil {
 				return err
 			}
+			buf := bufio.NewScanner(transform.NewReader(f, enc.NewDecoder()))
 
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
-			hash2sql, sqls, err := ExtractQueriesFromAuditLog(dbs, f, enc, queryMinCpuTimeMs, unique)
+			// read log file line by line
+			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, unique, uniqueNormalize, unescape)
+			sqls, err := extractQueriesFromAuditLog(s, buf)
 			if err != nil {
 				return err
 			}
 
-			// remove ignored queries
-			// FIXME: do we need to remove ignored queries when not in unique output mode?
-			if len(hash2sql) > 0 {
-				for _, q := range IgnoreQueries {
-					delete(hash2sql, q)
-				}
-			}
-
-			hash2sqls[i] = hash2sql
 			sqlss[i] = sqls
 
 			return nil
@@ -137,8 +127,194 @@ func ExtractQueriesFromAuditLogs(dbs []string, auditlogPaths []string, encoding 
 		return nil, err
 	}
 
-	if unique {
-		return [][]string{lo.Values(lo.Assign(hash2sqls...))}, nil
-	}
 	return sqlss, nil
+}
+
+func extractQueriesFromAuditLog(
+	s AuditLogScanner,
+	auditlog *bufio.Scanner,
+) ([]string, error) {
+	s.Init()
+	defer s.Close()
+
+	// read log file line by line
+	if !auditlog.Scan() {
+		logrus.Warningln("Failed to scan audit log file, maybe empty?")
+		return []string{}, nil
+	}
+	var (
+		line   = auditlog.Bytes()
+		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+		eof    = false
+	)
+
+	for {
+		oneLog := bytes.Clone(line)
+
+		// one log may have multiple lines
+		// a line not starts with 'yyyy-mm-dd' is considered belonging to the previous line
+		for {
+			if !auditlog.Scan() {
+				eof = true
+				break
+			}
+			line = auditlog.Bytes()
+
+			const minLenToMatch = len("yyyy-mm-dd")
+			if len(line) >= minLenToMatch && lineRe.Match(line[:minLenToMatch+1]) {
+				break
+			}
+
+			// append to previous line
+			oneLog = append(oneLog, '\n')
+			oneLog = append(oneLog, line...)
+		}
+
+		// parse log
+		if err := s.ScanOne(oneLog); err != nil {
+			logrus.Errorln("Failed to scan audit log file")
+			return nil, err
+		}
+		if eof {
+			break
+		}
+	}
+
+	return s.Result()
+}
+
+type AuditLogScanner interface {
+	Init()
+	ScanOne(oneLine []byte) error
+	Result() (sqls []string, err error)
+	Close()
+}
+
+var _ AuditLogScanner = (*SimpleAuditLogScanner)(nil)
+
+type SimpleAuditLogScanner struct {
+	hash *blake3.Hasher
+
+	dbs                     []string
+	encoding                encoding.Encoding
+	queryMinCpuTimeMs       int
+	unique, uniqueNormalize bool
+	unescape                bool
+
+	hash2sql map[[32]byte]string
+	sqls     []string
+
+	re *regexp2.Regexp
+}
+
+func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, unique, uniqueNormalize, unescape bool) *SimpleAuditLogScanner {
+	return &SimpleAuditLogScanner{
+		hash:              blake3.New(),
+		dbs:               dbs,
+		queryMinCpuTimeMs: queryMinCpuTimeMs,
+		unique:            unique,
+		uniqueNormalize:   uniqueNormalize,
+		unescape:          unescape,
+		hash2sql:          make(map[[32]byte]string, 1024),
+		sqls:              make([]string, 0, 1024),
+	}
+}
+
+func (s *SimpleAuditLogScanner) Init() {
+	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
+}
+
+func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
+	matches, err := s.re.FindStringMatch(string(oneLog))
+	if err != nil {
+		logrus.Errorln("Failed to scan audit log file")
+		return err
+	}
+	if matches == nil || len(matches.Groups()) < 2 {
+		return nil
+	}
+
+	caps := lo.Map(matches.Groups(), func(g regexp2.Group, _ int) string { return g.String() })
+	s.onMatch(caps)
+
+	return nil
+}
+
+func (s *SimpleAuditLogScanner) Result() (sqls []string, err error) {
+	return s.sqls, nil
+}
+
+func (s *SimpleAuditLogScanner) Close() {}
+
+func (s *SimpleAuditLogScanner) onMatch(caps []string) {
+	time, db, durationMs, queryId, stmt := caps[1], caps[2], caps[3], caps[4], caps[5]
+
+	stmt = strings.TrimSpace(stmt)
+	ok := s.filterStmtFromMatch(s.queryMinCpuTimeMs, durationMs, queryId, stmt)
+	if !ok {
+		return
+	}
+
+	if s.unescape {
+		stmt = unescapeReplacer.Replace(stmt)
+	}
+
+	// add leading meta comment in JSON format
+	outputStmt := fmt.Sprintf(`/*dorisdump{"ts": "%s", "db": "%s", "queryId": "%s"}*/ %s`, time, db, queryId, stmt)
+	if !strings.HasSuffix(outputStmt, ";") {
+		outputStmt += ";"
+	}
+
+	// unique sqls
+	if s.unique {
+		var h [32]byte
+		if s.uniqueNormalize {
+			h = hashstr(s.hash, parser.NormalizeKeepHint(stmt))
+		} else {
+			h = hashstr(s.hash, stmt)
+		}
+		if _, ok := s.hash2sql[h]; ok {
+			return
+		}
+		s.hash2sql[h] = outputStmt
+	}
+
+	// not unique sqls
+	s.sqls = append(s.sqls, outputStmt)
+}
+
+func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, durationMs, queryId, stmt string) bool {
+	if queryMinDurationMs > 0 {
+		if len(durationMs) == 0 {
+			return false
+		}
+		ms, err := strconv.Atoi(durationMs)
+		if err != nil || ms < queryMinDurationMs {
+			return false
+		}
+	}
+
+	// remove empty stmt
+	if len(stmt) == 0 {
+		return false
+	}
+
+	// remove dorisdump self queries
+	if strings.HasPrefix(stmt, InternalSqlComment) {
+		return false
+	}
+
+	// remove truncated queries (which length is larger than audit_plugin_max_sql_length)
+	truncated := false
+	if strings.HasSuffix(stmt, "...") {
+		truncated = true
+	} else if strings.HasSuffix(stmt, "*/") && strings.LastIndex(stmt, "... /*") > -1 {
+		truncated = true
+	}
+	if truncated {
+		logrus.Warningln("query has been truncated, query_id:", queryId)
+		return false
+	}
+
+	return true
 }

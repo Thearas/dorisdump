@@ -4,107 +4,55 @@
 package src
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
-	"os"
-	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/flier/gohs/chimera"
+	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
-	"github.com/zeebo/blake3"
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/transform"
 )
 
-func ExtractQueriesFromAuditLog(dbs []string, auditlog *os.File, encoding encoding.Encoding, queryMinCpuTimeMs int, unique bool) (map[[32]byte]string, []string, error) {
-	c := hs_newContext(queryMinCpuTimeMs, unique)
-	database, scratch, close := hs_alloc(dbs)
-	defer close()
-
-	// read log file line by line
-	buf := bufio.NewScanner(transform.NewReader(auditlog, encoding.NewDecoder()))
-	if !buf.Scan() {
-		logrus.Errorf("Failed to scan audit log file %s, maybe empty?\n", auditlog.Name())
-		return c.hash2sql, c.sqls, nil
+func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, unique, uniqueNormalize, unescape bool) AuditLogScanner {
+	return &HyperAuditLogScanner{
+		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, unique, uniqueNormalize, unescape),
 	}
-	var (
-		line   = buf.Bytes()
-		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
-		eof    = false
-	)
+}
 
-	for {
-		oneLog := bytes.Clone(line)
+var _ AuditLogScanner = (*HyperAuditLogScanner)(nil)
 
-		// one log may have multiple lines
-		// a line not starts with 'yyyy-mm-dd' is considered belonging to the previous line
-		for {
-			if !buf.Scan() {
-				eof = true
-				break
-			}
-			line = buf.Bytes()
+type HyperAuditLogScanner struct {
+	SimpleAuditLogScanner
 
-			const minLenToMatch = len("yyyy-mm-dd")
-			if len(line) >= minLenToMatch && lineRe.Match(line[:minLenToMatch+1]) {
-				break
-			}
+	database chimera.BlockDatabase
+	scratch  *chimera.Scratch
+	close    func()
+}
 
-			// append to previous line
-			oneLog = append(oneLog, '\n')
-			oneLog = append(oneLog, line...)
-		}
+func (s *HyperAuditLogScanner) Init() {
+	s.database, s.scratch, s.close = hs_alloc(s.dbs)
+}
 
-		// parse log
-		if err := database.Scan(oneLog, scratch, &hs_handler{}, &c); err != nil {
-			logrus.Errorln("[hyperscan] Failed to scan audit log file")
-			return nil, nil, err
-		}
-		if eof {
-			break
-		}
-		oneLog = nil
+func (s *HyperAuditLogScanner) ScanOne(oneLog []byte) error {
+	if err := s.database.Scan(oneLog, s.scratch, &hs_handler{}, s); err != nil {
+		logrus.Errorln("[hyperscan] Failed to scan audit log file")
+		return err
 	}
 
-	return c.hash2sql, c.sqls, nil
+	return nil
+}
+
+func (s *HyperAuditLogScanner) Close() {
+	s.close()
 }
 
 type hs_handler struct{}
 
 // OnMatch will be invoked whenever a match is located in the target data during the execution of a scan.
-func (h *hs_handler) OnMatch(_ uint, _, _ uint64, flags uint, captured []*chimera.Capture, ctx any) chimera.Callback {
-	c, _ := ctx.(*hyperscanContext)
+func (h *hs_handler) OnMatch(_ uint, _, _ uint64, _ uint, captured []*chimera.Capture, ctx any) chimera.Callback {
+	c, _ := ctx.(*HyperAuditLogScanner)
 
-	time, durationMs, stmt := captured[1].Bytes, captured[2].Bytes, captured[3].Bytes
+	caps := lo.Map(captured, func(cap *chimera.Capture, _ int) string { return string(cap.Bytes) })
+	c.onMatch(caps)
 
-	ok := filterStmtFromMatch(c.queryMinCpuTimeMs, durationMs, stmt)
-	if !ok {
-		return chimera.Continue
-	}
-
-	// unique sqls
-	if c.unique {
-		// not unique sqls
-		hash := hash(c.hash, stmt)
-		if _, ok := c.hash2sql[hash]; !ok {
-			c.hash2sql[hash] = string(stmt)
-		}
-		return chimera.Continue
-	}
-
-	// not unique sqls
-	// add leading comment in JSON with time and client
-	time_ := string(time)
-	stmt_ := strings.TrimSpace(string(stmt))
-	if !strings.HasSuffix(stmt_, ";") {
-		stmt_ = stmt_ + ";"
-	}
-	stmt_ = fmt.Sprintf(`/*{"time": "%s"}*/ %s`, time_, stmt_)
-
-	c.sqls = append(c.sqls, stmt_)
 	return chimera.Continue
 }
 
@@ -155,25 +103,4 @@ func hs_alloc(dbs []string) (chimera.BlockDatabase, *chimera.Scratch, func()) {
 		hsAlloc = hs_makeAuditLogQueryRegex(dbs)
 	}
 	return hsAlloc()
-}
-
-type hyperscanContext struct {
-	queryMinCpuTimeMs int
-	unique            bool
-
-	// when unique
-	hash     *blake3.Hasher
-	hash2sql map[[32]byte]string
-	// when not unique
-	sqls []string
-}
-
-func hs_newContext(queryMinCpuTimeMs int, unique bool) hyperscanContext {
-	return hyperscanContext{
-		queryMinCpuTimeMs: queryMinCpuTimeMs,
-		unique:            unique,
-		hash:              blake3.New(),
-		hash2sql:          make(map[[32]byte]string, 1024),
-		sqls:              make([]string, 0, 1024),
-	}
 }

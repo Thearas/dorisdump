@@ -40,6 +40,7 @@ var DumpConfig = Dump{}
 
 type Dump struct {
 	AuditLogPaths         []string
+	AuditLogUnescape      bool
 	OutputDDLDir          string
 	OutputQueryDir        string
 	LocalAuditLogCacheDir string
@@ -49,12 +50,13 @@ type Dump struct {
 	SSHPassword   string
 	SSHPrivateKey string
 
-	DumpSchema         bool
-	DumpStats          bool
-	DumpQuery          bool
-	QueryOutputMode    string
-	QueryMinDuration_  time.Duration
-	QueryMinDurationMs int
+	DumpSchema           bool
+	DumpStats            bool
+	DumpQuery            bool
+	QueryOutputMode      string
+	QueryUniqueNormalize bool
+	QueryMinDuration_    time.Duration
+	QueryMinDurationMs   int
 
 	Clean bool
 }
@@ -71,9 +73,10 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
-	Aliases:          []string{"d"},
-	Example:          "dorisdump dump --dump-schema --dump-query -D db1 --audit-log /path/to/audit.log",
-	TraverseChildren: true,
+	Aliases:                    []string{"d"},
+	Example:                    "dorisdump dump --dump-schema --dump-query -D db1 --audit-log /path/to/audit.log",
+	TraverseChildren:           true,
+	SuggestionsMinimumDistance: 2,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
@@ -119,7 +122,7 @@ or environment variables with prefix 'DORIS_', e.g.
 
 			logrus.Infof("Found %d query(s)\n", lo.SumBy(queries, func(s []string) int { return len(s) }))
 
-			if err := outputQueries(queries, DumpConfig.QueryOutputMode == "unique"); err != nil {
+			if err := outputQueries(queries); err != nil {
 				return err
 			}
 		}
@@ -136,8 +139,10 @@ func init() {
 	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
 	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
+	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when --query-output-mode=unique")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
+	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n' and '\\t' in audit log")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
@@ -362,6 +367,8 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 		DumpConfig.QueryMinDurationMs,
 		GlobalConfig.Parallel,
 		DumpConfig.QueryOutputMode == "unique",
+		DumpConfig.QueryUniqueNormalize,
+		DumpConfig.AuditLogUnescape,
 	)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs failed, %v\n", err)
@@ -371,7 +378,7 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 	return queries, nil
 }
 
-func outputQueries(queries [][]string, unique bool) error {
+func outputQueries(queries [][]string) error {
 	if !GlobalConfig.DryRun {
 		if err := os.MkdirAll(DumpConfig.OutputQueryDir, 0755); err != nil {
 			logrus.Errorln("Create output query directory failed, ", err)
@@ -381,43 +388,7 @@ func outputQueries(queries [][]string, unique bool) error {
 
 	printSql := logrus.GetLevel() == logrus.TraceLevel
 
-	if unique {
-		return outputUniqueQueries(queries, printSql)
-	}
 	return outputDefaultQueries(queries, printSql)
-}
-
-func outputUniqueQueries(queriess [][]string, printSql bool) error {
-	if len(queriess) == 0 || len(queriess[0]) == 0 {
-		return nil
-	}
-
-	// we will aggregate all queries into the first slot
-	queries := queriess[0]
-	format := outputQueryFileNameFormat(len(queries))
-
-	g := src.ParallelGroup(GlobalConfig.Parallel)
-	for i, query := range queries {
-		i, query := i, query
-		g.Go(func() error {
-			name := fmt.Sprintf(format, i)
-			if AnonymizeConfig.Enabled {
-				query = src.AnonymizeSql(AnonymizeConfig.Method, name, query)
-			}
-
-			if printSql {
-				logrus.Tracef("queries %s: %+v\n", name, query)
-			}
-
-			path := filepath.Join(DumpConfig.OutputQueryDir, name)
-			if GlobalConfig.DryRun {
-				return nil
-			}
-			return src.WriteFile(path, query)
-		})
-	}
-
-	return g.Wait()
 }
 
 func outputDefaultQueries(queriess [][]string, printSql bool) error {

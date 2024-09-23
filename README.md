@@ -31,12 +31,12 @@ dorisdump dump --dbs db1 --dump-schema --dump-query --anonymize --ssh-password '
 
 ## Build
 
-1. Install dependences:
+1. Install **optional** dependences:
 
     - On macOS: [vectorscan](https://github.com/VectorCamp/vectorscan) with Chimera support
     - On Linux: [hyperscan](https://intel.github.io/hyperscan) with Chimera support
 
-2. Run `make`
+2. Run `make` (or `make build-hyper` if the dependences in step 1 are installed)
 
 ## Update Doris Parser
 
