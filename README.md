@@ -1,6 +1,6 @@
 # Dorisdump
 
-Dump schemas and queries from Doris database with anonymization.
+Dump and replay queries from Doris database.
 
 [![demo](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9.svg)](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9)
 
@@ -13,7 +13,8 @@ curl -sSL https://raw.githubusercontent.com/Thearas/dorisdump/master/install.sh 
 ## Usage
 
 ```sh
-dorisdump --help
+# Dump
+dorisdump dump --help
 
 # Dump schemas of database db1 and db2
 dorisdump dump --host <host> --port <port> --user root --password '******' --dbs db1,db2 --dump-schema
@@ -26,7 +27,22 @@ dorisdump dump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.au
 dorisdump dump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.audit.log' --anonymize
 
 # Auto download audit log from remote (require SSH password or private key)
-dorisdump dump --dbs db1 --dump-schema --dump-query --anonymize --ssh-password '******'
+dorisdump dump --dbs db1 --dump-schema --dump-query --ssh-password '******'
+
+
+# Replay
+dorisdump replay --help
+
+# Replay queries from dump sql file
+dorisdump replay --host <host> --port <port> --user root --password '******' -f /path/to/dump.sql
+
+# Replay with args
+dorisdump replay -f /path/to/dump.sql \
+    --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \ # from time to time
+    --users 'readonly,root' --dbs 'db1,db2' \                 # filter sql by users and databases
+    --count 100 \                                             # max replay sql count
+    --speed 0.5 \                                             # replay speed
+    --result-dir replay1
 ```
 
 ## Build

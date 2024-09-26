@@ -74,7 +74,7 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_PORT=9030
 	`,
 	Aliases:                    []string{"d"},
-	Example:                    "dorisdump dump --dump-schema --dump-query -D db1 --audit-log /path/to/audit.log",
+	Example:                    "dorisdump dump --dump-schema --dump-query -dbs db1 --audit-logs /path/to/audit.log",
 	TraverseChildren:           true,
 	SuggestionsMinimumDistance: 2,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -83,11 +83,9 @@ or environment variables with prefix 'DORIS_', e.g.
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
-		if !DumpConfig.DumpSchema && !DumpConfig.DumpQuery {
-			return errors.New("Expected at least one of --dump-schema or --dump-query")
+		if err := completeDumpConfig(); err != nil {
+			return err
 		}
-
-		completeDumpConfig()
 
 		if DumpConfig.Clean {
 			if err := cleanAllFiles(true); err != nil {
@@ -136,13 +134,13 @@ func init() {
 
 	pFlags := dumpCmd.PersistentFlags()
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
-	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats")
+	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats, only take effect when --dump-schema=true")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
 	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
 	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when --query-output-mode=unique")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
-	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n' and '\\t' in audit log")
+	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n', '\\t' and '\\r' in audit log")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
@@ -154,6 +152,10 @@ func init() {
 }
 
 func completeDumpConfig() error {
+	if !DumpConfig.DumpSchema && !DumpConfig.DumpQuery {
+		return errors.New("Expected at least one of --dump-schema or --dump-query")
+	}
+
 	DumpConfig.OutputDDLDir = filepath.Join(GlobalConfig.OutputDir, "ddl")
 	DumpConfig.OutputQueryDir = filepath.Join(GlobalConfig.OutputDir, "sql")
 	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DataDir, "auditlog")
@@ -164,7 +166,7 @@ func completeDumpConfig() error {
 
 	GlobalConfig.DBs, GlobalConfig.Tables = lo.Uniq(GlobalConfig.DBs), lo.Uniq(GlobalConfig.Tables)
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
-	if len(dbs) == 0 {
+	if DumpConfig.DumpSchema && len(dbs) == 0 {
 		return errors.New("Expected at least one database, please use --dbs flag")
 	} else if len(dbs) == 1 {
 		// prepend default database if only one database specified
