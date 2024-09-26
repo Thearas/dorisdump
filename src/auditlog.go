@@ -23,58 +23,24 @@ var (
 	//
 	// NOTE: A bit hacky, but it works for now.
 	//
-	// Tested on v2.0.12 and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*).*\|Db=(%s)\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
+	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[query\] \|Client=([^|]+)\|User=([^|]+)\|.*\|Db=(%s)\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
 
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
 		"\\t", "\t",
 		"\\r", "\r",
 	)
-
-	// IgnoreQueries = lo.Map([]string{
-	// 	`SELECT CONCAT("'", user, "'@'",host,"'") FROM mysql.user`,
-	// 	`SELECT @@max_allowed_packet`,
-	// 	`SELECT DATABASE()`,
-	// 	`SELECT name from mysql.help_topic WHERE name like "SHOW %"`,
-	// 	`select @@version_comment limit 1`,
-	// 	`select connection_id()`,
-	// }, func(s string, _ int) [32]byte { return hash(hasher, []byte(s)) })
 )
 
-func auditlogQueryRe(dbs []string) string {
-	allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
-
-	var dbFilter string
-	if len(dbs) > 0 {
-		dbFilter = strings.Join(allowDBs, "|")
-	} else {
-		dbFilter = "[^|]*"
-	}
-
-	return fmt.Sprintf(stmtMatchFmt, dbFilter)
+type AuditLogScanner interface {
+	Init()
+	ScanOne(oneLine []byte) error
+	Result() (sqls []string, err error)
+	Close()
 }
 
-func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {
-	// detect encoding
-	var err error
-	if encoding == "auto" {
-		// detect encoding
-		encoding, err = DetectCharset(bufio.NewReader(f))
-		if err != nil {
-			return nil, fmt.Errorf("cannot detect charset of audit log %s: %v", f.Name(), err)
-		}
-		if _, err = f.Seek(0, 0); err != nil {
-			return nil, fmt.Errorf("cannot seek audit log %s: %v", f.Name(), err)
-		}
-	}
-	enc, err := GetEncoding(encoding)
-	if err != nil {
-		return nil, err
-	}
-
-	return enc, nil
-}
+var _ AuditLogScanner = (*SimpleAuditLogScanner)(nil)
 
 // ExtractQueriesFromAuditLog extracts the query from an audit log.
 func ExtractQueriesFromAuditLogs(
@@ -148,7 +114,7 @@ func extractQueriesFromAuditLog(
 		eof    = false
 	)
 
-	for {
+	for !eof {
 		oneLog := bytes.Clone(line)
 
 		// one log may have multiple lines
@@ -175,22 +141,10 @@ func extractQueriesFromAuditLog(
 			logrus.Errorln("Failed to scan audit log file")
 			return nil, err
 		}
-		if eof {
-			break
-		}
 	}
 
 	return s.Result()
 }
-
-type AuditLogScanner interface {
-	Init()
-	ScanOne(oneLine []byte) error
-	Result() (sqls []string, err error)
-	Close()
-}
-
-var _ AuditLogScanner = (*SimpleAuditLogScanner)(nil)
 
 type SimpleAuditLogScanner struct {
 	hash *blake3.Hasher
@@ -247,7 +201,7 @@ func (s *SimpleAuditLogScanner) Result() (sqls []string, err error) {
 func (s *SimpleAuditLogScanner) Close() {}
 
 func (s *SimpleAuditLogScanner) onMatch(caps []string) {
-	time, db, durationMs, queryId, stmt := caps[1], caps[2], caps[3], caps[4], caps[5]
+	time, client, user, db, durationMs, queryId, stmt := caps[1], caps[2], caps[3], caps[4], caps[5], caps[6], caps[7]
 
 	stmt = strings.TrimSpace(stmt)
 	ok := s.filterStmtFromMatch(s.queryMinCpuTimeMs, durationMs, queryId, stmt)
@@ -259,11 +213,8 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 		stmt = unescapeReplacer.Replace(stmt)
 	}
 
-	// add leading meta comment in JSON format
-	outputStmt := fmt.Sprintf(`/*dorisdump{"ts": "%s", "db": "%s", "queryId": "%s"}*/ %s`, time, db, queryId, stmt)
-	if !strings.HasSuffix(outputStmt, ";") {
-		outputStmt += ";"
-	}
+	// add leading meta comment
+	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
 
 	// unique sqls
 	if s.unique {
@@ -299,6 +250,8 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 		return false
 	}
 
+	// remove doris self queries
+
 	// remove dorisdump self queries
 	if strings.HasPrefix(stmt, InternalSqlComment) {
 		return false
@@ -317,4 +270,38 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 	}
 
 	return true
+}
+
+func auditlogQueryRe(dbs []string) string {
+	allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
+
+	var dbFilter string
+	if len(dbs) > 0 {
+		dbFilter = strings.Join(allowDBs, "|")
+	} else {
+		dbFilter = "[^|]*"
+	}
+
+	return fmt.Sprintf(stmtMatchFmt, dbFilter)
+}
+
+func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {
+	// detect encoding
+	var err error
+	if encoding == "auto" {
+		// detect encoding
+		encoding, err = DetectCharset(bufio.NewReader(f))
+		if err != nil {
+			return nil, fmt.Errorf("cannot detect charset of audit log %s: %v", f.Name(), err)
+		}
+		if _, err = f.Seek(0, 0); err != nil {
+			return nil, fmt.Errorf("cannot seek audit log %s: %v", f.Name(), err)
+		}
+	}
+	enc, err := GetEncoding(encoding)
+	if err != nil {
+		return nil, err
+	}
+
+	return enc, nil
 }

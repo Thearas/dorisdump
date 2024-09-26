@@ -91,7 +91,7 @@ func init() {
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
 	pFlags.StringVar(&GlobalConfig.DataDir, "data-dir", "./.dorisdump/", "Directory for storing data")
-	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./dorisdump_output/", "Directory for storing dump sql")
+	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./dorisdump_output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", 10, "Parallel dump worker")
 
@@ -146,7 +146,12 @@ func initConfig(cmd *cobra.Command, prefixs ...string) error {
 	}
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	viper.SetEnvPrefix("DORIS")
+	prefix := "DORIS"
+	if len(prefixs) > 0 {
+		prefix = strings.Join(append([]string{prefix}, prefixs...), "_")
+		prefix = strings.ToUpper(prefix)
+	}
+	viper.SetEnvPrefix(prefix)
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
