@@ -161,10 +161,14 @@ type SimpleAuditLogScanner struct {
 	unescape                bool
 	strict                  bool
 
-	hash2sql map[[32]byte]string
+	uniqsqls map[[32]byte]*uniqSql
 	sqls     []string
 
 	re *regexp2.Regexp
+}
+
+type uniqSql struct {
+	count, sqlIdx int
 }
 
 func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, strict bool) *SimpleAuditLogScanner {
@@ -177,7 +181,7 @@ func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates [
 		uniqueNormalize:   uniqueNormalize,
 		unescape:          unescape,
 		strict:            strict,
-		hash2sql:          make(map[[32]byte]string, 1024),
+		uniqsqls:          make(map[[32]byte]*uniqSql, 1024),
 		sqls:              make([]string, 0, 1024),
 	}
 }
@@ -203,6 +207,13 @@ func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
 }
 
 func (s *SimpleAuditLogScanner) Result() (sqls []string, err error) {
+	if s.unique {
+		// append number of occurrences of each sql
+		for _, v := range s.uniqsqls {
+			sqlCount := fmt.Sprintf(" -- count: %d", v.count)
+			s.sqls[v.sqlIdx] += sqlCount
+		}
+	}
 	return s.sqls, nil
 }
 
@@ -230,9 +241,6 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 		return
 	}
 
-	// add leading meta comment
-	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
-
 	// unique sqls
 	if s.unique {
 		var h [32]byte
@@ -241,11 +249,16 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 		} else {
 			h = hashstr(s.hash, stmt)
 		}
-		if _, ok := s.hash2sql[h]; ok {
+		if _, ok := s.uniqsqls[h]; ok {
+			s.uniqsqls[h].count++
 			return
+		} else {
+			s.uniqsqls[h] = &uniqSql{count: 1, sqlIdx: len(s.sqls)}
 		}
-		s.hash2sql[h] = outputStmt
 	}
+
+	// add leading meta comment
+	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
 
 	// not unique sqls
 	s.sqls = append(s.sqls, outputStmt)

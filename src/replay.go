@@ -201,7 +201,7 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 		} else {
 			for r.Next() {
 				rowCount++
-				if c.maxHashRows >= rowCount {
+				if rowCount < c.maxHashRows {
 					if err = c.appendHash(r); err != nil {
 						logrus.Errorf("scan sql return rows failed, query_id: %s, err: %v\n", sql.QueryId, err)
 						break
