@@ -39,10 +39,13 @@ type Replay struct {
 	From_, To_      string
 	Count           int
 	Speed           float32
+	MaxHashRows     int
 
 	DBs      map[string]struct{}
 	Users    map[string]struct{}
 	From, To int64
+
+	Clean bool
 }
 
 // replayCmd represents the replay command
@@ -58,6 +61,12 @@ var replayCmd = &cobra.Command{
 		if err := completeReplayConfig(); err != nil {
 			return nil
 		}
+		if ReplayConfig.Clean {
+			if err := cleanFile(ReplayConfig.ReplayResultDir, true); err != nil {
+				return err
+			}
+		}
+
 		return replay(cmd.Context())
 	},
 }
@@ -67,12 +76,16 @@ func init() {
 
 	pFlags := replayCmd.PersistentFlags()
 	pFlags.StringVarP(&ReplayConfig.ReplayFile, "file", "f", "", "Replay queries from dump file")
-	pFlags.StringVar(&ReplayConfig.ReplayResultDir, "result-dir", "", "Replay result directory, default is <output-dir>/replay")
+	pFlags.StringVar(&ReplayConfig.ReplayResultDir, "result-dir", "", "Replay result directory, default is '<output-dir>/replay'")
 	pFlags.StringSliceVar(&ReplayConfig.Users_, "users", []string{}, "Replay queries from these users")
 	pFlags.StringVar(&ReplayConfig.From_, "from", "", "Replay queries from this time, like '2006-01-02 15:04:05'")
 	pFlags.StringVar(&ReplayConfig.To_, "to", "", "Replay queries to this time, like '2006-01-02 16:04:05'")
 	pFlags.IntVar(&ReplayConfig.Count, "count", -1, "Max SQL count to replay, < 0 means unlimited")
 	pFlags.Float32Var(&ReplayConfig.Speed, "speed", 1.0, "Replay speed, like 0.5, 2, 4, ...")
+	pFlags.IntVar(&ReplayConfig.MaxHashRows, "max-hash-rows", 0, "Number of query return rows to hash, useful when diff replay result")
+
+	flags := replayCmd.Flags()
+	flags.BoolVar(&ReplayConfig.Clean, "clean", false, "Clean previous replay result")
 }
 
 func completeReplayConfig() (err error) {
@@ -86,14 +99,17 @@ func completeReplayConfig() (err error) {
 	var t time.Time
 	if ReplayConfig.From_ != "" {
 		t, err = time.Parse("2006-01-02 15:04:05", ReplayConfig.From_)
+		if err != nil {
+			return err
+		}
 		ReplayConfig.From = t.UnixMilli()
 	}
 	if ReplayConfig.To_ != "" {
 		t, err = time.Parse("2006-01-02 15:04:05", ReplayConfig.To_)
+		if err != nil {
+			return err
+		}
 		ReplayConfig.To = t.UnixMilli()
-	}
-	if err != nil {
-		return err
 	}
 
 	if ReplayConfig.Speed <= 0 {
@@ -121,6 +137,7 @@ func replay(ctx context.Context) error {
 		ReplayConfig.Count,
 	)
 
+	// TODO: better to use connection -> sqls, but no connection id in audit log yet
 	client2sqls, minTs, err := src.DecodeReplaySqls(
 		bufio.NewScanner(f),
 		ReplayConfig.DBs,
@@ -147,6 +164,7 @@ func replay(ctx context.Context) error {
 	return src.ReplaySqls(
 		ctx,
 		GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword,
-		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, minTs, GlobalConfig.Parallel,
+		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows,
+		minTs, GlobalConfig.Parallel,
 	)
 }

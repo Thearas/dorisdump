@@ -65,8 +65,8 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_PORT=9030
 	`,
 	Example:                    "dorisdump dump --help",
-	SuggestFor:                 []string{"dump"},
-	ValidArgs:                  []string{"completion", "help", "clean", "dump", "anonymize", "replay"},
+	SuggestFor:                 []string{"dump", "replay"},
+	ValidArgs:                  []string{"completion", "help", "clean", "dump", "anonymize", "replay", "diff"},
 	TraverseChildren:           true,
 	SuggestionsMinimumDistance: 2,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,7 +91,7 @@ func init() {
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
 	pFlags.StringVar(&GlobalConfig.DataDir, "data-dir", "./.dorisdump/", "Directory for storing data")
-	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./dorisdump_output/", "Directory for storing dump sql and replay result")
+	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", 10, "Parallel dump worker")
 

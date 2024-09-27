@@ -21,6 +21,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 		auditlogPaths     []string
 		encoding          string
 		queryMinCpuTimeMs int
+		queryStates       []string
 		parallel          int
 		unique            bool
 		uniqueNormalize   bool
@@ -56,7 +57,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ExtractQueriesFromAuditLogs(tt.args.dbs, tt.args.auditlogPaths, tt.args.encoding, tt.args.queryMinCpuTimeMs, tt.args.parallel, tt.args.unique, tt.args.uniqueNormalize, tt.args.unescape)
+			got, err := ExtractQueriesFromAuditLogs(tt.args.dbs, tt.args.auditlogPaths, tt.args.encoding, tt.args.queryMinCpuTimeMs, tt.args.queryStates, tt.args.parallel, tt.args.unique, tt.args.uniqueNormalize, tt.args.unescape)
 			gotCount := lo.Map(got, func(s []string, _ int) int { return len(s) })
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractQueriesFromAuditLogs() error = %v, wantErr %v", err, tt.wantErr)

@@ -43,6 +43,9 @@ dorisdump replay -f /path/to/dump.sql \
     --count 100 \                                             # max replay sql count
     --speed 0.5 \                                             # replay speed
     --result-dir replay1
+
+# Print diff of two replay result directories
+dorisdump diff replay1 replay2
 ```
 
 ## Build

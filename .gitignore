@@ -2,7 +2,7 @@
 .idea
 fe.audit.log.*
 dorisdump
-dorisdump_output
+output
 .dorisdump
 *.cast
 *.tokens
