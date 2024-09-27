@@ -3,12 +3,12 @@
 set -euo pipefail
 
 os=$(uname -s)
-if [ -n "$OS" ]; then
+if [ -n "${OS:-}" ]; then
     os="$OS"
 fi
 
 arch=$(uname -m)
-if [ -n "$ARCH" ]; then
+if [ -n "${ARCH:-}" ]; then
     arch="$ARCH"
 fi
 
