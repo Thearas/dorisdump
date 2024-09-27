@@ -11,9 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape bool) AuditLogScanner {
+func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, strict bool) AuditLogScanner {
 	return &HyperAuditLogScanner{
-		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape),
+		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, strict),
 	}
 }
 

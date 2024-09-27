@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,33 +22,37 @@ func NewListener(hideSqlComment bool, modifyIdentifier func(id string, ignoreBui
 	return &listener{hideSqlComment: hideSqlComment, modifyIdentifier: modifyIdentifier}
 }
 
-func NewErrListener(sqlId string) antlr.ErrorListener {
+func NewErrListener(sqlId string) *errListener {
 	return &errListener{ConsoleErrorListener: antlr.NewConsoleErrorListener(), sqlId: sqlId}
 }
 
-func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) *DorisParser {
+func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) *Parser {
 	input := antlr.NewInputStream(sqls)
 	lexer := NewDorisLexer(input)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := NewDorisParser(stream)
+
+	errListener := NewErrListener(sqlId)
 	p.RemoveErrorListeners()
-	p.AddErrorListener(NewErrListener(sqlId))
+	p.AddErrorListener(errListener)
 
 	for _, listener := range listeners {
 		p.AddParseListener(listener)
 	}
 
-	return p
+	return &Parser{DorisParser: p, errListener: errListener}
 }
 
 type errListener struct {
 	*antlr.ConsoleErrorListener
-	sqlId string
+	sqlId   string
+	lastErr error
 }
 
 func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, _ antlr.RecognitionException) {
 	// remove string after 'expecting', it's too annoying
 	msg = strings.Split(msg, "expecting")[0]
+	l.lastErr = errors.New(msg)
 	logrus.Errorf("sql %s parse error at line %d:%d %s\n", l.sqlId, line, column, msg)
 }
 
@@ -184,7 +189,12 @@ func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
 	c.(*antlr.TerminalNodeImpl).GetSymbol().SetText(newText)
 }
 
-func (p *DorisParser) ToSQL() string {
+type Parser struct {
+	*DorisParser
+	errListener *errListener
+}
+
+func (p *Parser) ToSQL() (string, error) {
 	// parser and modify
 	ms := p.MultiStatements()
 
@@ -192,5 +202,5 @@ func (p *DorisParser) ToSQL() string {
 	interval := antlr.NewInterval(ms.GetStart().GetTokenIndex(), ms.GetStop().GetTokenIndex())
 	s := p.GetTokenStream().GetTextFromInterval(interval)
 
-	return s
+	return s, p.errListener.lastErr
 }

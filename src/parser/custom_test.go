@@ -21,6 +21,8 @@ PROPERTIES (
 );`
 
 	p := NewParser("1", sql, NewListener(false, func(s string, _ bool) string { return "foo" }))
+	s, err := p.ToSQL()
+	assert.NoError(t, err)
 	assert.Equal(t, `CREATE TABLE foo (
 foo varchar(6) NULL,
 foo varchar(40) NULL
@@ -31,7 +33,7 @@ DISTRIBUTED BY HASH(foo) BUCKETS 10
 PROPERTIES (
 "replication_allocation" = "tag.location.default:1",
 'bloom_filter_columns' = "foo,foo"
-);`, p.ToSQL())
+);`, s)
 }
 
 func TestParser(t *testing.T) {
@@ -72,7 +74,8 @@ PROPERTIES (
 		p := NewParser("1", sql, NewListener(false, func(s string, _ bool) string { return s }))
 
 		sql = strings.ReplaceAll(sql, "`", "")
-
-		assert.Equal(t, sql, p.ToSQL())
+		s, err := p.ToSQL()
+		assert.NoError(t, err)
+		assert.Equal(t, sql, s)
 	}
 }

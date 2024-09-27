@@ -10,12 +10,14 @@ import (
 	"strings"
 
 	"github.com/dlclark/regexp2"
-	"github.com/pingcap/tidb/pkg/parser"
+	tidbparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
+
+	"github.com/Thearas/dorisdump/src/parser"
 )
 
 var (
@@ -52,6 +54,7 @@ func ExtractQueriesFromAuditLogs(
 	parallel int,
 	unique, uniqueNormalize bool,
 	unescape bool,
+	strict bool,
 ) ([][]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
@@ -78,7 +81,7 @@ func ExtractQueriesFromAuditLogs(
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
 			// read log file line by line
-			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape)
+			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, strict)
 			sqls, err := extractQueriesFromAuditLog(s, buf)
 			if err != nil {
 				return err
@@ -156,6 +159,7 @@ type SimpleAuditLogScanner struct {
 	queryStates             []string
 	unique, uniqueNormalize bool
 	unescape                bool
+	strict                  bool
 
 	hash2sql map[[32]byte]string
 	sqls     []string
@@ -163,7 +167,7 @@ type SimpleAuditLogScanner struct {
 	re *regexp2.Regexp
 }
 
-func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape bool) *SimpleAuditLogScanner {
+func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, strict bool) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		hash:              blake3.New(),
 		dbs:               dbs,
@@ -172,6 +176,7 @@ func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates [
 		unique:            unique,
 		uniqueNormalize:   uniqueNormalize,
 		unescape:          unescape,
+		strict:            strict,
 		hash2sql:          make(map[[32]byte]string, 1024),
 		sqls:              make([]string, 0, 1024),
 	}
@@ -203,6 +208,12 @@ func (s *SimpleAuditLogScanner) Result() (sqls []string, err error) {
 
 func (s *SimpleAuditLogScanner) Close() {}
 
+func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
+	p := parser.NewParser(queryId, stmt)
+	_, err := p.ToSQL()
+	return err
+}
+
 func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 	time, client, user, db, durationMs, queryId, stmt := caps[1], caps[2], caps[3], caps[4], caps[5], caps[6], caps[7]
 
@@ -215,6 +226,9 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 	if s.unescape {
 		stmt = unescapeReplacer.Replace(stmt)
 	}
+	if s.strict && s.validateSQL(queryId, stmt) != nil {
+		return
+	}
 
 	// add leading meta comment
 	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
@@ -223,7 +237,7 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 	if s.unique {
 		var h [32]byte
 		if s.uniqueNormalize {
-			h = hashstr(s.hash, parser.NormalizeKeepHint(stmt))
+			h = hashstr(s.hash, tidbparser.NormalizeKeepHint(stmt))
 		} else {
 			h = hashstr(s.hash, stmt)
 		}

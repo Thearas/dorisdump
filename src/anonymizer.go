@@ -44,8 +44,12 @@ func AnonymizeSql(method string, sqlId, sql string) string {
 	}
 
 	p := parser.NewParser(sqlId, sql, parser.NewListener(true, anonymizeF))
-
-	return p.ToSQL()
+	s, err := p.ToSQL()
+	if err != nil {
+		// return original sql if fail to parse
+		return sql
+	}
+	return s
 }
 
 func Anonymize(method string, s string) string {
