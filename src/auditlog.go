@@ -24,7 +24,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[query\] \|Client=([^|]+)\|User=([^|]+)\|.*\|Db=(%s)\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)\|.*\|Db=(%s)\|State=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
 
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
@@ -48,6 +48,7 @@ func ExtractQueriesFromAuditLogs(
 	auditlogPaths []string,
 	encoding string,
 	queryMinCpuTimeMs int,
+	queryStates []string,
 	parallel int,
 	unique, uniqueNormalize bool,
 	unescape bool,
@@ -77,7 +78,7 @@ func ExtractQueriesFromAuditLogs(
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
 			// read log file line by line
-			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, unique, uniqueNormalize, unescape)
+			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape)
 			sqls, err := extractQueriesFromAuditLog(s, buf)
 			if err != nil {
 				return err
@@ -152,6 +153,7 @@ type SimpleAuditLogScanner struct {
 	dbs                     []string
 	encoding                encoding.Encoding
 	queryMinCpuTimeMs       int
+	queryStates             []string
 	unique, uniqueNormalize bool
 	unescape                bool
 
@@ -161,11 +163,12 @@ type SimpleAuditLogScanner struct {
 	re *regexp2.Regexp
 }
 
-func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, unique, uniqueNormalize, unescape bool) *SimpleAuditLogScanner {
+func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape bool) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		hash:              blake3.New(),
 		dbs:               dbs,
 		queryMinCpuTimeMs: queryMinCpuTimeMs,
+		queryStates:       queryStates,
 		unique:            unique,
 		uniqueNormalize:   uniqueNormalize,
 		unescape:          unescape,
@@ -175,7 +178,7 @@ func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, unique, uniqu
 }
 
 func (s *SimpleAuditLogScanner) Init() {
-	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
+	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs, s.queryStates), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
 }
 
 func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -272,17 +275,24 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 	return true
 }
 
-func auditlogQueryRe(dbs []string) string {
-	allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
-
+func auditlogQueryRe(dbs, states []string) string {
 	var dbFilter string
 	if len(dbs) > 0 {
+		allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
 		dbFilter = strings.Join(allowDBs, "|")
 	} else {
 		dbFilter = "[^|]*"
 	}
 
-	return fmt.Sprintf(stmtMatchFmt, dbFilter)
+	var stateFilter string
+	if len(states) > 0 {
+		allowStates := lo.Map(states, func(s string, _ int) string { return regexp.QuoteMeta(s) })
+		stateFilter = strings.Join(allowStates, "|")
+	} else {
+		stateFilter = "[^|]*"
+	}
+
+	return fmt.Sprintf(stmtMatchFmt, dbFilter, stateFilter)
 }
 
 func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {

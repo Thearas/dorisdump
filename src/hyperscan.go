@@ -11,9 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, unique, uniqueNormalize, unescape bool) AuditLogScanner {
+func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape bool) AuditLogScanner {
 	return &HyperAuditLogScanner{
-		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, unique, uniqueNormalize, unescape),
+		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape),
 	}
 }
 
@@ -28,7 +28,7 @@ type HyperAuditLogScanner struct {
 }
 
 func (s *HyperAuditLogScanner) Init() {
-	s.database, s.scratch, s.close = hs_alloc(s.dbs)
+	s.database, s.scratch, s.close = hs_alloc(s.dbs, s.queryStates)
 }
 
 func (s *HyperAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -63,8 +63,8 @@ func (h *hs_handler) OnError(event chimera.ErrorEvent, _ uint, _, _ any) chimera
 	return chimera.Continue
 }
 
-func hs_makeAuditLogQueryRegex(dbs []string) hyperscanAlloc {
-	re := auditlogQueryRe(dbs)
+func hs_makeAuditLogQueryRegex(dbs, states []string) hyperscanAlloc {
+	re := auditlogQueryRe(dbs, states)
 
 	pattern := chimera.NewPattern(re, chimera.MultiLine|chimera.DotAll|chimera.SingleMatch|chimera.Utf8Mode|chimera.UnicodeProperty)
 	database, err := chimera.NewBlockDatabase(pattern)
@@ -95,12 +95,12 @@ var (
 	hslock  sync.Mutex
 )
 
-func hs_alloc(dbs []string) (chimera.BlockDatabase, *chimera.Scratch, func()) {
+func hs_alloc(dbs, states []string) (chimera.BlockDatabase, *chimera.Scratch, func()) {
 	hslock.Lock()
 	defer hslock.Unlock()
 
 	if hsAlloc == nil {
-		hsAlloc = hs_makeAuditLogQueryRegex(dbs)
+		hsAlloc = hs_makeAuditLogQueryRegex(dbs, states)
 	}
 	return hsAlloc()
 }

@@ -6,6 +6,7 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
+	github.com/fatih/color v1.17.0
 	github.com/flier/gohs v1.2.2
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-json v0.10.3
@@ -37,6 +38,8 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pingcap/errors v0.11.5-0.20240311024730-e056997136bb // indirect
@@ -52,7 +55,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )

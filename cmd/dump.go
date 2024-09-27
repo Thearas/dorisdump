@@ -57,6 +57,7 @@ type Dump struct {
 	QueryUniqueNormalize bool
 	QueryMinDuration_    time.Duration
 	QueryMinDurationMs   int
+	QueryStates          []string
 
 	Clean bool
 }
@@ -139,6 +140,7 @@ func init() {
 	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
 	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when --query-output-mode=unique")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
+	pFlags.StringSliceVar(&DumpConfig.QueryStates, "query-states", []string{}, "Dump queries with states, like 'ok', 'eof' and 'err'")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
 	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n', '\\t' and '\\r' in audit log")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
@@ -183,6 +185,10 @@ func completeDumpConfig() error {
 			}
 		}
 	}
+
+	DumpConfig.QueryStates = lo.Map(DumpConfig.QueryStates, func(s string, _ int) string {
+		return strings.ToUpper(s)
+	})
 
 	DumpConfig.SSHPrivateKey = src.ExpandHome(DumpConfig.SSHPrivateKey)
 	if DumpConfig.SSHAddress == "" {
@@ -367,6 +373,7 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 		auditLogFiles,
 		DumpConfig.AuditLogEncoding,
 		DumpConfig.QueryMinDurationMs,
+		DumpConfig.QueryStates,
 		GlobalConfig.Parallel,
 		DumpConfig.QueryOutputMode == "unique",
 		DumpConfig.QueryUniqueNormalize,
