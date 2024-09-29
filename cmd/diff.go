@@ -77,7 +77,7 @@ func init() {
 
 	flags := diffCmd.Flags()
 	flags.BoolVar(&noColor, "no-color", false, "Disable color output")
-	flags.DurationVar(&minDurationDiff, "min-duration-diff", 200*time.Millisecond, "Print diff if time difference is greater than this value")
+	flags.DurationVar(&minDurationDiff, "min-duration-diff", 100*time.Millisecond, "Print diff if duration difference is greater than this value")
 }
 
 func diff(replay1, replay2 string, isDir bool) error {

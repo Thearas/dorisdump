@@ -194,13 +194,22 @@ type Parser struct {
 	errListener *errListener
 }
 
-func (p *Parser) ToSQL() (string, error) {
+func (p *Parser) Parse() (IMultiStatementsContext, error) {
 	// parser and modify
 	ms := p.MultiStatements()
+	return ms, p.errListener.lastErr
+}
+
+func (p *Parser) ToSQL() (string, error) {
+	// parser and modify
+	ms, err := p.Parse()
+	if err != nil {
+		return "", err
+	}
 
 	// get modified sql
 	interval := antlr.NewInterval(ms.GetStart().GetTokenIndex(), ms.GetStop().GetTokenIndex())
 	s := p.GetTokenStream().GetTextFromInterval(interval)
 
-	return s, p.errListener.lastErr
+	return s, nil
 }

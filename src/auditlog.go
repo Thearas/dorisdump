@@ -221,7 +221,7 @@ func (s *SimpleAuditLogScanner) Close() {}
 
 func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
 	p := parser.NewParser(queryId, stmt)
-	_, err := p.ToSQL()
+	_, err := p.Parse()
 	return err
 }
 
