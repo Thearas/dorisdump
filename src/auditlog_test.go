@@ -26,6 +26,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 		unique            bool
 		uniqueNormalize   bool
 		unescape          bool
+		onlySelect        bool
 		strict            bool
 	}
 	tests := []struct {
@@ -41,6 +42,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				encoding:          "auto",
 				queryMinCpuTimeMs: 8,
 				unescape:          true,
+				onlySelect:        true,
 				strict:            true,
 			},
 			want: []int{8},
@@ -53,14 +55,26 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				unique:          true,
 				uniqueNormalize: true,
 				unescape:        true,
+				onlySelect:      true,
 				strict:          true,
 			},
 			want: []int{7},
 		},
+		{
+			name: "not only select",
+			args: args{
+				auditlogPaths: []string{"fixture/fe.audit.log"},
+				encoding:      "auto",
+				unescape:      true,
+				onlySelect:    false,
+				strict:        true,
+			},
+			want: []int{9},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ExtractQueriesFromAuditLogs(tt.args.dbs, tt.args.auditlogPaths, tt.args.encoding, tt.args.queryMinCpuTimeMs, tt.args.queryStates, tt.args.parallel, tt.args.unique, tt.args.uniqueNormalize, tt.args.unescape, tt.args.strict)
+			got, err := ExtractQueriesFromAuditLogs(tt.args.dbs, tt.args.auditlogPaths, tt.args.encoding, tt.args.queryMinCpuTimeMs, tt.args.queryStates, tt.args.parallel, tt.args.unique, tt.args.uniqueNormalize, tt.args.unescape, tt.args.onlySelect, tt.args.strict)
 			gotCount := lo.Map(got, func(s []string, _ int) int { return len(s) })
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractQueriesFromAuditLogs() error = %v, wantErr %v", err, tt.wantErr)

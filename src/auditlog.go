@@ -26,13 +26,16 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)\|.*\|Db=(%s)\|State=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=true\|.*\|Stmt=(.*)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)\|.*\|Db=(%s)\|State=%s\|.*\|Time(?:\(ms\))?=(\d*)\|.*\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|.*\|Stmt=(.+)\|CpuTimeMS=`
 
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
 		"\\t", "\t",
 		"\\r", "\r",
 	)
+
+	// filterStmtRe filters out some statements from the audit log.
+	filterStmtRe = regexp.MustCompile("(?i)^(EXPLAIN|SHOW|USE)")
 )
 
 type AuditLogScanner interface {
@@ -54,6 +57,7 @@ func ExtractQueriesFromAuditLogs(
 	parallel int,
 	unique, uniqueNormalize bool,
 	unescape bool,
+	onlySelect bool,
 	strict bool,
 ) ([][]string, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
@@ -81,7 +85,7 @@ func ExtractQueriesFromAuditLogs(
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
 			// read log file line by line
-			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, strict)
+			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, onlySelect, strict)
 			sqls, err := extractQueriesFromAuditLog(s, buf)
 			if err != nil {
 				return err
@@ -159,6 +163,7 @@ type SimpleAuditLogScanner struct {
 	queryStates             []string
 	unique, uniqueNormalize bool
 	unescape                bool
+	onlySelect              bool
 	strict                  bool
 
 	uniqsqls map[[32]byte]*uniqSql
@@ -171,7 +176,7 @@ type uniqSql struct {
 	count, sqlIdx int
 }
 
-func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, strict bool) *SimpleAuditLogScanner {
+func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, onlySelect, strict bool) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		hash:              blake3.New(),
 		dbs:               dbs,
@@ -180,6 +185,7 @@ func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates [
 		unique:            unique,
 		uniqueNormalize:   uniqueNormalize,
 		unescape:          unescape,
+		onlySelect:        onlySelect,
 		strict:            strict,
 		uniqsqls:          make(map[[32]byte]*uniqSql, 1024),
 		sqls:              make([]string, 0, 1024),
@@ -187,7 +193,7 @@ func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates [
 }
 
 func (s *SimpleAuditLogScanner) Init() {
-	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs, s.queryStates), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
+	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs, s.queryStates, s.onlySelect), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
 }
 
 func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -287,6 +293,11 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 		return false
 	}
 
+	// remove explain, show and use statements
+	if !s.onlySelect && filterStmtRe.MatchString(stmt) {
+		return false
+	}
+
 	// remove truncated queries (which length is larger than audit_plugin_max_sql_length)
 	truncated := false
 	if strings.HasSuffix(stmt, "...") {
@@ -302,7 +313,7 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 	return true
 }
 
-func auditlogQueryRe(dbs, states []string) string {
+func auditlogQueryRe(dbs, states []string, onlySelect bool) string {
 	var dbFilter string
 	if len(dbs) > 0 {
 		allowDBs := lo.Map(dbs, func(s string, _ int) string { return regexp.QuoteMeta(s) })
@@ -319,13 +330,18 @@ func auditlogQueryRe(dbs, states []string) string {
 		stateFilter = "[^|]*"
 	}
 
-	return fmt.Sprintf(stmtMatchFmt, dbFilter, stateFilter)
+	isQuery := "(?:true|false)"
+	if onlySelect {
+		isQuery = "true"
+	}
+
+	return fmt.Sprintf(stmtMatchFmt, dbFilter, stateFilter, isQuery)
 }
 
 func detectAuditLogEncoding(encoding string, f *os.File) (encoding.Encoding, error) {
 	// detect encoding
 	var err error
-	if encoding == "auto" {
+	if encoding == "auto" || encoding == "" {
 		// detect encoding
 		encoding, err = DetectCharset(bufio.NewReader(f))
 		if err != nil {

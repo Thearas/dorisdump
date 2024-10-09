@@ -44,8 +44,8 @@ func TestDecodeReplaySqls(t *testing.T) {
 				s: bufio.NewScanner(replayFile),
 			},
 			want: map[string]int{
-				"192.168.48.119:51970": 4,
-				"192.168.48.118:51970": 4,
+				"192.168.48.119:51970": 7,
+				"192.168.48.118:51970": 5,
 			},
 			want1: minTs.UnixMilli(),
 		},
@@ -62,7 +62,7 @@ func TestDecodeReplaySqls(t *testing.T) {
 				return len(v)
 			})
 			if !reflect.DeepEqual(gotCount, tt.want) {
-				t.Errorf("DecodeReplaySqls() got = %v, want %v", got, tt.want)
+				t.Errorf("DecodeReplaySqls() got = %v, want %v", gotCount, tt.want)
 			}
 			if got1 != tt.want1 {
 				t.Errorf("DecodeReplaySqls() got1 = %v, want %v", got1, tt.want1)

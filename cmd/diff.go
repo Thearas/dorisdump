@@ -43,6 +43,7 @@ var (
 var diffCmd = &cobra.Command{
 	Use:     "diff",
 	Short:   "Diff replay result",
+	Aliases: []string{"d"},
 	Example: "dorisdump diff /path/to/replay1 /path/to/replay2",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if noColor {
@@ -74,6 +75,8 @@ var diffCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(diffCmd)
+	diffCmd.PersistentFlags().SortFlags = false
+	diffCmd.Flags().SortFlags = false
 
 	flags := diffCmd.Flags()
 	flags.BoolVar(&noColor, "no-color", false, "Disable color output")

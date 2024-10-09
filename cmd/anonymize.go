@@ -72,6 +72,8 @@ var anonymizeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(anonymizeCmd)
+	anonymizeCmd.PersistentFlags().SortFlags = false
+	anonymizeCmd.Flags().SortFlags = false
 
 	pFlags := anonymizeCmd.PersistentFlags()
 	addAnonymizeBaseFlags(pFlags, true)

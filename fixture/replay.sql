@@ -5,5 +5,4 @@
 /*dorisdump{"ts":"2024-08-06 23:44:13,046","client":"192.168.48.119:51970","user":"root","db":"__internal_schema","queryId":"41dc7120df0040c0-a677b93ad1a28d27"}*/ select "hello world 3" as hello;
 /*dorisdump{"ts":"2024-08-06 23:44:12,047","client":"192.168.48.118:51970","user":"root","db":"__internal_schema","queryId":"18799575029447f9-a6a3fc65c8eda3f1"}*/ SHOW VARIABLES LIKE 
 '%time_zone%';
-/*dorisdump{"ts":"2024-08-06 23:44:13,048","client":"192.168.48.118:51970","user":"root","db":"__internal_schema","queryId":"18799575029447f9-a6a3fc65c8eda3f2"}*/ SHOW VARIABLES LIKE 
-'%time_zone%';
+/*dorisdump{"ts":"2024-08-06 23:44:13,048","client":"192.168.48.118:51970","user":"root","db":"__internal_schema","queryId":"18799575029447f9-a6a3fc65c8eda3f2"}*/ SHOW VARIABLES LIKE '%time_zone%';
