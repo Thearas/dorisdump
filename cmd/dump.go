@@ -58,6 +58,7 @@ type Dump struct {
 	QueryMinDuration_    time.Duration
 	QueryMinDurationMs   int
 	QueryStates          []string
+	OnlySelect           bool
 	Strict               bool
 
 	Clean bool
@@ -133,22 +134,25 @@ or environment variables with prefix 'DORIS_', e.g.
 
 func init() {
 	rootCmd.AddCommand(dumpCmd)
+	dumpCmd.PersistentFlags().SortFlags = false
+	dumpCmd.Flags().SortFlags = false
 
 	pFlags := dumpCmd.PersistentFlags()
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
-	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats, only take effect when --dump-schema=true")
+	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats, only take effect when '--dump-schema=true'")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
 	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
-	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when --query-output-mode=unique")
+	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when '--query-output-mode=unique'")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.QueryStates, "query-states", []string{}, "Dump queries with states, like 'ok', 'eof' and 'err'")
+	pFlags.BoolVar(&DumpConfig.OnlySelect, "only-select", true, "Only dump SELECT queries")
 	pFlags.BoolVarP(&DumpConfig.Strict, "strict", "s", false, "Filter out sqls that can't be parsed")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Audit log paths, either local path or ssh://xxx")
 	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n', '\\t' and '\\r' in audit log")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
-	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is root@{db_host}:22")
-	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for --ssh-address")
-	pFlags.StringVar(&DumpConfig.SSHPrivateKey, "ssh-private-key", "~/.ssh/id_rsa", "File path of SSH private key for --ssh-address")
+	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is 'root@{db_host}:22'")
+	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for '--ssh-address'")
+	pFlags.StringVar(&DumpConfig.SSHPrivateKey, "ssh-private-key", "~/.ssh/id_rsa", "File path of SSH private key for '--ssh-address'")
 	addAnonymizeBaseFlags(pFlags, false)
 
 	flags := dumpCmd.Flags()
@@ -380,6 +384,7 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 		DumpConfig.QueryOutputMode == "unique",
 		DumpConfig.QueryUniqueNormalize,
 		DumpConfig.AuditLogUnescape,
+		DumpConfig.OnlySelect,
 		DumpConfig.Strict,
 	)
 	if err != nil {

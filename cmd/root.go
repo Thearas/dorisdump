@@ -87,6 +87,9 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.PersistentFlags().SortFlags = false
+	rootCmd.Flags().SortFlags = false
+
 	pFlags := rootCmd.PersistentFlags()
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")

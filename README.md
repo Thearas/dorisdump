@@ -12,6 +12,8 @@ curl -sSL https://raw.githubusercontent.com/Thearas/dorisdump/master/install.sh 
 
 ## Usage
 
+By default, only `SELECT` statments will be dumped. Use `--only-select=false` to dump all.
+
 ```sh
 # Dump
 dorisdump dump --help
@@ -22,9 +24,6 @@ dorisdump dump --host <host> --port <port> --user root --password '******' --dbs
 # Also dump queries from db1, queries will be extracted from audit logs
 # Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple logs
 dorisdump dump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
-
-# Dump with anonymization
-dorisdump dump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.audit.log' --anonymize
 
 # Auto download audit log from remote (require SSH password or private key)
 dorisdump dump --dbs db1 --dump-schema --dump-query --ssh-password '******'
@@ -43,6 +42,10 @@ dorisdump replay -f /path/to/dump.sql \
     --count 100 \                                             # max replay sql count
     --speed 0.5 \                                             # replay speed
     --result-dir replay1
+
+
+# Diff replay result
+dorisdump diff --help
 
 # Print diff of two replay result directories
 dorisdump diff replay1 replay2

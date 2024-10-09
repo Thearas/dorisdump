@@ -186,9 +186,9 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 	prevTs := c.minTs
 
 	for _, sql := range c.sqls {
-		sleepMs := (time.Duration(sql.Ts-prevTs) * time.Millisecond) / time.Duration(c.speed)
-		if sleepMs > 2*time.Millisecond {
-			time.Sleep(sleepMs)
+		sleepMs := float32(sql.Ts-prevTs) / c.speed
+		if sleepMs > 2 /*ms*/ {
+			time.Sleep(time.Duration(sleepMs) * time.Millisecond)
 		}
 		prevTs = sql.Ts
 

@@ -73,6 +73,8 @@ var replayCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(replayCmd)
+	replayCmd.PersistentFlags().SortFlags = false
+	replayCmd.Flags().SortFlags = false
 
 	pFlags := replayCmd.PersistentFlags()
 	pFlags.StringVarP(&ReplayConfig.ReplayFile, "file", "f", "", "Replay queries from dump file")
