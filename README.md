@@ -19,14 +19,14 @@ By default, only `SELECT` statments will be dumped. Use `--only-select=false` to
 dorisdump dump --help
 
 # Dump schemas of database db1 and db2
-dorisdump dump --host <host> --port <port> --user root --password '******' --dbs db1,db2 --dump-schema
+dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
 
 # Also dump queries from db1, queries will be extracted from audit logs
 # Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple logs
-dorisdump dump --dbs db1 --dump-schema --dump-query --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
+dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
 
 # Auto download audit log from remote (require SSH password or private key)
-dorisdump dump --dbs db1 --dump-schema --dump-query --ssh-password '******'
+dorisdump dump --dump-query --host <host> --port <port> --ssh-password '******'
 
 
 # Replay
