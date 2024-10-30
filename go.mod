@@ -1,6 +1,6 @@
 module github.com/Thearas/dorisdump
 
-go 1.22.6
+go 1.23.2
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1

@@ -43,7 +43,6 @@ var (
 var diffCmd = &cobra.Command{
 	Use:     "diff",
 	Short:   "Diff replay result",
-	Aliases: []string{"d"},
 	Example: "dorisdump diff /path/to/replay1 /path/to/replay2",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if noColor {
@@ -53,7 +52,7 @@ var diffCmd = &cobra.Command{
 		}
 
 		if len(args) != 2 {
-			return errors.New("diff requires two file path")
+			return errors.New("diff requires two file or directory path")
 		}
 
 		replay1, replay2 := args[0], args[1]
@@ -66,7 +65,7 @@ var diffCmd = &cobra.Command{
 			return err
 		}
 		if lstats.IsDir() != rstats.IsDir() {
-			return errors.New("file path should be both file or both directory")
+			return errors.New("path should be both file or both directory")
 		}
 
 		return diff(replay1, replay2, lstats.IsDir())

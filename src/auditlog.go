@@ -286,8 +286,6 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 		return false
 	}
 
-	// remove doris self queries
-
 	// remove dorisdump self queries
 	if strings.HasPrefix(stmt, InternalSqlComment) {
 		return false

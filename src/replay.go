@@ -435,7 +435,7 @@ func EncodeReplaySql(ts, client, user, db, queryId, stmt string) string {
 	return outputStmt
 }
 
-// ReplaySqlMeta will prepend to every sql as a comment.
+// ReplaySqlMeta will be prepend to every sql as a comment.
 //
 // e.g.	"/*dorisdump{"ts": "2024-09-20 00:00:00", "client": "127.0.0.1:32345", "user": "root", "db": "test", "queryId": "1"}*/ <the sql>"
 type ReplaySqlMeta struct {
