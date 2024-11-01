@@ -12,3 +12,4 @@ output
 dorisdump.yaml
 dorisdump-linux-*
 dorisdump-darwin-*
+*.pprof
