@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/dlclark/regexp2"
+	"github.com/edsrzf/mmap-go"
 	tidbparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
@@ -63,6 +65,7 @@ func ExtractQueriesFromAuditLogs(
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
+	useMmap := os.Getenv("MMAP") != ""
 
 	sqlss := make([][]string, len(auditlogPaths))
 	for i, auditlogPath := range auditlogPaths {
@@ -80,7 +83,19 @@ func ExtractQueriesFromAuditLogs(
 			if err != nil {
 				return err
 			}
-			buf := bufio.NewScanner(transform.NewReader(f, enc.NewDecoder()))
+
+			var reader io.Reader = f
+			if useMmap {
+				m, err := mmap.Map(f, mmap.RDONLY, 0)
+				if err != nil {
+					logrus.Errorln("Unable to mmap audit log file:", auditlogPath, "err:", err)
+					return err
+				}
+				defer m.Unmap()
+				reader = bytes.NewReader(m)
+			}
+
+			buf := bufio.NewScanner(transform.NewReader(reader, enc.NewDecoder()))
 			buf.Buffer(make([]byte, 10*1024*1024), 1024*1024)
 
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
