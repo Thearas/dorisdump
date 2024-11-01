@@ -15,8 +15,22 @@ limitations under the License.
 */
 package main
 
-import "github.com/Thearas/dorisdump/cmd"
+import (
+	"os"
+	"runtime/pprof"
+
+	"github.com/Thearas/dorisdump/cmd"
+)
 
 func main() {
+	if os.Getenv("PPROF") != "" {
+		f, perr := os.Create("cpu.pprof")
+		if perr != nil {
+			panic(perr)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	cmd.Execute()
 }
