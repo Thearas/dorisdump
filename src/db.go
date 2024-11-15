@@ -482,13 +482,16 @@ func getDBAuditLogs(
 			logScan.onMatch(vals, true)
 		}
 
+		// prepare limit/offset for next retry
+		limit -= i
+		offset += i
+
 		_ = r.Close()
-		if err = r.Err(); err == nil {
+		if err != nil {
+			continue
+		} else if err = r.Err(); err == nil {
 			break
 		}
-
-		// increase offset for next retry
-		offset += i
 	}
 
 	return
