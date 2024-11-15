@@ -258,8 +258,9 @@ func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
 
 func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], caps[4], caps[5], caps[6]
-
+	time = strings.Replace(time, ",", ".", 1) // 2006-01-02 15:04:05,000 -> 2006-01-02 15:04:05.000
 	stmt = strings.TrimSpace(stmt)
+
 	ok := s.filterStmtFromMatch(time, durationMs, queryId, stmt, skipOptsFilter)
 	if !ok {
 		return
@@ -308,10 +309,10 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 
 	// filter by opts below
 
-	if s.From != "" && strings.SplitN(time, ",", 2)[0] < s.From {
+	if s.From != "" && strings.SplitN(time, ".", 2)[0] < s.From {
 		return false
 	}
-	if s.To != "" && strings.SplitN(time, ",", 2)[0] > s.To {
+	if s.To != "" && strings.SplitN(time, ".", 2)[0] > s.To {
 		return false
 	}
 
