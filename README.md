@@ -25,12 +25,8 @@ dorisdump dump --dump-schema --host <host> --port <port> --user root --password 
 # Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple logs
 dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
 
-# Auto download audit log from remote FE (require SSH password or private key)
-dorisdump dump --dump-query --host <fe host> --port <fe port> --ssh-password '******'
-
-# Dump queries from audit log table instead of files
-# Need to enable audit plugin on FE, see <https://doris.apache.org/docs/admin-manual/audit-plugin>
-dorisdump dump --dump-query --host <fe host> --port <fe port> --audit-log-table=audit_db.audit_table
+# Dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
+dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:45:25' --to '2024-11-14 18:45:26'
 
 
 # Replay

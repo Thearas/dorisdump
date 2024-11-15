@@ -20,7 +20,7 @@ func TestDecodeReplaySqls(t *testing.T) {
 	assert.NoError(t, err)
 	defer replayFile.Close()
 
-	minTs, err := time.Parse("2006-01-02 15:04:05,000", "2024-08-06 23:44:11,041")
+	minTs, err := time.Parse("2006-01-02 15:04:05.000", "2024-08-06 23:44:11.041")
 	assert.NoError(t, err)
 
 	type args struct {

@@ -25,7 +25,7 @@ import (
 const (
 	replaySqlPrefix     = `/*dorisdump{`
 	replaySqlSuffix     = `*/`
-	replayTsFormat      = "2006-01-02 15:04:05,000"
+	replayTsFormat      = "2006-01-02 15:04:05.000"
 	ReplayResultFileExt = ".result"
 )
 

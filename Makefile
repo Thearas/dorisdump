@@ -20,6 +20,9 @@ build-linux:
 run:
 	@go run main.go $(ARGS)
 
+test:
+	@go test -v ./...
+
 install: build
 	cp dorisdump /usr/local/bin
 

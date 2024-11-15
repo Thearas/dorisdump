@@ -246,11 +246,8 @@ func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (
 			break
 		}
 	}
-	if err := r.Err(); err != nil {
-		return dir, err
-	}
 
-	return
+	return dir, r.Err()
 }
 
 func GetTablesStats(ctx context.Context, conn *sqlx.DB, dbname string, tables ...string) ([]*TableStats, error) {
@@ -444,51 +441,60 @@ func getDBAuditLogs(
 	dbname, table string,
 	conditions string,
 	limit, offset int,
-) (string, string, error) {
-	stmt := fmt.Sprintf("SELECT time, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s LIMIT %d OFFSET %d ORDER BY time asc, query_id asc",
-		dbname,
-		table,
-		conditions,
-		limit,
-		offset,
-	)
-	logrus.Traceln("query audit log:", stmt)
+) (lastTime string, lastQueryId string, err error) {
+	const MaxRetry = 5
+	for retry := 0; retry < MaxRetry; retry++ {
+		stmt := fmt.Sprintf("SELECT time, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s ORDER BY time asc, query_id asc LIMIT %d OFFSET %d",
+			dbname,
+			table,
+			conditions,
+			limit,
+			offset,
+		)
+		logrus.Traceln("query audit log:", stmt)
 
-	var (
-		r     *sqlx.Rows
-		err   error
-		retry int
-	)
-	const MaxRetry = 3
-	for ; retry < MaxRetry; retry++ {
+		var r *sqlx.Rows
 		r, err = db.QueryxContext(ctx, InternalSqlComment+stmt)
-		if err == nil {
+		if err != nil {
+			logrus.Errorf("query audit log table failed: retry: %d, db: %s, table: %s, err: %v\n", retry, dbname, table, err)
+			continue
+		}
+		defer r.Close()
+
+		var i int
+		for ; r.Next(); i++ {
+			var (
+				vals_ []any
+				vals  []string
+			)
+
+			vals_, err = r.SliceScan()
+			if err != nil {
+				break
+			}
+
+			vals, err = cast.ToStringSliceE(vals_)
+			if err != nil {
+				logrus.Errorf("read audit log table failed: db: %s, table: %s, err: %v\n", dbname, table, err)
+				break
+			}
+			lastTime, lastQueryId = vals[0], vals[5]
+			logScan.onMatch(vals, true)
+		}
+
+		// prepare limit/offset for next retry
+		limit -= i
+		offset += i
+
+		_ = r.Close()
+		if err != nil {
+			continue
+		} else if err = r.Err(); err == nil {
 			break
 		}
 	}
-	if err != nil {
-		logrus.Errorf("query audit log table failed: retry: %d, db: %s, table: %s, err: %v\n", retry, dbname, table, err)
-		return "", "", err
-	}
-	defer r.Close()
 
-	var lastTime, lastQueryId string
-	for i := 0; r.Next(); i++ {
-		vals_, err := r.SliceScan()
-		if err != nil {
-			return "", "", err
-		}
-
-		vals, err := cast.ToStringSliceE(vals_)
-		if err != nil {
-			logrus.Errorf("read audit log table failed: db: %s, table: %s, err: %v\n", dbname, table, err)
-			return "", "", err
-		}
-		lastTime, lastQueryId = vals[0], vals[5]
-		logScan.onMatch(vals, true)
-	}
-
-	return lastTime, lastQueryId, r.Err()
+	return
 }
 
 func SanitizeLike(s string) string {
