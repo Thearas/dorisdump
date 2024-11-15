@@ -94,7 +94,10 @@ func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error)
 		DBName:               db,
 		AllowNativePasswords: true,
 		Timeout:              3 * time.Second,
-		InterpolateParams:    true,
+		InterpolateParams:    true, // some doris does not enable prepare stmt
+		ParseTime:            false,
+		ReadTimeout:          600 * time.Second,
+		WriteTimeout:         600 * time.Second,
 	}
 	dsn := cfg.FormatDSN()
 	logrus.Traceln("Connecting:", logrus.Fields{
@@ -259,7 +262,7 @@ func GetTablesStats(ctx context.Context, conn *sqlx.DB, dbname string, tables ..
 	for _, table := range tables {
 		s, err := getTableStats(ctx, conn, dbname, table)
 		if err != nil {
-			logrus.Errorf("get table stats failed: db: %s, table: %s, err: %v", dbname, table, err)
+			logrus.Errorf("get table stats failed: db: %s, table: %s, err: %v\n", dbname, table, err)
 			return nil, err
 		}
 		if s == nil {
@@ -320,6 +323,173 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 		Columns:  cols,
 	}
 	return tbl, nil
+}
+
+func CountAuditlogs(
+	ctx context.Context,
+	db *sqlx.DB,
+	dbname, table string,
+	opts AuditLogScanOpts,
+) (int, error) {
+	query := fmt.Sprintf("SELECT count(*) FROM `%s`.`%s` WHERE %s", dbname, table, opts.sqlConditions())
+	logrus.Traceln("query from audit log table:", query)
+
+	var total int
+	err := db.GetContext(ctx, &total, InternalSqlComment+query)
+	if err != nil {
+		logrus.Errorln("query audit log count failed, err:", err)
+	}
+	return total, err
+}
+
+func GetDBAuditLogs(
+	ctx context.Context,
+	db *sqlx.DB,
+	dbname, table string,
+	opts AuditLogScanOpts,
+	parallel int,
+) ([]string, error) {
+	total, err := CountAuditlogs(ctx, db, dbname, table, opts)
+	if err != nil {
+		return nil, err
+	}
+	if total <= 0 {
+		logrus.Warnln("no audit log found")
+		return []string{}, nil
+	}
+	if total > 1_000_000 {
+		if !Confirm(fmt.Sprintf("Audit log count(%d) may bigger than 1 million, continue", total)) {
+			return []string{}, nil
+		}
+	}
+
+	logrus.Debugf("need to scan %d audit log row(s)\n", total)
+
+	logScans := make([]*SimpleAuditLogScanner, parallel)
+	for i := range logScans {
+		s := NewSimpleAuditLogScanner(opts)
+		s.Init()
+		defer s.Close()
+		logScans[i] = s
+	}
+
+	const LimitPerSelect = 100
+	chunksNum := total / LimitPerSelect
+	if total%LimitPerSelect != 0 {
+		chunksNum += 1
+	}
+	if chunksNum < parallel {
+		parallel = chunksNum
+	}
+	chunkPerThread := chunksNum / parallel
+	chunkRemain := chunksNum % parallel
+
+	g := ParallelGroup(parallel)
+	conditions := opts.sqlConditions()
+	var scanned int
+	for i := 0; i < parallel; i++ {
+		logScan := logScans[i]
+
+		chunks := chunkPerThread
+		if i < chunkRemain {
+			chunks += 1
+		}
+		limitPerThread := chunks * LimitPerSelect
+
+		start := scanned
+		end := start + limitPerThread
+		if end > total {
+			end = total
+		}
+		scanned = end
+
+		g.Go(func() error {
+			pageConds := ""
+			for offset := start; offset < end; offset += LimitPerSelect {
+				limit := LimitPerSelect
+
+				overflow := offset + limit - end
+				if overflow > 0 {
+					limit -= overflow
+				}
+
+				offset_ := offset
+				if pageConds != "" {
+					offset_ = 0
+				}
+
+				time, queryId, err := getDBAuditLogs(ctx, logScan, db, dbname, table, conditions+pageConds, limit, offset_)
+				if err != nil {
+					return err
+				}
+				pageConds = ""
+				if time != "" && queryId != "" {
+					pageConds = fmt.Sprintf(` AND time > "%s" AND query_id > "%s"`, time, queryId)
+				}
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return lo.Flatten(lo.Map(logScans, func(s *SimpleAuditLogScanner, _ int) []string { return s.Result() })), nil
+}
+
+func getDBAuditLogs(
+	ctx context.Context,
+	logScan *SimpleAuditLogScanner,
+	db *sqlx.DB,
+	dbname, table string,
+	conditions string,
+	limit, offset int,
+) (string, string, error) {
+	stmt := fmt.Sprintf("SELECT %s FROM `%s`.`%s` WHERE %s LIMIT %d OFFSET %d ORDER BY time asc, query_id asc",
+		strings.Join(captureFieldCols, ", "),
+		dbname,
+		table,
+		conditions,
+		limit,
+		offset,
+	)
+	logrus.Traceln("query audit log:", stmt)
+
+	var (
+		r     *sqlx.Rows
+		err   error
+		retry int
+	)
+	const MaxRetry = 3
+	for ; retry < MaxRetry; retry++ {
+		r, err = db.QueryxContext(ctx, InternalSqlComment+stmt)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		logrus.Errorf("query audit log table failed: retry: %d, db: %s, table: %s, err: %v\n", retry, dbname, table, err)
+		return "", "", err
+	}
+	defer r.Close()
+
+	var lastTime, lastQueryId string
+	for i := 0; r.Next(); i++ {
+		vals_, err := r.SliceScan()
+		if err != nil {
+			return "", "", err
+		}
+
+		vals, err := cast.ToStringSliceE(vals_)
+		if err != nil {
+			logrus.Errorf("read audit log table failed: db: %s, table: %s, err: %v\n", dbname, table, err)
+			return "", "", err
+		}
+		lastTime, lastQueryId = vals[0], vals[5]
+		logScan.onMatch(vals, true)
+	}
+
+	return lastTime, lastQueryId, r.Err()
 }
 
 func SanitizeLike(s string) string {

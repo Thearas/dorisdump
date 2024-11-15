@@ -2,7 +2,9 @@ package src
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -79,6 +81,9 @@ func Confirm(msg string) bool {
 	prompt := promptui.Prompt{
 		Label:     msg,
 		IsConfirm: true,
+	}
+	if os.Getenv("DORIS_YES") != "" {
+		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("y")))
 	}
 	result, _ := prompt.Run()
 	return result == "y"

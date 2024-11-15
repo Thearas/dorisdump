@@ -30,6 +30,9 @@ var (
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
 	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+?\] \|Client=([^|]+?)\|User=([^|]+?)\|(?:.+?)\|Db=(%s?)\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
 
+	// The cols read from audit log table
+	captureFieldCols = []string{"time", "client_ip", "user", "db", "query_time", "query_id", "stmt"}
+
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
 		"\\t", "\t",
@@ -43,26 +46,58 @@ var (
 type AuditLogScanner interface {
 	Init()
 	ScanOne(oneLine []byte) error
-	Result() (sqls []string, err error)
+	Result() (sqls []string)
 	Close()
 }
 
 var _ AuditLogScanner = (*SimpleAuditLogScanner)(nil)
 
+type AuditLogScanOpts struct {
+	// filter
+	DBs                []string
+	QueryMinDurationMs int
+	QueryStates        []string
+	OnlySelect         bool
+	From, To           string
+
+	Unique, UniqueNormalize bool
+	Unescape                bool
+	Strict                  bool
+}
+
+func (opts *AuditLogScanOpts) sqlConditions() string {
+	// push down filter to db
+	conditions := "1=1"
+	if len(opts.DBs) > 0 {
+		conditions += fmt.Sprintf(` AND db IN ("%s")`, strings.Join(opts.DBs, `", "`))
+	}
+	if opts.QueryMinDurationMs > 0 {
+		conditions += fmt.Sprintf(` AND query_time >= %d`, opts.QueryMinDurationMs)
+	}
+	if len(opts.QueryStates) > 0 {
+		conditions += fmt.Sprintf(` AND state IN ("%s")`, strings.Join(opts.QueryStates, `", "`))
+	}
+	if opts.OnlySelect {
+		conditions += ` AND is_query = 1`
+	}
+
+	if opts.From != "" {
+		conditions += fmt.Sprintf(` AND time >= "%s"`, opts.From)
+	}
+	if opts.To != "" {
+		conditions += fmt.Sprintf(` AND time <= "%s"`, opts.To)
+	}
+	return conditions
+}
+
 // ExtractQueriesFromAuditLog extracts the query from an audit log.
 func ExtractQueriesFromAuditLogs(
-	dbs []string,
 	auditlogPaths []string,
 	encoding string,
-	queryMinCpuTimeMs int,
-	queryStates []string,
+	opts AuditLogScanOpts,
 	parallel int,
-	unique, uniqueNormalize bool,
-	unescape bool,
-	onlySelect bool,
-	strict bool,
 ) ([][]string, error) {
-	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", dbs, auditlogPaths)
+	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", opts.DBs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
 	useMmap := os.Getenv("MMAP") != ""
@@ -101,7 +136,7 @@ func ExtractQueriesFromAuditLogs(
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
 			// read log file line by line
-			s := NewAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, onlySelect, strict)
+			s := NewAuditLogScanner(opts)
 			sqls, err := extractQueriesFromAuditLog(s, buf)
 			if err != nil {
 				return err
@@ -167,20 +202,13 @@ func extractQueriesFromAuditLog(
 		}
 	}
 
-	return s.Result()
+	return s.Result(), nil
 }
 
 type SimpleAuditLogScanner struct {
-	hash *blake3.Hasher
+	AuditLogScanOpts
 
-	dbs                     []string
-	encoding                encoding.Encoding
-	queryMinCpuTimeMs       int
-	queryStates             []string
-	unique, uniqueNormalize bool
-	unescape                bool
-	onlySelect              bool
-	strict                  bool
+	hash *blake3.Hasher
 
 	uniqsqls map[[32]byte]*uniqSql
 	sqls     []string
@@ -192,24 +220,17 @@ type uniqSql struct {
 	count, sqlIdx int
 }
 
-func NewSimpleAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, onlySelect, strict bool) *SimpleAuditLogScanner {
+func NewSimpleAuditLogScanner(opts AuditLogScanOpts) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
-		hash:              blake3.New(),
-		dbs:               dbs,
-		queryMinCpuTimeMs: queryMinCpuTimeMs,
-		queryStates:       queryStates,
-		unique:            unique,
-		uniqueNormalize:   uniqueNormalize,
-		unescape:          unescape,
-		onlySelect:        onlySelect,
-		strict:            strict,
-		uniqsqls:          make(map[[32]byte]*uniqSql, 1024),
-		sqls:              make([]string, 0, 1024),
+		AuditLogScanOpts: opts,
+		hash:             blake3.New(),
+		uniqsqls:         make(map[[32]byte]*uniqSql, 1024),
+		sqls:             make([]string, 0, 1024),
 	}
 }
 
 func (s *SimpleAuditLogScanner) Init() {
-	s.re = regexp2.MustCompile(auditlogQueryRe(s.dbs, s.queryStates, s.onlySelect), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
+	s.re = regexp2.MustCompile(auditlogQueryRe(s.DBs, s.QueryStates, s.OnlySelect), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
 }
 
 func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -223,20 +244,20 @@ func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
 	}
 
 	caps := lo.Map(matches.Groups(), func(g regexp2.Group, _ int) string { return g.String() })
-	s.onMatch(caps)
+	s.onMatch(caps[1:], false)
 
 	return nil
 }
 
-func (s *SimpleAuditLogScanner) Result() (sqls []string, err error) {
-	if s.unique {
+func (s *SimpleAuditLogScanner) Result() []string {
+	if s.Unique {
 		// append number of occurrences of each sql
 		for _, v := range s.uniqsqls {
 			sqlCount := fmt.Sprintf(" -- count: %d", v.count)
 			s.sqls[v.sqlIdx] += sqlCount
 		}
 	}
-	return s.sqls, nil
+	return s.sqls
 }
 
 func (s *SimpleAuditLogScanner) Close() {}
@@ -247,26 +268,27 @@ func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
 	return err
 }
 
-func (s *SimpleAuditLogScanner) onMatch(caps []string) {
-	time, client, user, db, durationMs, queryId, stmt := caps[1], caps[2], caps[3], caps[4], caps[5], caps[6], caps[7]
+func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
+	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], caps[4], caps[5], caps[6]
 
 	stmt = strings.TrimSpace(stmt)
-	ok := s.filterStmtFromMatch(s.queryMinCpuTimeMs, durationMs, queryId, stmt)
+	ok := s.filterStmtFromMatch(time, durationMs, queryId, stmt, skipOptsFilter)
 	if !ok {
 		return
 	}
 
-	if s.unescape {
+	if s.Unescape {
 		stmt = unescapeReplacer.Replace(stmt)
 	}
-	if s.strict && s.validateSQL(queryId, stmt) != nil {
+	if s.Strict && s.validateSQL(queryId, stmt) != nil {
+		print("asdsadad\n")
 		return
 	}
 
 	// unique sqls
-	if s.unique {
+	if s.Unique {
 		var h [32]byte
-		if s.uniqueNormalize {
+		if s.UniqueNormalize {
 			h = hashstr(s.hash, tidbparser.NormalizeKeepHint(stmt))
 		} else {
 			h = hashstr(s.hash, stmt)
@@ -286,19 +308,17 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string) {
 	s.sqls = append(s.sqls, outputStmt)
 }
 
-func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, durationMs, queryId, stmt string) bool {
-	if queryMinDurationMs > 0 {
-		if len(durationMs) == 0 {
-			return false
-		}
-		ms, err := strconv.Atoi(durationMs)
-		if err != nil || ms < queryMinDurationMs {
-			return false
-		}
-	}
-
+func (s *SimpleAuditLogScanner) filterStmtFromMatch(
+	time, durationMs, queryId, stmt string,
+	skipOptsFilter bool,
+) bool {
 	// remove empty stmt
 	if len(stmt) == 0 {
+		return false
+	}
+
+	// remove truncated queries (which length is larger than audit_plugin_max_sql_length)
+	if logStmtTruncated(queryId, stmt) {
 		return false
 	}
 
@@ -308,12 +328,39 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 	}
 
 	// remove explain, show and use statements
-	if !s.onlySelect && filterStmtRe.MatchString(stmt) {
+	if !s.OnlySelect && filterStmtRe.MatchString(stmt) {
 		return false
 	}
 
-	// remove truncated queries (which length is larger than audit_plugin_max_sql_length)
-	truncated := false
+	if skipOptsFilter {
+		return true
+	}
+
+	// filter by opts below
+
+	if s.From != "" && strings.SplitN(time, ",", 2)[0] < s.From {
+		return false
+	}
+	if s.To != "" && strings.SplitN(time, ",", 2)[0] > s.To {
+		return false
+	}
+
+	if s.QueryMinDurationMs > 0 {
+		if len(durationMs) == 0 {
+			return false
+		}
+		ms, err := strconv.Atoi(durationMs)
+		if err != nil || ms < s.QueryMinDurationMs {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Which length is larger than audit_plugin_max_sql_length.
+func logStmtTruncated(queryId, stmt string) bool {
+	var truncated bool
 	if strings.HasSuffix(stmt, "...") {
 		truncated = true
 	} else if strings.HasSuffix(stmt, "*/") && strings.LastIndex(stmt, "... /*") > -1 {
@@ -321,10 +368,8 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(queryMinDurationMs int, dura
 	}
 	if truncated {
 		logrus.Warningln("query has been truncated, query_id:", queryId)
-		return false
 	}
-
-	return true
+	return truncated
 }
 
 func auditlogQueryRe(dbs, states []string, onlySelect bool) string {
