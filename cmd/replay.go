@@ -100,14 +100,14 @@ func completeReplayConfig() (err error) {
 
 	var t time.Time
 	if ReplayConfig.From_ != "" {
-		t, err = time.Parse("2006-01-02 15:04:05", ReplayConfig.From_)
+		t, err = time.Parse(time.DateTime, ReplayConfig.From_)
 		if err != nil {
 			return err
 		}
 		ReplayConfig.From = t.UnixMilli()
 	}
 	if ReplayConfig.To_ != "" {
-		t, err = time.Parse("2006-01-02 15:04:05", ReplayConfig.To_)
+		t, err = time.Parse(time.DateTime, ReplayConfig.To_)
 		if err != nil {
 			return err
 		}

@@ -11,9 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewAuditLogScanner(dbs []string, queryMinCpuTimeMs int, queryStates []string, unique, uniqueNormalize, unescape, onlySelect, strict bool) AuditLogScanner {
+func NewAuditLogScanner(opts AuditLogScanOpts) AuditLogScanner {
 	return &HyperAuditLogScanner{
-		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(dbs, queryMinCpuTimeMs, queryStates, unique, uniqueNormalize, unescape, onlySelect, strict),
+		SimpleAuditLogScanner: *NewSimpleAuditLogScanner(opts),
 	}
 }
 
@@ -28,7 +28,7 @@ type HyperAuditLogScanner struct {
 }
 
 func (s *HyperAuditLogScanner) Init() {
-	s.database, s.scratch, s.close = hs_alloc(s.dbs, s.queryStates, s.onlySelect)
+	s.database, s.scratch, s.close = hs_alloc(s.DBs, s.QueryStates, s.OnlySelect)
 }
 
 func (s *HyperAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -51,7 +51,7 @@ func (h *hs_handler) OnMatch(_ uint, _, _ uint64, _ uint, captured []*chimera.Ca
 	c, _ := ctx.(*HyperAuditLogScanner)
 
 	caps := lo.Map(captured, func(cap *chimera.Capture, _ int) string { return string(cap.Bytes) })
-	c.onMatch(caps)
+	c.onMatch(caps[1:], false)
 
 	return chimera.Continue
 }
@@ -61,6 +61,23 @@ func (h *hs_handler) OnMatch(_ uint, _, _ uint64, _ uint, captured []*chimera.Ca
 func (h *hs_handler) OnError(event chimera.ErrorEvent, _ uint, _, _ any) chimera.Callback {
 	logrus.Errorln("[hyperscan] OnError:", event.Error())
 	return chimera.Continue
+}
+
+type hyperscanAlloc = func() (chimera.BlockDatabase, *chimera.Scratch, func())
+
+var (
+	hsAlloc hyperscanAlloc
+	hslock  sync.Mutex
+)
+
+func hs_alloc(dbs, states []string, onlySelect bool) (chimera.BlockDatabase, *chimera.Scratch, func()) {
+	hslock.Lock()
+	defer hslock.Unlock()
+
+	if hsAlloc == nil {
+		hsAlloc = hs_makeAuditLogQueryRegex(dbs, states, onlySelect)
+	}
+	return hsAlloc()
 }
 
 func hs_makeAuditLogQueryRegex(dbs, states []string, onlySelect bool) hyperscanAlloc {
@@ -86,21 +103,4 @@ func hs_makeAuditLogQueryRegex(dbs, states []string, onlySelect bool) hyperscanA
 		return database, scratch, func() { scratchPool.Put(scratch) }
 	}
 	return scratchAlloc
-}
-
-type hyperscanAlloc = func() (chimera.BlockDatabase, *chimera.Scratch, func())
-
-var (
-	hsAlloc hyperscanAlloc
-	hslock  sync.Mutex
-)
-
-func hs_alloc(dbs, states []string, onlySelect bool) (chimera.BlockDatabase, *chimera.Scratch, func()) {
-	hslock.Lock()
-	defer hslock.Unlock()
-
-	if hsAlloc == nil {
-		hsAlloc = hs_makeAuditLogQueryRegex(dbs, states, onlySelect)
-	}
-	return hsAlloc()
 }
