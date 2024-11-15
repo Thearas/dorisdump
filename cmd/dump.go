@@ -52,17 +52,15 @@ type Dump struct {
 	SSHPassword   string
 	SSHPrivateKey string
 
-	DumpSchema           bool
-	DumpStats            bool
-	DumpQuery            bool
-	QueryOutputMode      string
-	QueryUniqueNormalize bool
-	QueryMinDuration_    time.Duration
-	QueryMinDurationMs   int
-	QueryStates          []string
-	OnlySelect           bool
-	Strict               bool
-	From, To             string
+	DumpSchema         bool
+	DumpStats          bool
+	DumpQuery          bool
+	QueryMinDuration_  time.Duration
+	QueryMinDurationMs int
+	QueryStates        []string
+	OnlySelect         bool
+	Strict             bool
+	From, To           string
 
 	Clean bool
 }
@@ -144,8 +142,6 @@ func init() {
 	pFlags.BoolVar(&DumpConfig.DumpSchema, "dump-schema", false, "Dump schema")
 	pFlags.BoolVar(&DumpConfig.DumpStats, "dump-stats", true, "Dump schema stats, only take effect when '--dump-schema=true'")
 	pFlags.BoolVar(&DumpConfig.DumpQuery, "dump-query", false, "Dump query from audit log")
-	pFlags.StringVar(&DumpConfig.QueryOutputMode, "query-output-mode", "default", "Dump query output mode, one of [default, unique]")
-	pFlags.BoolVar(&DumpConfig.QueryUniqueNormalize, "query-unique-normalize", false, "Regard 'select 1 from b where a = 1' as 'select ? from b where a = ?' for unique, only take effect when '--query-output-mode=unique'")
 	pFlags.DurationVar(&DumpConfig.QueryMinDuration_, "query-min-duration", 0, "Dump queries which execution duration is greater than or equal to")
 	pFlags.StringSliceVar(&DumpConfig.QueryStates, "query-states", []string{}, "Dump queries with states, like 'ok', 'eof' and 'err'")
 	pFlags.BoolVar(&DumpConfig.OnlySelect, "only-select", true, "Only dump SELECT queries")
@@ -361,8 +357,6 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 		DBs:                GlobalConfig.DBs,
 		QueryMinDurationMs: DumpConfig.QueryMinDurationMs,
 		QueryStates:        DumpConfig.QueryStates,
-		Unique:             DumpConfig.QueryOutputMode == "unique",
-		UniqueNormalize:    DumpConfig.QueryUniqueNormalize,
 		Unescape:           DumpConfig.AuditLogUnescape,
 		OnlySelect:         DumpConfig.OnlySelect,
 		Strict:             DumpConfig.Strict,
@@ -379,9 +373,6 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 func dumpQueriesFromTable(ctx context.Context, opts src.AuditLogScanOpts) ([][]string, error) {
 	if opts.From == "" || opts.To == "" {
 		return nil, errors.New("Must specific both '--from' and '--to' when dumping from audit log table")
-	}
-	if opts.Unique {
-		return nil, errors.New("Not yet support '--query-output-mode=unique' with '--audit-log-table'")
 	}
 
 	dbTable := strings.SplitN(DumpConfig.AuditLogTable, ".", 2)

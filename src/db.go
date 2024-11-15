@@ -445,8 +445,7 @@ func getDBAuditLogs(
 	conditions string,
 	limit, offset int,
 ) (string, string, error) {
-	stmt := fmt.Sprintf("SELECT %s FROM `%s`.`%s` WHERE %s LIMIT %d OFFSET %d ORDER BY time asc, query_id asc",
-		strings.Join(captureFieldCols, ", "),
+	stmt := fmt.Sprintf("SELECT time, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s LIMIT %d OFFSET %d ORDER BY time asc, query_id asc",
 		dbname,
 		table,
 		conditions,

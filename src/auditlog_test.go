@@ -23,8 +23,6 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 		queryMinCpuTimeMs int
 		queryStates       []string
 		parallel          int
-		unique            bool
-		uniqueNormalize   bool
 		unescape          bool
 		onlySelect        bool
 		strict            bool
@@ -47,19 +45,6 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				strict:            true,
 			},
 			want: []int{8},
-		},
-		{
-			name: "unique",
-			args: args{
-				auditlogPaths:   []string{"fixture/fe.audit.log"},
-				encoding:        "auto",
-				unique:          true,
-				uniqueNormalize: true,
-				unescape:        true,
-				onlySelect:      true,
-				strict:          true,
-			},
-			want: []int{7},
 		},
 		{
 			name: "not_only_select",
@@ -95,8 +80,6 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				OnlySelect:         tt.args.onlySelect,
 				From:               tt.args.from,
 				To:                 tt.args.to,
-				Unique:             tt.args.unique,
-				UniqueNormalize:    tt.args.uniqueNormalize,
 				Unescape:           tt.args.unescape,
 				Strict:             tt.args.strict,
 			}

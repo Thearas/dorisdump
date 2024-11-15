@@ -12,7 +12,6 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/edsrzf/mmap-go"
-	tidbparser "github.com/pingcap/tidb/pkg/parser"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
@@ -29,9 +28,6 @@ var (
 	//
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
 	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+?\] \|Client=([^|]+?)\|User=([^|]+?)\|(?:.+?)\|Db=(%s?)\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
-
-	// The cols read from audit log table
-	captureFieldCols = []string{"time", "client_ip", "user", "db", "query_time", "query_id", "stmt"}
 
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
@@ -60,9 +56,8 @@ type AuditLogScanOpts struct {
 	OnlySelect         bool
 	From, To           string
 
-	Unique, UniqueNormalize bool
-	Unescape                bool
-	Strict                  bool
+	Unescape bool
+	Strict   bool
 }
 
 func (opts *AuditLogScanOpts) sqlConditions() string {
@@ -250,13 +245,6 @@ func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
 }
 
 func (s *SimpleAuditLogScanner) Result() []string {
-	if s.Unique {
-		// append number of occurrences of each sql
-		for _, v := range s.uniqsqls {
-			sqlCount := fmt.Sprintf(" -- count: %d", v.count)
-			s.sqls[v.sqlIdx] += sqlCount
-		}
-	}
 	return s.sqls
 }
 
@@ -281,30 +269,12 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 		stmt = unescapeReplacer.Replace(stmt)
 	}
 	if s.Strict && s.validateSQL(queryId, stmt) != nil {
-		print("asdsadad\n")
 		return
-	}
-
-	// unique sqls
-	if s.Unique {
-		var h [32]byte
-		if s.UniqueNormalize {
-			h = hashstr(s.hash, tidbparser.NormalizeKeepHint(stmt))
-		} else {
-			h = hashstr(s.hash, stmt)
-		}
-		if _, ok := s.uniqsqls[h]; ok {
-			s.uniqsqls[h].count++
-			return
-		} else {
-			s.uniqsqls[h] = &uniqSql{count: 1, sqlIdx: len(s.sqls)}
-		}
 	}
 
 	// add leading meta comment
 	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
 
-	// not unique sqls
 	s.sqls = append(s.sqls, outputStmt)
 }
 
