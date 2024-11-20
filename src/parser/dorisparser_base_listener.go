@@ -112,6 +112,14 @@ func (s *BaseDorisParserListener) EnterMaterializedViewStatementAlias(ctx *Mater
 func (s *BaseDorisParserListener) ExitMaterializedViewStatementAlias(ctx *MaterializedViewStatementAliasContext) {
 }
 
+// EnterSupportedJobStatementAlias is called when production supportedJobStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedJobStatementAlias(ctx *SupportedJobStatementAliasContext) {
+}
+
+// ExitSupportedJobStatementAlias is called when production supportedJobStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedJobStatementAlias(ctx *SupportedJobStatementAliasContext) {
+}
+
 // EnterConstraintStatementAlias is called when production constraintStatementAlias is entered.
 func (s *BaseDorisParserListener) EnterConstraintStatementAlias(ctx *ConstraintStatementAliasContext) {
 }
@@ -126,6 +134,46 @@ func (s *BaseDorisParserListener) EnterSupportedDropStatementAlias(ctx *Supporte
 
 // ExitSupportedDropStatementAlias is called when production supportedDropStatementAlias is exited.
 func (s *BaseDorisParserListener) ExitSupportedDropStatementAlias(ctx *SupportedDropStatementAliasContext) {
+}
+
+// EnterSupportedSetStatementAlias is called when production supportedSetStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedSetStatementAlias(ctx *SupportedSetStatementAliasContext) {
+}
+
+// ExitSupportedSetStatementAlias is called when production supportedSetStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedSetStatementAlias(ctx *SupportedSetStatementAliasContext) {
+}
+
+// EnterSupportedUnsetStatementAlias is called when production supportedUnsetStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedUnsetStatementAlias(ctx *SupportedUnsetStatementAliasContext) {
+}
+
+// ExitSupportedUnsetStatementAlias is called when production supportedUnsetStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedUnsetStatementAlias(ctx *SupportedUnsetStatementAliasContext) {
+}
+
+// EnterSupportedRefreshStatementAlias is called when production supportedRefreshStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedRefreshStatementAlias(ctx *SupportedRefreshStatementAliasContext) {
+}
+
+// ExitSupportedRefreshStatementAlias is called when production supportedRefreshStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedRefreshStatementAlias(ctx *SupportedRefreshStatementAliasContext) {
+}
+
+// EnterSupportedShowStatementAlias is called when production supportedShowStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedShowStatementAlias(ctx *SupportedShowStatementAliasContext) {
+}
+
+// ExitSupportedShowStatementAlias is called when production supportedShowStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedShowStatementAlias(ctx *SupportedShowStatementAliasContext) {
+}
+
+// EnterSupportedRecoverStatementAlias is called when production supportedRecoverStatementAlias is entered.
+func (s *BaseDorisParserListener) EnterSupportedRecoverStatementAlias(ctx *SupportedRecoverStatementAliasContext) {
+}
+
+// ExitSupportedRecoverStatementAlias is called when production supportedRecoverStatementAlias is exited.
+func (s *BaseDorisParserListener) ExitSupportedRecoverStatementAlias(ctx *SupportedRecoverStatementAliasContext) {
 }
 
 // EnterUnsupported is called when production unsupported is entered.
@@ -188,6 +236,12 @@ func (s *BaseDorisParserListener) EnterShowCreateMTMV(ctx *ShowCreateMTMVContext
 // ExitShowCreateMTMV is called when production showCreateMTMV is exited.
 func (s *BaseDorisParserListener) ExitShowCreateMTMV(ctx *ShowCreateMTMVContext) {}
 
+// EnterCreateScheduledJob is called when production createScheduledJob is entered.
+func (s *BaseDorisParserListener) EnterCreateScheduledJob(ctx *CreateScheduledJobContext) {}
+
+// ExitCreateScheduledJob is called when production createScheduledJob is exited.
+func (s *BaseDorisParserListener) ExitCreateScheduledJob(ctx *CreateScheduledJobContext) {}
+
 // EnterAddConstraint is called when production addConstraint is entered.
 func (s *BaseDorisParserListener) EnterAddConstraint(ctx *AddConstraintContext) {}
 
@@ -236,6 +290,12 @@ func (s *BaseDorisParserListener) EnterExport(ctx *ExportContext) {}
 // ExitExport is called when production export is exited.
 func (s *BaseDorisParserListener) ExitExport(ctx *ExportContext) {}
 
+// EnterReplay is called when production replay is entered.
+func (s *BaseDorisParserListener) EnterReplay(ctx *ReplayContext) {}
+
+// ExitReplay is called when production replay is exited.
+func (s *BaseDorisParserListener) ExitReplay(ctx *ReplayContext) {}
+
 // EnterCreateTable is called when production createTable is entered.
 func (s *BaseDorisParserListener) EnterCreateTable(ctx *CreateTableContext) {}
 
@@ -272,11 +332,163 @@ func (s *BaseDorisParserListener) EnterAlterStorageVault(ctx *AlterStorageVaultC
 // ExitAlterStorageVault is called when production alterStorageVault is exited.
 func (s *BaseDorisParserListener) ExitAlterStorageVault(ctx *AlterStorageVaultContext) {}
 
+// EnterAlterRole is called when production alterRole is entered.
+func (s *BaseDorisParserListener) EnterAlterRole(ctx *AlterRoleContext) {}
+
+// ExitAlterRole is called when production alterRole is exited.
+func (s *BaseDorisParserListener) ExitAlterRole(ctx *AlterRoleContext) {}
+
 // EnterDropCatalogRecycleBin is called when production dropCatalogRecycleBin is entered.
 func (s *BaseDorisParserListener) EnterDropCatalogRecycleBin(ctx *DropCatalogRecycleBinContext) {}
 
 // ExitDropCatalogRecycleBin is called when production dropCatalogRecycleBin is exited.
 func (s *BaseDorisParserListener) ExitDropCatalogRecycleBin(ctx *DropCatalogRecycleBinContext) {}
+
+// EnterDropRole is called when production dropRole is entered.
+func (s *BaseDorisParserListener) EnterDropRole(ctx *DropRoleContext) {}
+
+// ExitDropRole is called when production dropRole is exited.
+func (s *BaseDorisParserListener) ExitDropRole(ctx *DropRoleContext) {}
+
+// EnterDropSqlBlockRule is called when production dropSqlBlockRule is entered.
+func (s *BaseDorisParserListener) EnterDropSqlBlockRule(ctx *DropSqlBlockRuleContext) {}
+
+// ExitDropSqlBlockRule is called when production dropSqlBlockRule is exited.
+func (s *BaseDorisParserListener) ExitDropSqlBlockRule(ctx *DropSqlBlockRuleContext) {}
+
+// EnterShowVariables is called when production showVariables is entered.
+func (s *BaseDorisParserListener) EnterShowVariables(ctx *ShowVariablesContext) {}
+
+// ExitShowVariables is called when production showVariables is exited.
+func (s *BaseDorisParserListener) ExitShowVariables(ctx *ShowVariablesContext) {}
+
+// EnterShowAuthors is called when production showAuthors is entered.
+func (s *BaseDorisParserListener) EnterShowAuthors(ctx *ShowAuthorsContext) {}
+
+// ExitShowAuthors is called when production showAuthors is exited.
+func (s *BaseDorisParserListener) ExitShowAuthors(ctx *ShowAuthorsContext) {}
+
+// EnterShowLastInsert is called when production showLastInsert is entered.
+func (s *BaseDorisParserListener) EnterShowLastInsert(ctx *ShowLastInsertContext) {}
+
+// ExitShowLastInsert is called when production showLastInsert is exited.
+func (s *BaseDorisParserListener) ExitShowLastInsert(ctx *ShowLastInsertContext) {}
+
+// EnterShowGrants is called when production showGrants is entered.
+func (s *BaseDorisParserListener) EnterShowGrants(ctx *ShowGrantsContext) {}
+
+// ExitShowGrants is called when production showGrants is exited.
+func (s *BaseDorisParserListener) ExitShowGrants(ctx *ShowGrantsContext) {}
+
+// EnterShowGrantsForUser is called when production showGrantsForUser is entered.
+func (s *BaseDorisParserListener) EnterShowGrantsForUser(ctx *ShowGrantsForUserContext) {}
+
+// ExitShowGrantsForUser is called when production showGrantsForUser is exited.
+func (s *BaseDorisParserListener) ExitShowGrantsForUser(ctx *ShowGrantsForUserContext) {}
+
+// EnterShowView is called when production showView is entered.
+func (s *BaseDorisParserListener) EnterShowView(ctx *ShowViewContext) {}
+
+// ExitShowView is called when production showView is exited.
+func (s *BaseDorisParserListener) ExitShowView(ctx *ShowViewContext) {}
+
+// EnterShowPlugins is called when production showPlugins is entered.
+func (s *BaseDorisParserListener) EnterShowPlugins(ctx *ShowPluginsContext) {}
+
+// ExitShowPlugins is called when production showPlugins is exited.
+func (s *BaseDorisParserListener) ExitShowPlugins(ctx *ShowPluginsContext) {}
+
+// EnterShowRepositories is called when production showRepositories is entered.
+func (s *BaseDorisParserListener) EnterShowRepositories(ctx *ShowRepositoriesContext) {}
+
+// ExitShowRepositories is called when production showRepositories is exited.
+func (s *BaseDorisParserListener) ExitShowRepositories(ctx *ShowRepositoriesContext) {}
+
+// EnterShowCreateTable is called when production showCreateTable is entered.
+func (s *BaseDorisParserListener) EnterShowCreateTable(ctx *ShowCreateTableContext) {}
+
+// ExitShowCreateTable is called when production showCreateTable is exited.
+func (s *BaseDorisParserListener) ExitShowCreateTable(ctx *ShowCreateTableContext) {}
+
+// EnterShowRoles is called when production showRoles is entered.
+func (s *BaseDorisParserListener) EnterShowRoles(ctx *ShowRolesContext) {}
+
+// ExitShowRoles is called when production showRoles is exited.
+func (s *BaseDorisParserListener) ExitShowRoles(ctx *ShowRolesContext) {}
+
+// EnterShowPartitionId is called when production showPartitionId is entered.
+func (s *BaseDorisParserListener) EnterShowPartitionId(ctx *ShowPartitionIdContext) {}
+
+// ExitShowPartitionId is called when production showPartitionId is exited.
+func (s *BaseDorisParserListener) ExitShowPartitionId(ctx *ShowPartitionIdContext) {}
+
+// EnterShowPrivileges is called when production showPrivileges is entered.
+func (s *BaseDorisParserListener) EnterShowPrivileges(ctx *ShowPrivilegesContext) {}
+
+// ExitShowPrivileges is called when production showPrivileges is exited.
+func (s *BaseDorisParserListener) ExitShowPrivileges(ctx *ShowPrivilegesContext) {}
+
+// EnterShowProc is called when production showProc is entered.
+func (s *BaseDorisParserListener) EnterShowProc(ctx *ShowProcContext) {}
+
+// ExitShowProc is called when production showProc is exited.
+func (s *BaseDorisParserListener) ExitShowProc(ctx *ShowProcContext) {}
+
+// EnterShowStorageEngines is called when production showStorageEngines is entered.
+func (s *BaseDorisParserListener) EnterShowStorageEngines(ctx *ShowStorageEnginesContext) {}
+
+// ExitShowStorageEngines is called when production showStorageEngines is exited.
+func (s *BaseDorisParserListener) ExitShowStorageEngines(ctx *ShowStorageEnginesContext) {}
+
+// EnterShowCreateCatalog is called when production showCreateCatalog is entered.
+func (s *BaseDorisParserListener) EnterShowCreateCatalog(ctx *ShowCreateCatalogContext) {}
+
+// ExitShowCreateCatalog is called when production showCreateCatalog is exited.
+func (s *BaseDorisParserListener) ExitShowCreateCatalog(ctx *ShowCreateCatalogContext) {}
+
+// EnterShowSqlBlockRule is called when production showSqlBlockRule is entered.
+func (s *BaseDorisParserListener) EnterShowSqlBlockRule(ctx *ShowSqlBlockRuleContext) {}
+
+// ExitShowSqlBlockRule is called when production showSqlBlockRule is exited.
+func (s *BaseDorisParserListener) ExitShowSqlBlockRule(ctx *ShowSqlBlockRuleContext) {}
+
+// EnterShowCreateMaterializedView is called when production showCreateMaterializedView is entered.
+func (s *BaseDorisParserListener) EnterShowCreateMaterializedView(ctx *ShowCreateMaterializedViewContext) {
+}
+
+// ExitShowCreateMaterializedView is called when production showCreateMaterializedView is exited.
+func (s *BaseDorisParserListener) ExitShowCreateMaterializedView(ctx *ShowCreateMaterializedViewContext) {
+}
+
+// EnterShowBackends is called when production showBackends is entered.
+func (s *BaseDorisParserListener) EnterShowBackends(ctx *ShowBackendsContext) {}
+
+// ExitShowBackends is called when production showBackends is exited.
+func (s *BaseDorisParserListener) ExitShowBackends(ctx *ShowBackendsContext) {}
+
+// EnterShowFrontends is called when production showFrontends is entered.
+func (s *BaseDorisParserListener) EnterShowFrontends(ctx *ShowFrontendsContext) {}
+
+// ExitShowFrontends is called when production showFrontends is exited.
+func (s *BaseDorisParserListener) ExitShowFrontends(ctx *ShowFrontendsContext) {}
+
+// EnterShowTableId is called when production showTableId is entered.
+func (s *BaseDorisParserListener) EnterShowTableId(ctx *ShowTableIdContext) {}
+
+// ExitShowTableId is called when production showTableId is exited.
+func (s *BaseDorisParserListener) ExitShowTableId(ctx *ShowTableIdContext) {}
+
+// EnterShowWhitelist is called when production showWhitelist is entered.
+func (s *BaseDorisParserListener) EnterShowWhitelist(ctx *ShowWhitelistContext) {}
+
+// ExitShowWhitelist is called when production showWhitelist is exited.
+func (s *BaseDorisParserListener) ExitShowWhitelist(ctx *ShowWhitelistContext) {}
+
+// EnterShowTabletsBelong is called when production showTabletsBelong is entered.
+func (s *BaseDorisParserListener) EnterShowTabletsBelong(ctx *ShowTabletsBelongContext) {}
+
+// ExitShowTabletsBelong is called when production showTabletsBelong is exited.
+func (s *BaseDorisParserListener) ExitShowTabletsBelong(ctx *ShowTabletsBelongContext) {}
 
 // EnterHelp is called when production help is entered.
 func (s *BaseDorisParserListener) EnterHelp(ctx *HelpContext) {}
@@ -346,12 +558,6 @@ func (s *BaseDorisParserListener) EnterLockTable(ctx *LockTableContext) {}
 // ExitLockTable is called when production lockTable is exited.
 func (s *BaseDorisParserListener) ExitLockTable(ctx *LockTableContext) {}
 
-// EnterShowSqlBlockRule is called when production showSqlBlockRule is entered.
-func (s *BaseDorisParserListener) EnterShowSqlBlockRule(ctx *ShowSqlBlockRuleContext) {}
-
-// ExitShowSqlBlockRule is called when production showSqlBlockRule is exited.
-func (s *BaseDorisParserListener) ExitShowSqlBlockRule(ctx *ShowSqlBlockRuleContext) {}
-
 // EnterShowRowPolicy is called when production showRowPolicy is entered.
 func (s *BaseDorisParserListener) EnterShowRowPolicy(ctx *ShowRowPolicyContext) {}
 
@@ -382,18 +588,6 @@ func (s *BaseDorisParserListener) EnterShowCreateRepository(ctx *ShowCreateRepos
 // ExitShowCreateRepository is called when production showCreateRepository is exited.
 func (s *BaseDorisParserListener) ExitShowCreateRepository(ctx *ShowCreateRepositoryContext) {}
 
-// EnterShowWhitelist is called when production showWhitelist is entered.
-func (s *BaseDorisParserListener) EnterShowWhitelist(ctx *ShowWhitelistContext) {}
-
-// ExitShowWhitelist is called when production showWhitelist is exited.
-func (s *BaseDorisParserListener) ExitShowWhitelist(ctx *ShowWhitelistContext) {}
-
-// EnterShowVariables is called when production showVariables is entered.
-func (s *BaseDorisParserListener) EnterShowVariables(ctx *ShowVariablesContext) {}
-
-// ExitShowVariables is called when production showVariables is exited.
-func (s *BaseDorisParserListener) ExitShowVariables(ctx *ShowVariablesContext) {}
-
 // EnterShowOpenTables is called when production showOpenTables is entered.
 func (s *BaseDorisParserListener) EnterShowOpenTables(ctx *ShowOpenTablesContext) {}
 
@@ -417,12 +611,6 @@ func (s *BaseDorisParserListener) EnterShowViews(ctx *ShowViewsContext) {}
 
 // ExitShowViews is called when production showViews is exited.
 func (s *BaseDorisParserListener) ExitShowViews(ctx *ShowViewsContext) {}
-
-// EnterShowTableId is called when production showTableId is entered.
-func (s *BaseDorisParserListener) EnterShowTableId(ctx *ShowTableIdContext) {}
-
-// ExitShowTableId is called when production showTableId is exited.
-func (s *BaseDorisParserListener) ExitShowTableId(ctx *ShowTableIdContext) {}
 
 // EnterShowProcessList is called when production showProcessList is entered.
 func (s *BaseDorisParserListener) EnterShowProcessList(ctx *ShowProcessListContext) {}
@@ -448,30 +636,6 @@ func (s *BaseDorisParserListener) EnterShowEvents(ctx *ShowEventsContext) {}
 // ExitShowEvents is called when production showEvents is exited.
 func (s *BaseDorisParserListener) ExitShowEvents(ctx *ShowEventsContext) {}
 
-// EnterShowPlugins is called when production showPlugins is entered.
-func (s *BaseDorisParserListener) EnterShowPlugins(ctx *ShowPluginsContext) {}
-
-// ExitShowPlugins is called when production showPlugins is exited.
-func (s *BaseDorisParserListener) ExitShowPlugins(ctx *ShowPluginsContext) {}
-
-// EnterShowStorageEngines is called when production showStorageEngines is entered.
-func (s *BaseDorisParserListener) EnterShowStorageEngines(ctx *ShowStorageEnginesContext) {}
-
-// ExitShowStorageEngines is called when production showStorageEngines is exited.
-func (s *BaseDorisParserListener) ExitShowStorageEngines(ctx *ShowStorageEnginesContext) {}
-
-// EnterShowAuthors is called when production showAuthors is entered.
-func (s *BaseDorisParserListener) EnterShowAuthors(ctx *ShowAuthorsContext) {}
-
-// ExitShowAuthors is called when production showAuthors is exited.
-func (s *BaseDorisParserListener) ExitShowAuthors(ctx *ShowAuthorsContext) {}
-
-// EnterShowCreateTable is called when production showCreateTable is entered.
-func (s *BaseDorisParserListener) EnterShowCreateTable(ctx *ShowCreateTableContext) {}
-
-// ExitShowCreateTable is called when production showCreateTable is exited.
-func (s *BaseDorisParserListener) ExitShowCreateTable(ctx *ShowCreateTableContext) {}
-
 // EnterShowCreateView is called when production showCreateView is entered.
 func (s *BaseDorisParserListener) EnterShowCreateView(ctx *ShowCreateViewContext) {}
 
@@ -489,12 +653,6 @@ func (s *BaseDorisParserListener) EnterShowCreateDatabase(ctx *ShowCreateDatabas
 
 // ExitShowCreateDatabase is called when production showCreateDatabase is exited.
 func (s *BaseDorisParserListener) ExitShowCreateDatabase(ctx *ShowCreateDatabaseContext) {}
-
-// EnterShowCreateCatalog is called when production showCreateCatalog is entered.
-func (s *BaseDorisParserListener) EnterShowCreateCatalog(ctx *ShowCreateCatalogContext) {}
-
-// ExitShowCreateCatalog is called when production showCreateCatalog is exited.
-func (s *BaseDorisParserListener) ExitShowCreateCatalog(ctx *ShowCreateCatalogContext) {}
 
 // EnterShowCreateFunction is called when production showCreateFunction is entered.
 func (s *BaseDorisParserListener) EnterShowCreateFunction(ctx *ShowCreateFunctionContext) {}
@@ -556,12 +714,6 @@ func (s *BaseDorisParserListener) EnterShowCharset(ctx *ShowCharsetContext) {}
 // ExitShowCharset is called when production showCharset is exited.
 func (s *BaseDorisParserListener) ExitShowCharset(ctx *ShowCharsetContext) {}
 
-// EnterShowProc is called when production showProc is entered.
-func (s *BaseDorisParserListener) EnterShowProc(ctx *ShowProcContext) {}
-
-// ExitShowProc is called when production showProc is exited.
-func (s *BaseDorisParserListener) ExitShowProc(ctx *ShowProcContext) {}
-
 // EnterShowWaringErrorCount is called when production showWaringErrorCount is entered.
 func (s *BaseDorisParserListener) EnterShowWaringErrorCount(ctx *ShowWaringErrorCountContext) {}
 
@@ -622,23 +774,11 @@ func (s *BaseDorisParserListener) EnterShowPartitions(ctx *ShowPartitionsContext
 // ExitShowPartitions is called when production showPartitions is exited.
 func (s *BaseDorisParserListener) ExitShowPartitions(ctx *ShowPartitionsContext) {}
 
-// EnterShowPartitionId is called when production showPartitionId is entered.
-func (s *BaseDorisParserListener) EnterShowPartitionId(ctx *ShowPartitionIdContext) {}
-
-// ExitShowPartitionId is called when production showPartitionId is exited.
-func (s *BaseDorisParserListener) ExitShowPartitionId(ctx *ShowPartitionIdContext) {}
-
 // EnterShowTabletId is called when production showTabletId is entered.
 func (s *BaseDorisParserListener) EnterShowTabletId(ctx *ShowTabletIdContext) {}
 
 // ExitShowTabletId is called when production showTabletId is exited.
 func (s *BaseDorisParserListener) ExitShowTabletId(ctx *ShowTabletIdContext) {}
-
-// EnterShowTabletBelong is called when production showTabletBelong is entered.
-func (s *BaseDorisParserListener) EnterShowTabletBelong(ctx *ShowTabletBelongContext) {}
-
-// ExitShowTabletBelong is called when production showTabletBelong is exited.
-func (s *BaseDorisParserListener) ExitShowTabletBelong(ctx *ShowTabletBelongContext) {}
 
 // EnterShowTabletsFromTable is called when production showTabletsFromTable is entered.
 func (s *BaseDorisParserListener) EnterShowTabletsFromTable(ctx *ShowTabletsFromTableContext) {}
@@ -688,59 +828,17 @@ func (s *BaseDorisParserListener) EnterShowWorkloadGroups(ctx *ShowWorkloadGroup
 // ExitShowWorkloadGroups is called when production showWorkloadGroups is exited.
 func (s *BaseDorisParserListener) ExitShowWorkloadGroups(ctx *ShowWorkloadGroupsContext) {}
 
-// EnterShowBackends is called when production showBackends is entered.
-func (s *BaseDorisParserListener) EnterShowBackends(ctx *ShowBackendsContext) {}
-
-// ExitShowBackends is called when production showBackends is exited.
-func (s *BaseDorisParserListener) ExitShowBackends(ctx *ShowBackendsContext) {}
-
 // EnterShowTrash is called when production showTrash is entered.
 func (s *BaseDorisParserListener) EnterShowTrash(ctx *ShowTrashContext) {}
 
 // ExitShowTrash is called when production showTrash is exited.
 func (s *BaseDorisParserListener) ExitShowTrash(ctx *ShowTrashContext) {}
 
-// EnterShowFrontends is called when production showFrontends is entered.
-func (s *BaseDorisParserListener) EnterShowFrontends(ctx *ShowFrontendsContext) {}
-
-// ExitShowFrontends is called when production showFrontends is exited.
-func (s *BaseDorisParserListener) ExitShowFrontends(ctx *ShowFrontendsContext) {}
-
-// EnterShowRepositories is called when production showRepositories is entered.
-func (s *BaseDorisParserListener) EnterShowRepositories(ctx *ShowRepositoriesContext) {}
-
-// ExitShowRepositories is called when production showRepositories is exited.
-func (s *BaseDorisParserListener) ExitShowRepositories(ctx *ShowRepositoriesContext) {}
-
 // EnterShowSnapshot is called when production showSnapshot is entered.
 func (s *BaseDorisParserListener) EnterShowSnapshot(ctx *ShowSnapshotContext) {}
 
 // ExitShowSnapshot is called when production showSnapshot is exited.
 func (s *BaseDorisParserListener) ExitShowSnapshot(ctx *ShowSnapshotContext) {}
-
-// EnterShowGrants is called when production showGrants is entered.
-func (s *BaseDorisParserListener) EnterShowGrants(ctx *ShowGrantsContext) {}
-
-// ExitShowGrants is called when production showGrants is exited.
-func (s *BaseDorisParserListener) ExitShowGrants(ctx *ShowGrantsContext) {}
-
-// EnterShowGrantsForUser is called when production showGrantsForUser is entered.
-func (s *BaseDorisParserListener) EnterShowGrantsForUser(ctx *ShowGrantsForUserContext) {}
-
-// ExitShowGrantsForUser is called when production showGrantsForUser is exited.
-func (s *BaseDorisParserListener) ExitShowGrantsForUser(ctx *ShowGrantsForUserContext) {}
-
-// EnterShowRoles is called when production showRoles is entered.
-func (s *BaseDorisParserListener) EnterShowRoles(ctx *ShowRolesContext) {}
-
-// ExitShowRoles is called when production showRoles is exited.
-func (s *BaseDorisParserListener) ExitShowRoles(ctx *ShowRolesContext) {}
-
-// EnterShowPrivileges is called when production showPrivileges is entered.
-func (s *BaseDorisParserListener) EnterShowPrivileges(ctx *ShowPrivilegesContext) {}
-
-// ExitShowPrivileges is called when production showPrivileges is exited.
-func (s *BaseDorisParserListener) ExitShowPrivileges(ctx *ShowPrivilegesContext) {}
 
 // EnterShowFunctions is called when production showFunctions is entered.
 func (s *BaseDorisParserListener) EnterShowFunctions(ctx *ShowFunctionsContext) {}
@@ -771,12 +869,6 @@ func (s *BaseDorisParserListener) EnterShowIndex(ctx *ShowIndexContext) {}
 
 // ExitShowIndex is called when production showIndex is exited.
 func (s *BaseDorisParserListener) ExitShowIndex(ctx *ShowIndexContext) {}
-
-// EnterShowView is called when production showView is entered.
-func (s *BaseDorisParserListener) EnterShowView(ctx *ShowViewContext) {}
-
-// ExitShowView is called when production showView is exited.
-func (s *BaseDorisParserListener) ExitShowView(ctx *ShowViewContext) {}
 
 // EnterShowTransaction is called when production showTransaction is entered.
 func (s *BaseDorisParserListener) EnterShowTransaction(ctx *ShowTransactionContext) {}
@@ -819,20 +911,6 @@ func (s *BaseDorisParserListener) EnterShowTableCreation(ctx *ShowTableCreationC
 
 // ExitShowTableCreation is called when production showTableCreation is exited.
 func (s *BaseDorisParserListener) ExitShowTableCreation(ctx *ShowTableCreationContext) {}
-
-// EnterShowLastInsert is called when production showLastInsert is entered.
-func (s *BaseDorisParserListener) EnterShowLastInsert(ctx *ShowLastInsertContext) {}
-
-// ExitShowLastInsert is called when production showLastInsert is exited.
-func (s *BaseDorisParserListener) ExitShowLastInsert(ctx *ShowLastInsertContext) {}
-
-// EnterShowCreateMaterializedView is called when production showCreateMaterializedView is entered.
-func (s *BaseDorisParserListener) EnterShowCreateMaterializedView(ctx *ShowCreateMaterializedViewContext) {
-}
-
-// ExitShowCreateMaterializedView is called when production showCreateMaterializedView is exited.
-func (s *BaseDorisParserListener) ExitShowCreateMaterializedView(ctx *ShowCreateMaterializedViewContext) {
-}
 
 // EnterShowCatalogRecycleBin is called when production showCatalogRecycleBin is entered.
 func (s *BaseDorisParserListener) EnterShowCatalogRecycleBin(ctx *ShowCatalogRecycleBinContext) {}
@@ -1128,6 +1206,12 @@ func (s *BaseDorisParserListener) EnterChannelDescription(ctx *ChannelDescriptio
 // ExitChannelDescription is called when production channelDescription is exited.
 func (s *BaseDorisParserListener) ExitChannelDescription(ctx *ChannelDescriptionContext) {}
 
+// EnterRefreshCatalog is called when production refreshCatalog is entered.
+func (s *BaseDorisParserListener) EnterRefreshCatalog(ctx *RefreshCatalogContext) {}
+
+// ExitRefreshCatalog is called when production refreshCatalog is exited.
+func (s *BaseDorisParserListener) ExitRefreshCatalog(ctx *RefreshCatalogContext) {}
+
 // EnterRefreshTable is called when production refreshTable is entered.
 func (s *BaseDorisParserListener) EnterRefreshTable(ctx *RefreshTableContext) {}
 
@@ -1139,12 +1223,6 @@ func (s *BaseDorisParserListener) EnterRefreshDatabase(ctx *RefreshDatabaseConte
 
 // ExitRefreshDatabase is called when production refreshDatabase is exited.
 func (s *BaseDorisParserListener) ExitRefreshDatabase(ctx *RefreshDatabaseContext) {}
-
-// EnterRefreshCatalog is called when production refreshCatalog is entered.
-func (s *BaseDorisParserListener) EnterRefreshCatalog(ctx *RefreshCatalogContext) {}
-
-// ExitRefreshCatalog is called when production refreshCatalog is exited.
-func (s *BaseDorisParserListener) ExitRefreshCatalog(ctx *RefreshCatalogContext) {}
 
 // EnterRefreshLdap is called when production refreshLdap is entered.
 func (s *BaseDorisParserListener) EnterRefreshLdap(ctx *RefreshLdapContext) {}
@@ -1175,12 +1253,6 @@ func (s *BaseDorisParserListener) EnterCleanAllQueryStats(ctx *CleanAllQueryStat
 
 // ExitCleanAllQueryStats is called when production cleanAllQueryStats is exited.
 func (s *BaseDorisParserListener) ExitCleanAllQueryStats(ctx *CleanAllQueryStatsContext) {}
-
-// EnterCreateJob is called when production createJob is entered.
-func (s *BaseDorisParserListener) EnterCreateJob(ctx *CreateJobContext) {}
-
-// ExitCreateJob is called when production createJob is exited.
-func (s *BaseDorisParserListener) ExitCreateJob(ctx *CreateJobContext) {}
 
 // EnterPauseJob is called when production pauseJob is entered.
 func (s *BaseDorisParserListener) EnterPauseJob(ctx *PauseJobContext) {}
@@ -1558,12 +1630,6 @@ func (s *BaseDorisParserListener) EnterAlterUser(ctx *AlterUserContext) {}
 // ExitAlterUser is called when production alterUser is exited.
 func (s *BaseDorisParserListener) ExitAlterUser(ctx *AlterUserContext) {}
 
-// EnterAlterRole is called when production alterRole is entered.
-func (s *BaseDorisParserListener) EnterAlterRole(ctx *AlterRoleContext) {}
-
-// ExitAlterRole is called when production alterRole is exited.
-func (s *BaseDorisParserListener) ExitAlterRole(ctx *AlterRoleContext) {}
-
 // EnterAlterRepository is called when production alterRepository is entered.
 func (s *BaseDorisParserListener) EnterAlterRepository(ctx *AlterRepositoryContext) {}
 
@@ -1864,12 +1930,6 @@ func (s *BaseDorisParserListener) EnterDropRepository(ctx *DropRepositoryContext
 // ExitDropRepository is called when production dropRepository is exited.
 func (s *BaseDorisParserListener) ExitDropRepository(ctx *DropRepositoryContext) {}
 
-// EnterDropRole is called when production dropRole is entered.
-func (s *BaseDorisParserListener) EnterDropRole(ctx *DropRoleContext) {}
-
-// ExitDropRole is called when production dropRole is exited.
-func (s *BaseDorisParserListener) ExitDropRole(ctx *DropRoleContext) {}
-
 // EnterDropFile is called when production dropFile is entered.
 func (s *BaseDorisParserListener) EnterDropFile(ctx *DropFileContext) {}
 
@@ -1905,12 +1965,6 @@ func (s *BaseDorisParserListener) EnterDropEncryptkey(ctx *DropEncryptkeyContext
 
 // ExitDropEncryptkey is called when production dropEncryptkey is exited.
 func (s *BaseDorisParserListener) ExitDropEncryptkey(ctx *DropEncryptkeyContext) {}
-
-// EnterDropSqlBlockRule is called when production dropSqlBlockRule is entered.
-func (s *BaseDorisParserListener) EnterDropSqlBlockRule(ctx *DropSqlBlockRuleContext) {}
-
-// ExitDropSqlBlockRule is called when production dropSqlBlockRule is exited.
-func (s *BaseDorisParserListener) ExitDropSqlBlockRule(ctx *DropSqlBlockRuleContext) {}
 
 // EnterDropRowPolicy is called when production dropRowPolicy is entered.
 func (s *BaseDorisParserListener) EnterDropRowPolicy(ctx *DropRowPolicyContext) {}
@@ -2224,11 +2278,11 @@ func (s *BaseDorisParserListener) EnterSetTransaction(ctx *SetTransactionContext
 // ExitSetTransaction is called when production setTransaction is exited.
 func (s *BaseDorisParserListener) ExitSetTransaction(ctx *SetTransactionContext) {}
 
-// EnterOptionWithType is called when production optionWithType is entered.
-func (s *BaseDorisParserListener) EnterOptionWithType(ctx *OptionWithTypeContext) {}
+// EnterSetVariableWithType is called when production setVariableWithType is entered.
+func (s *BaseDorisParserListener) EnterSetVariableWithType(ctx *SetVariableWithTypeContext) {}
 
-// ExitOptionWithType is called when production optionWithType is exited.
-func (s *BaseDorisParserListener) ExitOptionWithType(ctx *OptionWithTypeContext) {}
+// ExitSetVariableWithType is called when production setVariableWithType is exited.
+func (s *BaseDorisParserListener) ExitSetVariableWithType(ctx *SetVariableWithTypeContext) {}
 
 // EnterSetNames is called when production setNames is entered.
 func (s *BaseDorisParserListener) EnterSetNames(ctx *SetNamesContext) {}
@@ -2290,13 +2344,11 @@ func (s *BaseDorisParserListener) EnterIsolationLevel(ctx *IsolationLevelContext
 // ExitIsolationLevel is called when production isolationLevel is exited.
 func (s *BaseDorisParserListener) ExitIsolationLevel(ctx *IsolationLevelContext) {}
 
-// EnterUnsupoortedUnsetStatement is called when production unsupoortedUnsetStatement is entered.
-func (s *BaseDorisParserListener) EnterUnsupoortedUnsetStatement(ctx *UnsupoortedUnsetStatementContext) {
-}
+// EnterSupportedUnsetStatement is called when production supportedUnsetStatement is entered.
+func (s *BaseDorisParserListener) EnterSupportedUnsetStatement(ctx *SupportedUnsetStatementContext) {}
 
-// ExitUnsupoortedUnsetStatement is called when production unsupoortedUnsetStatement is exited.
-func (s *BaseDorisParserListener) ExitUnsupoortedUnsetStatement(ctx *UnsupoortedUnsetStatementContext) {
-}
+// ExitSupportedUnsetStatement is called when production supportedUnsetStatement is exited.
+func (s *BaseDorisParserListener) ExitSupportedUnsetStatement(ctx *SupportedUnsetStatementContext) {}
 
 // EnterUseDatabase is called when production useDatabase is entered.
 func (s *BaseDorisParserListener) EnterUseDatabase(ctx *UseDatabaseContext) {}
@@ -2489,6 +2541,18 @@ func (s *BaseDorisParserListener) EnterPlanType(ctx *PlanTypeContext) {}
 
 // ExitPlanType is called when production planType is exited.
 func (s *BaseDorisParserListener) ExitPlanType(ctx *PlanTypeContext) {}
+
+// EnterReplayCommand is called when production replayCommand is entered.
+func (s *BaseDorisParserListener) EnterReplayCommand(ctx *ReplayCommandContext) {}
+
+// ExitReplayCommand is called when production replayCommand is exited.
+func (s *BaseDorisParserListener) ExitReplayCommand(ctx *ReplayCommandContext) {}
+
+// EnterReplayType is called when production replayType is entered.
+func (s *BaseDorisParserListener) EnterReplayType(ctx *ReplayTypeContext) {}
+
+// ExitReplayType is called when production replayType is exited.
+func (s *BaseDorisParserListener) ExitReplayType(ctx *ReplayTypeContext) {}
 
 // EnterMergeType is called when production mergeType is entered.
 func (s *BaseDorisParserListener) EnterMergeType(ctx *MergeTypeContext) {}
@@ -2737,6 +2801,12 @@ func (s *BaseDorisParserListener) EnterHavingClause(ctx *HavingClauseContext) {}
 
 // ExitHavingClause is called when production havingClause is exited.
 func (s *BaseDorisParserListener) ExitHavingClause(ctx *HavingClauseContext) {}
+
+// EnterQualifyClause is called when production qualifyClause is entered.
+func (s *BaseDorisParserListener) EnterQualifyClause(ctx *QualifyClauseContext) {}
+
+// ExitQualifyClause is called when production qualifyClause is exited.
+func (s *BaseDorisParserListener) ExitQualifyClause(ctx *QualifyClauseContext) {}
 
 // EnterSelectHint is called when production selectHint is entered.
 func (s *BaseDorisParserListener) EnterSelectHint(ctx *SelectHintContext) {}
@@ -3116,12 +3186,6 @@ func (s *BaseDorisParserListener) EnterComparison(ctx *ComparisonContext) {}
 // ExitComparison is called when production comparison is exited.
 func (s *BaseDorisParserListener) ExitComparison(ctx *ComparisonContext) {}
 
-// EnterBitOperation is called when production bitOperation is entered.
-func (s *BaseDorisParserListener) EnterBitOperation(ctx *BitOperationContext) {}
-
-// ExitBitOperation is called when production bitOperation is exited.
-func (s *BaseDorisParserListener) ExitBitOperation(ctx *BitOperationContext) {}
-
 // EnterArithmeticBinary is called when production arithmeticBinary is entered.
 func (s *BaseDorisParserListener) EnterArithmeticBinary(ctx *ArithmeticBinaryContext) {}
 
@@ -3236,6 +3300,12 @@ func (s *BaseDorisParserListener) EnterStar(ctx *StarContext) {}
 // ExitStar is called when production star is exited.
 func (s *BaseDorisParserListener) ExitStar(ctx *StarContext) {}
 
+// EnterSessionUser is called when production sessionUser is entered.
+func (s *BaseDorisParserListener) EnterSessionUser(ctx *SessionUserContext) {}
+
+// ExitSessionUser is called when production sessionUser is exited.
+func (s *BaseDorisParserListener) ExitSessionUser(ctx *SessionUserContext) {}
+
 // EnterConvertType is called when production convertType is entered.
 func (s *BaseDorisParserListener) EnterConvertType(ctx *ConvertTypeContext) {}
 
@@ -3331,6 +3401,12 @@ func (s *BaseDorisParserListener) EnterArraySlice(ctx *ArraySliceContext) {}
 
 // ExitArraySlice is called when production arraySlice is exited.
 func (s *BaseDorisParserListener) ExitArraySlice(ctx *ArraySliceContext) {}
+
+// EnterBitOperation is called when production bitOperation is entered.
+func (s *BaseDorisParserListener) EnterBitOperation(ctx *BitOperationContext) {}
+
+// ExitBitOperation is called when production bitOperation is exited.
+func (s *BaseDorisParserListener) ExitBitOperation(ctx *BitOperationContext) {}
 
 // EnterDateFloor is called when production dateFloor is entered.
 func (s *BaseDorisParserListener) EnterDateFloor(ctx *DateFloorContext) {}

@@ -14,7 +14,6 @@ import (
 	"github.com/edsrzf/mmap-go"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
-	"github.com/zeebo/blake3"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 
@@ -203,23 +202,14 @@ func extractQueriesFromAuditLog(
 type SimpleAuditLogScanner struct {
 	AuditLogScanOpts
 
-	hash *blake3.Hasher
-
-	uniqsqls map[[32]byte]*uniqSql
-	sqls     []string
+	sqls []string
 
 	re *regexp2.Regexp
-}
-
-type uniqSql struct {
-	count, sqlIdx int
 }
 
 func NewSimpleAuditLogScanner(opts AuditLogScanOpts) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		AuditLogScanOpts: opts,
-		hash:             blake3.New(),
-		uniqsqls:         make(map[[32]byte]*uniqSql, 1024),
 		sqls:             make([]string, 0, 1024),
 	}
 }
