@@ -56,7 +56,7 @@ type Dump struct {
 	DumpStats          bool
 	DumpQuery          bool
 	QueryMinDuration_  time.Duration
-	QueryMinDurationMs int
+	QueryMinDurationMs int64
 	QueryStates        []string
 	OnlySelect         bool
 	Strict             bool
@@ -180,7 +180,7 @@ func completeDumpConfig() error {
 	}
 
 	if DumpConfig.QueryMinDuration_ > 0 {
-		DumpConfig.QueryMinDurationMs = int(DumpConfig.QueryMinDuration_.Milliseconds())
+		DumpConfig.QueryMinDurationMs = DumpConfig.QueryMinDuration_.Milliseconds()
 	}
 
 	if DumpConfig.From != "" {

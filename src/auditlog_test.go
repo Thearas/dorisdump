@@ -20,7 +20,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 		dbs               []string
 		auditlogPaths     []string
 		encoding          string
-		queryMinCpuTimeMs int
+		queryMinCpuTimeMs int64
 		queryStates       []string
 		parallel          int
 		unescape          bool

@@ -30,6 +30,7 @@ const (
 )
 
 type ReplayResult struct {
+	Ts      string `json:"ts,omitempty"`
 	QueryId string `json:"queryId"`
 
 	ReturnRows     int    `json:"returnRows"`
@@ -48,11 +49,12 @@ type ReplayClient struct {
 	dbcfg     *mysql.Config
 	cluster   string
 
-	client      string
-	sqls        []*ReplaySql
-	speed       float32
-	maxHashRows int
-	minTs       int64
+	client          string
+	sqls            []*ReplaySql
+	speed           float32
+	maxHashRows     int
+	maxConnIdleTime time.Duration
+	minTs           int64
 
 	db         *sqlx.DB
 	connect    *sqlx.Conn
@@ -77,6 +79,7 @@ func (c *ReplayClient) conn(ctx context.Context, currdb string, reconnect ...boo
 		}
 		c.db.SetConnMaxIdleTime(0)
 		c.db.SetConnMaxLifetime(0)
+		c.db.SetMaxIdleConns(1)
 		c.connect, err = c.db.Connx(ctx)
 		if err != nil {
 			return nil, err
@@ -148,6 +151,7 @@ func (c *ReplayClient) Close(closefile bool) {
 	if c.db != nil {
 		c.db.Close()
 		c.db = nil
+		c.connect = nil
 	}
 	if closefile && c.resultFile != nil {
 		c.resultFile.Sync()
@@ -187,27 +191,43 @@ func (c *ReplayClient) consumeHash() string {
 func (c *ReplayClient) replayByClient(ctx context.Context) error {
 	logrus.Debugf("replay %d sqls for client %s\n", len(c.sqls), c.client)
 
-	prevTs := c.minTs
+	var (
+		prevTs         = c.minTs
+		prevDurationMs int64
+	)
 
-	for _, sql := range c.sqls {
-		sleepMs := float32(sql.Ts-prevTs) / c.speed
+	for _, s := range c.sqls {
+		// 1. Wait
+		sleepMs := float32(s.Ts-prevTs-prevDurationMs) / c.speed
 		if sleepMs > 2 /*ms*/ {
-			time.Sleep(time.Duration(sleepMs) * time.Millisecond)
+			sleep := time.Duration(sleepMs) * time.Millisecond
+
+			if c.maxConnIdleTime > 0 && sleep > c.maxConnIdleTime {
+				// close conn if idle time is too long
+				logrus.Traceln("client", c.client, "close idle conn")
+				c.Close(false)
+			}
+			time.Sleep(sleep)
 		}
-		prevTs = sql.Ts
+		prevTs = s.Ts
+		prevDurationMs = s.DurationMs
 
-		logrus.Traceln("client", c.client, "executed query_id:", sql.QueryId, "sql:", sql.Stmt)
+		logrus.Traceln("client", c.client, "executing query_id:", s.QueryId, "sql:", s.Stmt)
 
-		rowCount := 0
-		r, durationMs, err := c.queryWithReconnect(ctx, sql.Db, sql.Stmt)
+		// 2. Execute query
+		var (
+			rowCount int
+			now      = time.Now()
+		)
+		r, durationMs, err := c.queryWithReconnect(ctx, s.Db, s.Stmt)
 		if err != nil {
-			logrus.Debugf("client %s executing sql failed at query_id: %s, err: %v\n", c.client, sql.QueryId, err)
+			logrus.Debugf("client %s executed sql failed at query_id: %s, err: %v\n", c.client, s.QueryId, err)
 		} else {
 			for r.Next() {
 				rowCount++
 				if rowCount < c.maxHashRows {
 					if err = c.appendHash(r); err != nil {
-						logrus.Errorf("scan sql return rows failed, query_id: %s, err: %v\n", sql.QueryId, err)
+						logrus.Errorf("scan sql return rows failed, query_id: %s, err: %v\n", s.QueryId, err)
 						break
 					}
 				}
@@ -215,17 +235,18 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 			_ = r.Close()
 		}
 
-		logrus.Traceln("query_id:", sql.QueryId, ", row count:", rowCount, ", duration:", durationMs, "ms")
+		logrus.Traceln("query_id:", s.QueryId, ", row count:", rowCount, ", duration:", durationMs, "ms")
 
 		result := ReplayResult{
-			QueryId:    sql.QueryId,
+			Ts:         now.Format(replayTsFormat),
+			QueryId:    s.QueryId,
 			ReturnRows: rowCount,
 			DurationMs: durationMs,
 		}
 		if err != nil {
 			result.Err = err.Error()
 		}
-		if c.maxHashRows >= 0 && rowCount > 0 {
+		if c.maxHashRows > 0 && rowCount > 0 {
 			result.ReturnRowsHash = c.consumeHash()
 		}
 
@@ -248,7 +269,7 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 func ReplaySqls(
 	ctx context.Context,
 	host string, port int16, user, password, cluster string,
-	resultDir string, client2sqls map[string][]*ReplaySql, speed float32, maxHashRows int,
+	resultDir string, client2sqls map[string][]*ReplaySql, speed float32, maxHashRows int, maxConnIdleTime time.Duration,
 	minTs int64, parallel int,
 ) error {
 	if len(client2sqls) == 0 {
@@ -292,14 +313,15 @@ func ReplaySqls(
 		client, sqls := client, sqls
 		g.Go(func() error {
 			cli := ReplayClient{
-				resultDir:   resultDir,
-				dbcfg:       dbcfg.Clone(),
-				cluster:     cluster,
-				client:      client,
-				sqls:        sqls,
-				speed:       speed,
-				maxHashRows: maxHashRows,
-				minTs:       minTs,
+				resultDir:       resultDir,
+				dbcfg:           dbcfg.Clone(),
+				cluster:         cluster,
+				client:          client,
+				sqls:            sqls,
+				speed:           speed,
+				maxHashRows:     maxHashRows,
+				maxConnIdleTime: maxConnIdleTime,
+				minTs:           minTs,
 
 				hash: blake3.New(),
 			}
@@ -422,13 +444,14 @@ type ReplaySql struct {
 	Stmt string
 }
 
-func EncodeReplaySql(ts, client, user, db, queryId, stmt string) string {
+func EncodeReplaySql(ts, client, user, db, queryId, stmt string, durationMs int64) string {
 	b, err := json.Marshal(ReplaySqlMeta{
-		Ts_:     ts,
-		Client:  client,
-		User:    user,
-		Db:      db,
-		QueryId: queryId,
+		Ts_:        ts,
+		Client:     client,
+		User:       user,
+		Db:         db,
+		QueryId:    queryId,
+		DurationMs: durationMs,
 	})
 	if err != nil {
 		panic(err)
@@ -446,12 +469,13 @@ func EncodeReplaySql(ts, client, user, db, queryId, stmt string) string {
 //
 // e.g.	"/*dorisdump{"ts": "2024-09-20 00:00:00", "client": "127.0.0.1:32345", "user": "root", "db": "test", "queryId": "1"}*/ <the sql>"
 type ReplaySqlMeta struct {
-	Ts_     string `json:"ts"`
-	Ts      int64  `json:"-"`
-	Client  string `json:"client"`
-	User    string `json:"user"`
-	Db      string `json:"db"`
-	QueryId string `json:"queryId"`
+	Ts_        string `json:"ts"`
+	Ts         int64  `json:"-"`
+	Client     string `json:"client"`
+	User       string `json:"user"`
+	Db         string `json:"db"`
+	QueryId    string `json:"queryId"`
+	DurationMs int64  `json:"durationMs,omitempty"`
 }
 
 func (m *ReplaySqlMeta) matchTime(fromMs, toMs int64) bool {

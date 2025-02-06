@@ -7,13 +7,13 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/dlclark/regexp2"
 	"github.com/edsrzf/mmap-go"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 
@@ -50,7 +50,7 @@ var _ AuditLogScanner = (*SimpleAuditLogScanner)(nil)
 type AuditLogScanOpts struct {
 	// filter
 	DBs                []string
-	QueryMinDurationMs int
+	QueryMinDurationMs int64
 	QueryStates        []string
 	OnlySelect         bool
 	From, To           string
@@ -247,11 +247,11 @@ func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
 }
 
 func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
-	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], caps[4], caps[5], caps[6]
+	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], cast.ToInt64(caps[4]), caps[5], caps[6]
 	time = strings.Replace(time, ",", ".", 1) // 2006-01-02 15:04:05,000 -> 2006-01-02 15:04:05.000
 	stmt = strings.TrimSpace(stmt)
 
-	ok := s.filterStmtFromMatch(time, durationMs, queryId, stmt, skipOptsFilter)
+	ok := s.filterStmtFromMatch(time, queryId, stmt, durationMs, skipOptsFilter)
 	if !ok {
 		return
 	}
@@ -264,13 +264,13 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	}
 
 	// add leading meta comment
-	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt)
+	outputStmt := EncodeReplaySql(time, client, user, db, queryId, stmt, durationMs)
 
 	s.sqls = append(s.sqls, outputStmt)
 }
 
 func (s *SimpleAuditLogScanner) filterStmtFromMatch(
-	time, durationMs, queryId, stmt string,
+	time, queryId, stmt string, durationMs int64,
 	skipOptsFilter bool,
 ) bool {
 	// remove empty stmt
@@ -307,11 +307,7 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 	}
 
 	if s.QueryMinDurationMs > 0 {
-		if len(durationMs) == 0 {
-			return false
-		}
-		ms, err := strconv.Atoi(durationMs)
-		if err != nil || ms < s.QueryMinDurationMs {
+		if durationMs < s.QueryMinDurationMs {
 			return false
 		}
 	}

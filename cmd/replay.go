@@ -41,6 +41,7 @@ type Replay struct {
 	Count           int
 	Speed           float32
 	MaxHashRows     int
+	MaxConnIdleTime time.Duration
 
 	DBs      map[string]struct{}
 	Users    map[string]struct{}
@@ -87,6 +88,7 @@ func init() {
 	pFlags.IntVar(&ReplayConfig.Count, "count", -1, "Max SQL count to replay, < 0 means unlimited")
 	pFlags.Float32Var(&ReplayConfig.Speed, "speed", 1.0, "Replay speed, like 0.5, 2, 4, ...")
 	pFlags.IntVar(&ReplayConfig.MaxHashRows, "max-hash-rows", 0, "Number of query return rows to hash, useful when diff replay result")
+	pFlags.DurationVar(&ReplayConfig.MaxConnIdleTime, "max-conn-idle-time", 10*time.Second, "Max idle duration of a replay client connection, <= 0 means unlimited")
 
 	flags := replayCmd.Flags()
 	flags.BoolVar(&ReplayConfig.Clean, "clean", false, "Clean previous replay result")
@@ -168,7 +170,7 @@ func replay(ctx context.Context) error {
 	return src.ReplaySqls(
 		ctx,
 		GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, ReplayConfig.Cluster,
-		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows,
+		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows, ReplayConfig.MaxConnIdleTime,
 		minTs, GlobalConfig.Parallel,
 	)
 }
