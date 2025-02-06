@@ -100,18 +100,13 @@ func AnonymizeSql(method string, sqlId, sql string) string {
 }
 
 func Anonymize(method string, s string) string {
-	return getAnonymizeFunc(method)(s, false)
+	return getAnonymizeFunc(method)(s)
 }
 
 // NOTE: not thread safe.
-func getAnonymizeFunc(method string) func(string, bool) string {
+func getAnonymizeFunc(method string) func(string) string {
 	h := blake3.New()
-	hashF := func(id string, ignoreBuiltin bool) string {
-		// do not anoymize identifier that is less than MinAnonymizeLength characters.
-		if len(id) < anonymizeMinLength {
-			return id
-		}
-
+	innerhashF := func(id string) (string, bool) {
 		// FIXME: db/table name is case-insensitive
 		lowerid := strings.ToLower(id)
 
@@ -120,18 +115,35 @@ func getAnonymizeFunc(method string) func(string, bool) string {
 
 		// do not anoymize reserve ids.
 		if _, ok := anonymizerreserveIdHashs[hash]; ok {
+			return id, false
+		}
+
+		return hash, true
+	}
+
+	hashF := func(id string) string {
+		// do not anoymize identifier that is less than MinAnonymizeLength characters.
+		if len(id) < anonymizeMinLength {
 			return id
 		}
 
-		if minifyDict != nil {
-			return minifyHash(minifyDict, hash)
-		}
+		hash, _ := innerhashF(id)
 		return hash
 	}
 
+	minihashF := func(id string) string {
+		hash, modified := innerhashF(id)
+		if !modified {
+			return id
+		}
+		return minifyHash(minifyDict, hash)
+	}
+
 	switch method {
-	case "hash", "minihash":
+	case "hash":
 		return hashF
+	case "minihash":
+		return minihashF
 	default:
 		logrus.Warnf("Anonymization method %s is not supported, keep going with no anonymization\n", method)
 		return nil

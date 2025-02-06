@@ -90,8 +90,8 @@ func init() {
 
 func addAnonymizeBaseFlags(pFlags *pflag.FlagSet, defaultEnabled bool) {
 	pFlags.BoolVar(&AnonymizeConfig.Enabled, "anonymize", defaultEnabled, "Anonymize sqls")
-	pFlags.IntVar(&AnonymizeConfig.IdMinLength, "anonymize-id-min-length", 3, "Skip anonymization for id which length is less than this value")
 	pFlags.StringSliceVar(&AnonymizeConfig.ReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
 	pFlags.StringVar(&AnonymizeConfig.Method, "anonymize-method", "minihash", "Anonymize method, hash or minihash")
+	pFlags.IntVar(&AnonymizeConfig.IdMinLength, "anonymize-id-min-length", 3, "Skip anonymization for id which length is less than this value, only for hash method")
 	pFlags.StringVar(&AnonymizeConfig.HashDictPath, "anonymize-minihash-dict", "./dorisdump_hashdict.yaml", "Hash dict file path for minihash method")
 }
