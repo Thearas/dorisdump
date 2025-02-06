@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	minifyDict    map[string]string
-	miniLock      = sync.RWMutex{}
-	dorisKeywords map[string]struct{}
+	miniDict     map[string]string
+	miniLock     = sync.RWMutex{}
+	miniReserves map[string]struct{}
 
 	anonymizeMinLength       int
 	anonymizerreserveIdHashs map[string]string
@@ -39,6 +39,10 @@ var (
 )
 
 func SetupAnonymizer(method, hashdictPath string, idMinLength int, reserveIds ...string) {
+	reserveIdentifiers = append(reserveIdentifiers, reserveIds...)
+	anonymizeMinLength = idMinLength
+	anonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
+
 	if method == "minihash" {
 		b, err := os.OpenFile(hashdictPath, os.O_RDONLY|os.O_CREATE, 0600)
 		if err != nil {
@@ -46,20 +50,17 @@ func SetupAnonymizer(method, hashdictPath string, idMinLength int, reserveIds ..
 		}
 		defer b.Close()
 
-		minifyDict = make(map[string]string)
-		if err = yaml.NewDecoder(b).Decode(&minifyDict); err != nil && err != io.EOF {
+		miniDict = make(map[string]string)
+		if err = yaml.NewDecoder(b).Decode(&miniDict); err != nil && err != io.EOF {
 			logrus.Fatalf("Failed to decode hash dict file %s, err: %v\n", hashdictPath, err)
 		}
 
 		parser.DorisLexerInit()
-		dorisKeywords = lo.SliceToMap(parser.DorisLexerLexerStaticData.SymbolicNames, func(s string) (string, struct{}) {
+		keywords := parser.DorisLexerLexerStaticData.SymbolicNames
+		miniReserves = lo.SliceToMap(append(keywords, reserveIdentifiers...), func(s string) (string, struct{}) {
 			return strings.ToLower(s), struct{}{}
 		})
 	}
-	anonymizeMinLength = idMinLength
-
-	reserveIds = append(reserveIdentifiers, reserveIds...)
-	anonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
 }
 
 func StoreMiniHashDict(method, hashdictPath string) {
@@ -74,7 +75,7 @@ func StoreMiniHashDict(method, hashdictPath string) {
 	}
 	defer b.Close()
 
-	if err = yaml.NewEncoder(b).Encode(minifyDict); err != nil {
+	if err = yaml.NewEncoder(b).Encode(miniDict); err != nil {
 		logrus.Errorf("Failed to encode hash dict file, err: %v\n", err)
 	}
 	b.Close()
@@ -136,7 +137,7 @@ func getAnonymizeFunc(method string) func(string) string {
 		if !modified {
 			return id
 		}
-		return minifyHash(minifyDict, hash)
+		return minifyHash(miniDict, hash)
 	}
 
 	switch method {
@@ -204,7 +205,7 @@ func minifyHash(dict map[string]string, s string) string {
 		lastWord = string(mini)
 
 		// prevent use keywords
-		if _, ok := dorisKeywords[lastWord]; lastWord != "" && !ok {
+		if _, ok := miniReserves[lastWord]; !ok {
 			break
 		}
 	}
