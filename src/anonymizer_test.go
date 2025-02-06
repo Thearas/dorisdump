@@ -25,7 +25,7 @@ func Test_minifyHash(t *testing.T) {
 		{
 			name: "simple1",
 			args: args{
-				dict: map[string]string{"__last": "zza"},
+				dict: map[string]string{"@@last": "zza"},
 				s:    "table1",
 			},
 			want: "aab",
@@ -33,7 +33,7 @@ func Test_minifyHash(t *testing.T) {
 		{
 			name: "simple2",
 			args: args{
-				dict: map[string]string{"__last": "z"},
+				dict: map[string]string{"@@last": "z"},
 				s:    "table1",
 			},
 			want: "aa",
@@ -41,7 +41,7 @@ func Test_minifyHash(t *testing.T) {
 		{
 			name: "simple3",
 			args: args{
-				dict: map[string]string{"__last": "zbc"},
+				dict: map[string]string{"@@last": "zbc"},
 				s:    "table1",
 			},
 			want: "acc",
