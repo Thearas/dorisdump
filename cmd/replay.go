@@ -33,6 +33,7 @@ import (
 var ReplayConfig = Replay{}
 
 type Replay struct {
+	Cluster         string
 	ReplayFile      string
 	ReplayResultDir string
 	Users_          []string
@@ -78,6 +79,7 @@ func init() {
 
 	pFlags := replayCmd.PersistentFlags()
 	pFlags.StringVarP(&ReplayConfig.ReplayFile, "file", "f", "", "Replay queries from dump file")
+	pFlags.StringVarP(&ReplayConfig.Cluster, "cluster", "c", "", "Replay queries on the cluster")
 	pFlags.StringVar(&ReplayConfig.ReplayResultDir, "result-dir", "", "Replay result directory, default is '<output-dir>/replay'")
 	pFlags.StringSliceVar(&ReplayConfig.Users_, "users", []string{}, "Replay queries from these users")
 	pFlags.StringVar(&ReplayConfig.From_, "from", "", "Replay queries from this time, like '2006-01-02 15:04:05'")
@@ -165,7 +167,7 @@ func replay(ctx context.Context) error {
 
 	return src.ReplaySqls(
 		ctx,
-		GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword,
+		GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, ReplayConfig.Cluster,
 		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows,
 		minTs, GlobalConfig.Parallel,
 	)
