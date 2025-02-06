@@ -13,3 +13,4 @@ dorisdump.yaml
 dorisdump-linux-*
 dorisdump-darwin-*
 *.pprof
+dorisdump_hashdict.yaml

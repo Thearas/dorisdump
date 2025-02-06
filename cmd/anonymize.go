@@ -30,10 +30,11 @@ var AnonymizeConfig = Anonymize{}
 
 type Anonymize struct {
 	// common
-	Enabled     bool
-	Method      string
-	IdMinLength int
-	ReserveIds  []string
+	Enabled      bool
+	Method       string
+	IdMinLength  int
+	ReserveIds   []string
+	HashDictPath string
 
 	// only for anonymize cmd
 	File string
@@ -61,10 +62,13 @@ var anonymizeCmd = &cobra.Command{
 			return err
 		}
 
-		src.SetupAnonymizer(AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
+		src.SetupAnonymizer(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath, AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
 
 		sql := src.AnonymizeSql(AnonymizeConfig.Method, "", string(input))
 		fmt.Println(sql)
+
+		// store anonymize hash dict
+		src.StoreMiniHashDict(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath)
 
 		return nil
 	},
@@ -88,6 +92,6 @@ func addAnonymizeBaseFlags(pFlags *pflag.FlagSet, defaultEnabled bool) {
 	pFlags.BoolVar(&AnonymizeConfig.Enabled, "anonymize", defaultEnabled, "Anonymize sqls")
 	pFlags.IntVar(&AnonymizeConfig.IdMinLength, "anonymize-id-min-length", 3, "Skip anonymization for id which length is less than this value")
 	pFlags.StringSliceVar(&AnonymizeConfig.ReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
-	pFlags.StringVar(&AnonymizeConfig.Method, "anonymize-method", "hash", "Anonymize method, hash only for now")
-	pFlags.MarkHidden("anonymize-method")
+	pFlags.StringVar(&AnonymizeConfig.Method, "anonymize-method", "minihash", "Anonymize method, hash or minihash")
+	pFlags.StringVar(&AnonymizeConfig.HashDictPath, "anonymize-minihash-dict", "./dorisdump_hashdict.yaml", "Hash dict file path for minihash method")
 }
