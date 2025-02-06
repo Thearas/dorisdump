@@ -18,7 +18,7 @@ var (
 	}, func(s string) (string, struct{}) { return s, struct{}{} })
 )
 
-func NewListener(hideSqlComment bool, modifyIdentifier func(id string, ignoreBuiltin bool) string) DorisParserListener {
+func NewListener(hideSqlComment bool, modifyIdentifier func(id string) string) DorisParserListener {
 	return &listener{hideSqlComment: hideSqlComment, modifyIdentifier: modifyIdentifier}
 }
 
@@ -59,7 +59,7 @@ func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, m
 type listener struct {
 	*BaseDorisParserListener
 	hideSqlComment         bool
-	modifyIdentifier       func(id string, ignoreBuiltin bool) string
+	modifyIdentifier       func(id string) string
 	lastModifiedIdentifier string
 }
 
@@ -109,13 +109,13 @@ func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 		// child = nonReserved.GetChild(0)
 		return
 	}
-	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), true)
+	l.modifySymbolText(child.(*antlr.TerminalNodeImpl))
 }
 
 // Modify `id`.
 func (l *listener) ExitQuotedIdentifier(ctx *QuotedIdentifierContext) {
 	child := ctx.GetChild(0)
-	l.modifySymbolText(child.(*antlr.TerminalNodeImpl), false)
+	l.modifySymbolText(child.(*antlr.TerminalNodeImpl))
 }
 
 // Modify property value
@@ -134,7 +134,7 @@ func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
 
 		ids := strings.Split(rawText[1:len(rawText)-1], ",")
 		for i, id := range ids {
-			ids[i] = l.modifyIdentifier(strings.Trim(id, "`"), false)
+			ids[i] = l.modifyIdentifier(strings.Trim(id, "`"))
 		}
 
 		symbol := constant.GetChild(0).(*antlr.TerminalNodeImpl).GetSymbol()
@@ -142,12 +142,12 @@ func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
 	}
 }
 
-func (l *listener) modifySymbolText(node antlr.TerminalNode, ignoreBuiltin bool) {
+func (l *listener) modifySymbolText(node antlr.TerminalNode) {
 	symbol := node.GetSymbol()
 	text := symbol.GetText()
 
 	id := strings.Trim(text, "`")
-	symbol.SetText(l.modifyIdentifier(id, ignoreBuiltin))
+	symbol.SetText(l.modifyIdentifier(id))
 
 	// record original identifier text
 	l.lastModifiedIdentifier = text

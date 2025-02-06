@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	replaySqlPrefix     = `/*dorisdump{`
-	replaySqlSuffix     = `*/`
+	ReplaySqlPrefix     = `/*dorisdump{`
+	ReplaySqlSuffix     = `*/`
 	replayTsFormat      = "2006-01-02 15:04:05.000"
 	ReplayResultFileExt = ".result"
 )
@@ -240,6 +240,8 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 		}
 	}
 
+	logrus.Debugf("client %s replay done\n", c.client)
+
 	return nil
 }
 
@@ -328,7 +330,7 @@ func DecodeReplaySqls(
 	)
 
 	// check the replay file is valid by first line prefix
-	if !bytes.HasPrefix(line, []byte(replaySqlPrefix)) {
+	if !bytes.HasPrefix(line, []byte(ReplaySqlPrefix)) {
 		return nil, 0, errors.New("invalid sql replay file")
 	}
 
@@ -346,7 +348,7 @@ func DecodeReplaySqls(
 			}
 			line = s.Bytes()
 
-			if bytes.HasPrefix(line, []byte(replaySqlPrefix)) {
+			if bytes.HasPrefix(line, []byte(ReplaySqlPrefix)) {
 				break
 			}
 
@@ -359,8 +361,8 @@ func DecodeReplaySqls(
 
 		// decode meta
 		// include '{' and '}'
-		metaStart := len(replaySqlPrefix) - 1
-		metaEnd := bytes.Index(oneSql, []byte(replaySqlSuffix))
+		metaStart := len(ReplaySqlPrefix) - 1
+		metaEnd := bytes.Index(oneSql, []byte(ReplaySqlSuffix))
 		if metaEnd < 0 || oneSql[metaEnd-1] != '}' {
 			logrus.Warningln("Failed to extract replay sql meta at:", string(oneSql))
 			continue
@@ -372,7 +374,7 @@ func DecodeReplaySqls(
 		}
 
 		// decode stmt
-		stmt := string(bytes.TrimSpace(oneSql[metaEnd+len(replaySqlSuffix):]))
+		stmt := string(bytes.TrimSpace(oneSql[metaEnd+len(ReplaySqlSuffix):]))
 		if stmt == "" {
 			logrus.Warningln("empty replay sql stmt, query_id:", meta.QueryId)
 			continue

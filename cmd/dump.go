@@ -98,7 +98,7 @@ or environment variables with prefix 'DORIS_', e.g.
 		}
 
 		if AnonymizeConfig.Enabled {
-			src.SetupAnonymizer(AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
+			src.SetupAnonymizer(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath, AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
 		}
 
 		// dump schemas
@@ -127,6 +127,11 @@ or environment variables with prefix 'DORIS_', e.g.
 			if err := outputQueries(queries); err != nil {
 				return err
 			}
+		}
+
+		// store anonymize hash dict
+		if AnonymizeConfig.Enabled {
+			src.StoreMiniHashDict(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath)
 		}
 
 		return nil
@@ -475,6 +480,13 @@ func outputDefaultQueries(queriess [][]string, printSql bool) error {
 
 			if AnonymizeConfig.Enabled {
 				for i, query := range queries {
+					// // anonymizer will strip leading '/*dorisdump...*/ ' comment,
+					// // we need restoring it after anonymize
+					// var leadComment string
+					// if strings.HasPrefix(query, src.ReplaySqlPrefix) {
+					// 	leadComment = query[:strings.Index(query, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
+					// }
+					// queries[i] = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
 					queries[i] = src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
 				}
 			}
