@@ -72,11 +72,13 @@ func StoreMiniHashDict(method, hashdictPath string) {
 	b, err := os.OpenFile(newPath, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		logrus.Errorf("Failed to store hash dict file, err: %v\n", err)
+		return
 	}
 	defer b.Close()
 
 	if err = yaml.NewEncoder(b).Encode(miniDict); err != nil {
 		logrus.Errorf("Failed to encode hash dict file, err: %v\n", err)
+		return
 	}
 	b.Close()
 

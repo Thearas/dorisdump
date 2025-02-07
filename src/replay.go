@@ -67,13 +67,16 @@ func (c *ReplayClient) conn(ctx context.Context, currdb string, reconnect ...boo
 	if c.connect == nil || (len(reconnect) > 0 && reconnect[0]) {
 		c.Close(false)
 
-		c.dbcfg.DBName = currdb
+		dbcfg := c.dbcfg
+		dbcfg.DBName = currdb
+
 		if c.cluster != "" {
-			c.dbcfg.DBName = fmt.Sprintf("%s@%s", c.dbcfg.DBName, c.cluster)
+			dbcfg = dbcfg.Clone()
+			dbcfg.DBName = fmt.Sprintf("%s@%s", dbcfg.DBName, c.cluster)
 		}
 
 		var err error
-		c.db, err = sqlx.Open("mysql", c.dbcfg.FormatDSN())
+		c.db, err = sqlx.Open("mysql", dbcfg.FormatDSN())
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +91,11 @@ func (c *ReplayClient) conn(ctx context.Context, currdb string, reconnect ...boo
 
 	// switch db
 	if currdb != "" && currdb != c.dbcfg.DBName {
-		if _, err := c.connect.ExecContext(ctx, fmt.Sprintf("use `%s`", currdb)); err != nil {
+		var clusterId string
+		if c.cluster != "" {
+			clusterId = fmt.Sprintf("@`%s`", c.cluster)
+		}
+		if _, err := c.connect.ExecContext(ctx, fmt.Sprintf("use `%s`%s", currdb, clusterId)); err != nil {
 			logrus.Errorf("client %s switching to db %s failed, err: %v\n", c.client, currdb, err)
 			return nil, err
 		}
@@ -110,7 +117,6 @@ func (c *ReplayClient) query(ctx context.Context, currdb, stmt string, args ...a
 	duration := time.Since(startedAt).Milliseconds()
 
 	if err != nil {
-		logrus.Debugln("client", c.client, "failed to query:", err)
 		return nil, duration, err
 	}
 	return r, duration, nil
@@ -174,11 +180,11 @@ func (c *ReplayClient) appendHash(r *sql.Rows) error {
 	if err := r.Scan(values...); err != nil {
 		return err
 	}
-	var b []byte
 	for _, v := range values {
-		b = append(b, *v.(*sql.RawBytes)...)
+		c.hash.Write(*v.(*sql.RawBytes))
+		c.hash.Write([]byte{'\t'}) // append a tab between columns
 	}
-	_, _ = c.hash.Write(b)
+	c.hash.Write([]byte{'\n'}) // append a newline between rows
 	return nil
 }
 
@@ -216,8 +222,8 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 
 		// 2. Execute query
 		var (
-			rowCount int
-			now      = time.Now()
+			rowCount  int
+			startedAt = time.Now()
 		)
 		r, durationMs, err := c.queryWithReconnect(ctx, s.Db, s.Stmt)
 		if err != nil {
@@ -238,7 +244,7 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 		logrus.Traceln("query_id:", s.QueryId, ", row count:", rowCount, ", duration:", durationMs, "ms")
 
 		result := ReplayResult{
-			Ts:         now.Format(replayTsFormat),
+			Ts:         startedAt.Format(replayTsFormat),
 			QueryId:    s.QueryId,
 			ReturnRows: rowCount,
 			DurationMs: durationMs,
