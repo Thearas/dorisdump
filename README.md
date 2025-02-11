@@ -55,6 +55,26 @@ dorisdump diff replay1 replay2
 
 You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
 
+## Anonymize
+
+> Note: This feature is experimental, **only works properly for case-insensitive names, which means `table1` and `TABLE1` will have the same result.**
+
+There are two ways to anonymize database, table and column names:
+
+1. Use `dorisdump anonymize`:
+
+    ```bash
+    echo "select * from table1" | dorisdump anonymize -f -
+    ```
+
+2. Use `--anonymize` flag while dumping:
+
+    ```bash
+    dorisdump dump <some flags...> --anonymize
+    ```
+
+Remember to keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (default to find it at current directory, or specify by `--anonymize-minihash-dict`).
+
 ## Build
 
 1. Install **optional** dependences:
@@ -63,6 +83,7 @@ You may want to pass parameters by config file or environment, see `dorisdump --
     - On Linux: [hyperscan](https://intel.github.io/hyperscan) with Chimera support
 
 2. Run `make` (or `make build-hyper` if the dependences in step 1 are installed)
+
 
 ## Update Doris Parser
 

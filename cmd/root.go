@@ -45,7 +45,7 @@ type Global struct {
 	Parallel   int
 
 	DBHost     string
-	DBPort     int16
+	DBPort     uint16
 	DBUser     string
 	DBPassword string
 	DBs        []string
@@ -99,7 +99,7 @@ func init() {
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", 10, "Parallel dump worker")
 
 	pFlags.StringVarP(&GlobalConfig.DBHost, "host", "H", "127.0.0.1", "DB Host")
-	pFlags.Int16VarP(&GlobalConfig.DBPort, "port", "P", 9030, "DB Port")
+	pFlags.Uint16VarP(&GlobalConfig.DBPort, "port", "P", 9030, "DB Port")
 	pFlags.StringVarP(&GlobalConfig.DBUser, "user", "U", "root", "DB User")
 	pFlags.StringVar(&GlobalConfig.DBPassword, "password", "", "DB password")
 	pFlags.StringSliceVarP(&GlobalConfig.DBs, "dbs", "D", []string{}, "DBs to work on")

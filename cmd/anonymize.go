@@ -44,6 +44,7 @@ type Anonymize struct {
 var anonymizeCmd = &cobra.Command{
 	Use:     "anonymize",
 	Short:   "Anonymize sqls",
+	Aliases: []string{"a"},
 	Example: `echo "select * from table1" | dorisdump anonymize -f -`,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)

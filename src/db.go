@@ -84,7 +84,7 @@ type ColumnStats struct {
 	Max         string `yaml:"max"`
 }
 
-func NewDB(host string, port int16, user, password, db string) (*sqlx.DB, error) {
+func NewDB(host string, port uint16, user, password, db string) (*sqlx.DB, error) {
 	cfg := &mysql.Config{
 		User:                 user,
 		Passwd:               password,

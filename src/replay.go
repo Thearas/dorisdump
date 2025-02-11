@@ -274,7 +274,7 @@ func (c *ReplayClient) replayByClient(ctx context.Context) error {
 
 func ReplaySqls(
 	ctx context.Context,
-	host string, port int16, user, password, cluster string,
+	host string, port uint16, user, password, cluster string,
 	resultDir string, client2sqls map[string][]*ReplaySql, speed float32, maxHashRows int, maxConnIdleTime time.Duration,
 	minTs int64, parallel int,
 ) error {
