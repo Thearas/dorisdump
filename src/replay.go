@@ -194,7 +194,7 @@ func (c *ReplayClient) consumeHash() string {
 	return h
 }
 
-func (c *ReplayClient) replayByClient(ctx context.Context) error {
+func (c *ReplayClient) replay(ctx context.Context) error {
 	logrus.Debugf("replay %d sqls for client %s\n", len(c.sqls), c.client)
 
 	var (
@@ -333,7 +333,7 @@ func ReplaySqls(
 			}
 			defer cli.Close(true)
 
-			return cli.replayByClient(ctx)
+			return cli.replay(ctx)
 		})
 	}
 

@@ -134,7 +134,7 @@ func (l *listener) ExitPropertyItem(ctx *PropertyItemContext) {
 
 		ids := strings.Split(rawText[1:len(rawText)-1], ",")
 		for i, id := range ids {
-			ids[i] = l.modifyIdentifier(strings.Trim(id, "`"))
+			ids[i] = l.modifyIdentifier(strings.Trim(strings.TrimSpace(id), "`"))
 		}
 
 		symbol := constant.GetChild(0).(*antlr.TerminalNodeImpl).GetSymbol()

@@ -17,7 +17,7 @@ COMMENT 'OLAP'
 DISTRIBUTED BY HASH(dt_month) BUCKETS 10
 PROPERTIES (
 "replication_allocation" = "tag.location.default:1",
-'bloom_filter_columns' = "dt_month,company_code"
+'bloom_filter_columns' = "dt_month, company_code"
 );`
 
 	p := NewParser("1", sql, NewListener(false, func(s string) string { return "foo" }))

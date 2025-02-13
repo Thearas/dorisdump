@@ -41,7 +41,7 @@ var (
 func SetupAnonymizer(method, hashdictPath string, idMinLength int, reserveIds ...string) {
 	reserveIdentifiers = append(reserveIdentifiers, reserveIds...)
 	anonymizeMinLength = idMinLength
-	anonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIds)
+	anonymizerreserveIdHashs = anonymizeHashSliceToMap(reserveIdentifiers)
 
 	if method == "minihash" {
 		b, err := os.OpenFile(hashdictPath, os.O_RDONLY|os.O_CREATE, 0600)
