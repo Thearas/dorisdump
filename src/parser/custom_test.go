@@ -11,7 +11,7 @@ func TestModifyProperties(t *testing.T) {
 	sql := `CREATE TABLE t1 (
 dt_month varchar(6) NULL,
 company_code varchar(40) NULL
-)
+) ENGINE=OLAP
 DUPLICATE KEY(dt_month)
 COMMENT 'OLAP'
 DISTRIBUTED BY HASH(dt_month) BUCKETS 10
@@ -26,7 +26,7 @@ PROPERTIES (
 	assert.Equal(t, `CREATE TABLE foo (
 foo varchar(6) NULL,
 foo varchar(40) NULL
-)
+) ENGINE=OLAP
 DUPLICATE KEY(foo)
 COMMENT 'OLAP'
 DISTRIBUTED BY HASH(foo) BUCKETS 10

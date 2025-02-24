@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	AnonymizeHashBytes = 4
+	AnonymizeHashBytes = 8
 	AnonymizeHashFmt   = "h%x" // add prefix 'h'
 )
 
@@ -30,7 +30,7 @@ var (
 
 	// Identifiers that should not be anonymized.
 	reserveIdentifiers = lo.Map([]string{
-		"olap",
+		"mysql",
 		"global",
 		"internal",
 		"__internal_schema",

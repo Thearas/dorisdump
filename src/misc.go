@@ -117,13 +117,6 @@ func hashstr(h *blake3.Hasher, s string) [32]byte {
 	return [32]byte(result)
 }
 
-func hash(h *blake3.Hasher, b []byte) [32]byte {
-	_, _ = h.Write(b)
-	result := h.Sum(nil)
-	h.Reset()
-	return [32]byte(result)
-}
-
 func DetectCharset(r *bufio.Reader) (string, error) {
 	hdr, err := r.Peek(4096)
 	if len(hdr) == 0 {

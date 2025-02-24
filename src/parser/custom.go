@@ -26,6 +26,10 @@ func NewErrListener(sqlId string) *errListener {
 	return &errListener{ConsoleErrorListener: antlr.NewConsoleErrorListener(), sqlId: sqlId}
 }
 
+func NewErrHandler() antlr.ErrorStrategy {
+	return &errHandler{DefaultErrorStrategy: antlr.NewDefaultErrorStrategy()}
+}
+
 func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) *Parser {
 	input := antlr.NewInputStream(sqls)
 	lexer := NewDorisLexer(input)
@@ -39,8 +43,24 @@ func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) 
 	for _, listener := range listeners {
 		p.AddParseListener(listener)
 	}
+	if len(listeners) > 0 {
+		p.SetErrorHandler(NewErrHandler())
+	}
 
 	return &Parser{DorisParser: p, errListener: errListener}
+}
+
+type errHandler struct {
+	*antlr.DefaultErrorStrategy
+}
+
+func (h *errHandler) ReportMatch(p antlr.Parser) {
+	h.DefaultErrorStrategy.ReportMatch(p)
+
+	// Do not modify ENGINE name.
+	if p.GetCurrentToken().GetTokenType() == DorisParserENGINE {
+		p.(*antlr.BaseParser).GetParseListeners()[0].(*listener).ignoreCurrentIdentifier = true
+	}
 }
 
 type errListener struct {
@@ -58,9 +78,13 @@ func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, m
 
 type listener struct {
 	*BaseDorisParserListener
-	hideSqlComment         bool
-	modifyIdentifier       func(id string) string
-	lastModifiedIdentifier string
+
+	hideSqlComment   bool
+	modifyIdentifier func(id string) string
+
+	// state variables
+	ignoreCurrentIdentifier bool
+	lastModifiedIdentifier  string
 }
 
 // Do not modify variable name.
@@ -146,8 +170,12 @@ func (l *listener) modifySymbolText(node antlr.TerminalNode) {
 	symbol := node.GetSymbol()
 	text := symbol.GetText()
 
-	id := strings.Trim(text, "`")
-	symbol.SetText(l.modifyIdentifier(id))
+	if l.ignoreCurrentIdentifier {
+		l.ignoreCurrentIdentifier = false
+	} else {
+		id := strings.Trim(text, "`")
+		symbol.SetText(l.modifyIdentifier(id))
+	}
 
 	// record original identifier text
 	l.lastModifiedIdentifier = text
