@@ -82,6 +82,7 @@ type ColumnStats struct {
 	AvgSizeByte int64  `yaml:"avg_size_byte"`
 	Min         string `yaml:"min"`
 	Max         string `yaml:"max"`
+	Method      string `yaml:"method"`
 }
 
 func NewDB(host string, port uint16, user, password, db string) (*sqlx.DB, error) {
@@ -294,6 +295,10 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 		if bytes.HasPrefix(max, []byte(`'`)) {
 			max = bytes.ReplaceAll(max[1:len(max)-1], []byte(`''`), []byte(`'`))
 		}
+		method, ok := vals["method"]
+		if !ok {
+			method = ""
+		}
 		cols = append(cols, &ColumnStats{
 			Name:        cast.ToString(vals["column_name"]),
 			Count:       int64(cast.ToFloat64((string(vals["count"].([]byte))))),
@@ -303,6 +308,7 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 			DataSize:    int64(cast.ToFloat64((string(vals["data_size"].([]byte))))),
 			Min:         string(min),
 			Max:         string(max),
+			Method:      cast.ToString(method),
 		})
 	}
 	if err := r.Err(); err != nil {

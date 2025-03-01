@@ -1,8 +1,10 @@
 # Dorisdump
 
-Dump and replay queries from Doris database.
+Main features:
 
-[![demo](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9.svg)](https://asciinema.org/a/6MIhuruC668RvElND8RiMFnH9)
+1. **Dump** schemas, column stats and queries from Doris database
+2. **Replay** dump queries with speed control
+3. **Anonymize** database, table and column names in SQLs
 
 ## Install
 
@@ -22,7 +24,7 @@ dorisdump dump --help
 dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
 
 # Also dump queries from db1, queries will be extracted from audit logs
-# Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple logs
+# Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple log files
 dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
 
 # Dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
@@ -51,11 +53,7 @@ dorisdump diff --help
 dorisdump diff replay1 replay2
 ```
 
-### Config
-
-You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
-
-## Anonymize
+### Anonymize
 
 > Note: This feature is experimental, **only works properly for case-insensitive names, which means `table1` and `TABLE1` will have the same result.**
 
@@ -75,6 +73,10 @@ There are two ways to anonymize database, table and column names:
 
 Remember to keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (default to find it at current directory, or specify by `--anonymize-minihash-dict`).
 
+### Config
+
+You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
+
 ## Build
 
 1. Install **optional** dependences:
@@ -83,7 +85,6 @@ Remember to keep `./dorisdump_hashdict.yaml` if you want the result to be consis
     - On Linux: [hyperscan](https://intel.github.io/hyperscan) with Chimera support
 
 2. Run `make` (or `make build-hyper` if the dependences in step 1 are installed)
-
 
 ## Update Doris Parser
 
