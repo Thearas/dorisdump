@@ -28,8 +28,8 @@ var (
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
 	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+?\] \|Client=([^|]+?)\|User=([^|]+?)(?:.+?)\|Db=(%s?)\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
 
-	// Doris will escape those characters in the audit log, so we need to unescape them.
-	// TODO: May incorrectly unescaped some SQLs that have those characters.
+	// Doris will escape those characters in the audit log SQLs, so we need to unescape them.
+	// TODO: May incorrectly unescaped SQLs that originally contain those characters.
 	unescapeReplacer = strings.NewReplacer(
 		"\\n", "\n",
 		"\\t", "\t",
@@ -40,6 +40,7 @@ var (
 	filterStmtRe = regexp.MustCompile("(?i)^(EXPLAIN|SHOW|USE)")
 )
 
+// Not thread safe.
 type AuditLogScanner interface {
 	Init()
 	ScanOne(oneLine []byte) error
@@ -204,7 +205,8 @@ func extractQueriesFromAuditLog(
 type SimpleAuditLogScanner struct {
 	AuditLogScanOpts
 
-	sqls []string
+	sqls             []string
+	distinctQueryIds map[string]struct{}
 
 	re *regexp2.Regexp
 }
@@ -213,6 +215,7 @@ func NewSimpleAuditLogScanner(opts AuditLogScanOpts) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		AuditLogScanOpts: opts,
 		sqls:             make([]string, 0, 1024),
+		distinctQueryIds: make(map[string]struct{}, 1024),
 	}
 }
 
@@ -252,6 +255,13 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], cast.ToInt64(caps[4]), caps[5], caps[6]
 	time = strings.Replace(time, ",", ".", 1) // 2006-01-02 15:04:05,000 -> 2006-01-02 15:04:05.000
 	stmt = strings.TrimSpace(stmt)
+
+	// to avoid duplicate queries with same query_id
+	if _, ok := s.distinctQueryIds[queryId]; ok {
+		logrus.Debugln("ignore sql with duplicated query_id:", queryId)
+		return
+	}
+	s.distinctQueryIds[queryId] = struct{}{}
 
 	ok := s.filterStmtFromMatch(time, queryId, stmt, durationMs, skipOptsFilter)
 	if !ok {

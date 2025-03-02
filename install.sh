@@ -32,7 +32,7 @@ fi
 
 name=$(basename "$latest_download_url")
 
-curl -sSL $latest_download_url -o "/tmp/$name"
+curl -SL $latest_download_url -o "/tmp/$name"
 tar -xzf "/tmp/$name" -C /usr/local/bin/ && mv "/usr/local/bin/$binary_name" /usr/local/bin/dorisdump
 rm -f "/tmp/$name"
 

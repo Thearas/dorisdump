@@ -23,8 +23,8 @@ dorisdump dump --help
 # Dump schemas of database db1 and db2
 dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
 
-# Also dump queries from db1, queries will be extracted from audit logs
-# Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple log files
+# Also dump queries of db1 from audit logs
+# Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple files
 dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
 
 # Dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
@@ -57,7 +57,7 @@ dorisdump diff replay1 replay2
 
 > Note: This feature is experimental, **only works properly for case-insensitive names, which means `table1` and `TABLE1` will have the same result.**
 
-There are two ways to anonymize database, table and column names:
+Two ways:
 
 1. Use `dorisdump anonymize`:
 
