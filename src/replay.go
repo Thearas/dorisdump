@@ -37,6 +37,7 @@ type ReplayResult struct {
 	ReturnRowsHash string `json:"returnRowsHash,omitempty"`
 	DurationMs     int64  `json:"durationMs"`
 	Err            string `json:"err,omitempty"`
+	Stmt           string `json:"stmt,omitempty"`
 }
 
 func (re *ReplayResult) String() string {
@@ -340,15 +341,16 @@ func ReplaySqls(
 	return g.Wait()
 }
 
+// Decode replay sqls from dump.
 func DecodeReplaySqls(
 	s *bufio.Scanner,
 	dbs, users map[string]struct{},
 	from, to int64, // ms
 	maxCount int,
-) (map[string][]*ReplaySql, int64, error) {
+) (map[string][]*ReplaySql, int64, int, error) {
 	if !s.Scan() {
 		logrus.Warningln("Failed to scan reply sql file, maybe empty?")
-		return nil, 0, nil
+		return nil, 0, 0, nil
 	}
 
 	var (
@@ -359,7 +361,7 @@ func DecodeReplaySqls(
 
 	// check the replay file is valid by first line prefix
 	if !bytes.HasPrefix(line, []byte(ReplaySqlPrefix)) {
-		return nil, 0, errors.New("invalid sql replay file")
+		return nil, 0, 0, errors.New("invalid sql replay file")
 	}
 
 	client2sqls := make(map[string][]*ReplaySql, 1024)
@@ -439,15 +441,22 @@ func DecodeReplaySqls(
 		count++
 	}
 
-	logrus.Infoln("Found", count, "replay sql(s)")
-
-	return client2sqls, minTs, nil
+	return client2sqls, minTs, count, nil
 }
 
 type ReplaySql struct {
 	ReplaySqlMeta
 
 	Stmt string
+}
+
+func (s *ReplaySql) ToReplayResult() *ReplayResult {
+	return &ReplayResult{
+		Ts:         s.Ts_,
+		QueryId:    s.QueryId,
+		DurationMs: s.DurationMs,
+		Stmt:       s.Stmt,
+	}
 }
 
 func EncodeReplaySql(ts, client, user, db, queryId, stmt string, durationMs int64) string {

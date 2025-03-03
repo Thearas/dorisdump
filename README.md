@@ -43,14 +43,17 @@ dorisdump replay -f /path/to/dump.sql \
     --users 'readonly,root' --dbs 'db1,db2' \                 # filter sql by users and databases
     --count 100 \                                             # max replay sql count
     --speed 0.5 \                                             # replay speed
-    --result-dir replay1
+    --result-dir output/replay1
 
 
 # Diff replay result
 dorisdump diff --help
 
+# Print diff of replay result which is slower more than 200ms than original
+dorisdump diff --min-duration-diff 200ms --original-sql dump.sql output/replay1
+
 # Print diff of two replay result directories
-dorisdump diff replay1 replay2
+dorisdump diff replay1/ replay2/
 ```
 
 ### Anonymize
