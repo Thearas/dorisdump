@@ -6,6 +6,8 @@ Main features:
 2. **Replay** dump queries with speed control
 3. **Anonymize** database, table and column names in SQLs
 
+[![demo](https://asciinema.org/a/706093.svg)](https://asciinema.org/a/706093)
+
 ## Install
 
 ```sh
