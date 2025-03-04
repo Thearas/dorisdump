@@ -26,8 +26,8 @@ dorisdump dump --help
 dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
 
 # Also dump queries of db1 from audit logs
-# Hint: Use '*' like '/path/to/fe.audit.log*' to match multiple files
-dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs '/path/to/fe.audit.log,/path/to/fe.audit.log.20240802-1'
+# Hint: Use '*' like 'fe.audit.log*' to match multiple files
+dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs 'fe.audit.log,fe.audit.log.20240802-1'
 
 # Dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
 dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:45:25' --to '2024-11-14 18:45:26'
@@ -37,30 +37,34 @@ dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:4
 dorisdump replay --help
 
 # Replay queries from dump sql file
-dorisdump replay --host <host> --port <port> --user root --password '******' -f /path/to/dump.sql
+dorisdump replay --host <host> --port <port> --user root --password '******' -f output/sql/q0.sql
 
 # Replay with args
-dorisdump replay -f /path/to/dump.sql \
-    --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \ # from time to time
-    --users 'readonly,root' --dbs 'db1,db2' \                 # filter sql by users and databases
-    --count 100 \                                             # max replay sql count
-    --speed 0.5 \                                             # replay speed
-    --result-dir output/replay1
+dorisdump replay -f output/sql/q0.sql \
+    --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \
+    --users 'readonly,root' --dbs 'db1,db2' \   # filter sql by users and databases
+    --count 100 \                               # max replay sql count
+    --speed 0.5 \                               # increase(< 1.0) or decrease(> 1.0) the time between two serial sqls proportionally, default 1
+    --result-dir output/replay
 
 
 # Diff replay result
 dorisdump diff --help
 
 # Print diff of replay result which is slower more than 200ms than original
-dorisdump diff --min-duration-diff 200ms --original-sql dump.sql output/replay1
+dorisdump diff --min-duration-diff 200ms --original-sql output/sql/q0.sql output/replay
 
 # Print diff of two replay result directories
 dorisdump diff replay1/ replay2/
 ```
 
+### Config
+
+You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
+
 ### Anonymize
 
-> Note: This feature is experimental, **only works properly for case-insensitive names, which means `table1` and `TABLE1` will have the same result.**
+> Note: This feature is experimental, **case-insensitive, which means `table1` and `TABLE1` will have the same result.**
 
 Two ways:
 
@@ -76,11 +80,7 @@ Two ways:
     dorisdump dump <some flags...> --anonymize
     ```
 
-Remember to keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (default to find it at current directory, or specify by `--anonymize-minihash-dict`).
-
-### Config
-
-You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
+Keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (put it at current directory, or specify by `--anonymize-minihash-dict`).
 
 ## Build
 
