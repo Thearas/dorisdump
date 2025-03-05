@@ -144,7 +144,7 @@ func replay(ctx context.Context) error {
 	)
 
 	// TODO: better to use connection -> sqls, but no connection id in audit log yet
-	client2sqls, minTs, count, err := src.DecodeReplaySqls(
+	clientSqls, minTs, count, err := src.DecodeReplaySqlsAndSort(
 		bufio.NewScanner(f),
 		ReplayConfig.DBs,
 		ReplayConfig.Users,
@@ -155,7 +155,7 @@ func replay(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(client2sqls) == 0 {
+	if len(clientSqls) == 0 {
 		return fmt.Errorf("no SQLs found in replay file: %s", ReplayConfig.ReplayFile)
 	}
 	logrus.Infoln("Found", count, "replay sql(s)")
@@ -171,7 +171,7 @@ func replay(ctx context.Context) error {
 	return src.ReplaySqls(
 		ctx,
 		GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, ReplayConfig.Cluster,
-		ReplayConfig.ReplayResultDir, client2sqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows, ReplayConfig.MaxConnIdleTime,
+		ReplayConfig.ReplayResultDir, clientSqls, ReplayConfig.Speed, ReplayConfig.MaxHashRows, ReplayConfig.MaxConnIdleTime,
 		minTs, GlobalConfig.Parallel,
 	)
 }

@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/goccy/go-json"
 	"github.com/jmoiron/sqlx"
+	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 )
@@ -84,6 +86,7 @@ func (c *ReplayClient) conn(ctx context.Context, currdb string, reconnect ...boo
 		c.db.SetConnMaxIdleTime(0)
 		c.db.SetConnMaxLifetime(0)
 		c.db.SetMaxIdleConns(1)
+		c.db.SetMaxOpenConns(1)
 		c.connect, err = c.db.Connx(ctx)
 		if err != nil {
 			return nil, err
@@ -118,7 +121,7 @@ func (c *ReplayClient) query(ctx context.Context, currdb, stmt string, args ...a
 	duration := time.Since(startedAt).Milliseconds()
 
 	if err != nil {
-		return nil, duration, err
+		return r, duration, err
 	}
 	return r, duration, nil
 }
@@ -155,10 +158,14 @@ func (c *ReplayClient) writeResult(b []byte) (err error) {
 }
 
 func (c *ReplayClient) Close(closefile bool) {
+	if c.connect != nil {
+		logrus.Traceln("client", c.client, "close idle conn")
+		c.connect.Close()
+		c.connect = nil
+	}
 	if c.db != nil {
 		c.db.Close()
 		c.db = nil
-		c.connect = nil
 	}
 	if closefile && c.resultFile != nil {
 		c.resultFile.Sync()
@@ -211,7 +218,6 @@ func (c *ReplayClient) replay(ctx context.Context) error {
 
 			if c.maxConnIdleTime > 0 && sleep > c.maxConnIdleTime {
 				// close conn if idle time is too long
-				logrus.Traceln("client", c.client, "close idle conn")
 				c.Close(false)
 			}
 			time.Sleep(sleep)
@@ -239,6 +245,8 @@ func (c *ReplayClient) replay(ctx context.Context) error {
 					}
 				}
 			}
+		}
+		if r != nil {
 			_ = r.Close()
 		}
 
@@ -276,21 +284,22 @@ func (c *ReplayClient) replay(ctx context.Context) error {
 func ReplaySqls(
 	ctx context.Context,
 	host string, port uint16, user, password, cluster string,
-	resultDir string, client2sqls map[string][]*ReplaySql, speed float32, maxHashRows int, maxConnIdleTime time.Duration,
+	resultDir string, clientSqls []ClientSqls, speed float32, maxHashRows int, maxConnIdleTime time.Duration,
 	minTs int64, parallel int,
 ) error {
-	if len(client2sqls) == 0 {
+	if len(clientSqls) == 0 {
 		return fmt.Errorf("no sqls to replay")
 	}
-	if parallel < len(client2sqls) {
-		logrus.Warnf("Parallel %d is less than client count %d", parallel, len(client2sqls))
+	if parallel < len(clientSqls) {
+		logrus.Warnf("Parallel %d is less than client count %d", parallel, len(clientSqls))
 		if Confirm("Set parallel to client count") {
-			parallel = len(client2sqls)
+			parallel = len(clientSqls)
 		}
 	}
 
-	logrus.Infof("Replay with %d client, started at %v, speed %f\n",
-		len(client2sqls),
+	logrus.Infof("Replay with %d client, parallel %d, started at %v, speed %f\n",
+		len(clientSqls),
+		parallel,
 		time.UnixMilli(minTs).UTC().Format("2006-01-02 15:04:05"),
 		speed,
 	)
@@ -316,8 +325,8 @@ func ReplaySqls(
 	db.Close()
 
 	g := ParallelGroup(parallel)
-	for client, sqls := range client2sqls {
-		client, sqls := client, sqls
+	for _, clientsql := range clientSqls {
+		client, sqls := clientsql.Client, clientsql.Sqls
 		g.Go(func() error {
 			cli := ReplayClient{
 				resultDir:       resultDir,
@@ -341,7 +350,11 @@ func ReplaySqls(
 	return g.Wait()
 }
 
-// Decode replay sqls from dump.
+type ClientSqls struct {
+	Client string
+	Sqls   []*ReplaySql
+}
+
 func DecodeReplaySqls(
 	s *bufio.Scanner,
 	dbs, users map[string]struct{},
@@ -442,6 +455,35 @@ func DecodeReplaySqls(
 	}
 
 	return client2sqls, minTs, count, nil
+}
+
+// Decode and sort replay sqls by first sql timestamp from dump.
+func DecodeReplaySqlsAndSort(
+	s *bufio.Scanner,
+	dbs, users map[string]struct{},
+	from, to int64, // ms
+	maxCount int,
+) ([]ClientSqls, int64, int, error) {
+	client2sqls, minTs, count, err := DecodeReplaySqls(s, dbs, users, from, to, maxCount)
+	if err != nil {
+		return nil, minTs, count, err
+	}
+
+	// sort to puth the earliest client at the first
+	clientSqls := lo.MapToSlice(client2sqls, func(k string, v []*ReplaySql) ClientSqls {
+		return ClientSqls{Client: k, Sqls: v}
+	})
+	slices.SortFunc(clientSqls, func(l, r ClientSqls) int {
+		lts, rts := l.Sqls[0].Ts, r.Sqls[0].Ts
+		if lts < rts {
+			return -1
+		} else if lts > rts {
+			return 1
+		}
+		return 0
+	})
+
+	return clientSqls, minTs, count, nil
 }
 
 type ReplaySql struct {

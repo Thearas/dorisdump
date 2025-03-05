@@ -5,10 +5,12 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractQueriesFromAuditLogs(t *testing.T) {
@@ -88,6 +90,10 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractQueriesFromAuditLogs() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			for _, sql := range got[0] {
+				assert.Contains(t, sql, `"user":"root"`)
+				assert.True(t, strings.Contains(sql, `"db":"mydb"`) || strings.Contains(sql, `"db":"__internal_schema"`))
 			}
 			if !reflect.DeepEqual(gotCount, tt.want) {
 				t.Errorf("ExtractQueriesFromAuditLogs() = %v, want %v", gotCount, tt.want)

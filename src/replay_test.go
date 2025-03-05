@@ -52,14 +52,14 @@ func TestDecodeReplaySqls(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, _, err := DecodeReplaySqls(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.maxCount)
+			got, got1, _, err := DecodeReplaySqlsAndSort(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.maxCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeReplaySqls() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			gotCount := lo.MapValues(got, func(v []*ReplaySql, _ string) int {
-				return len(v)
+			gotCount := lo.SliceToMap(got, func(v ClientSqls) (string, int) {
+				return v.Client, len(v.Sqls)
 			})
 			if !reflect.DeepEqual(gotCount, tt.want) {
 				t.Errorf("DecodeReplaySqls() got = %v, want %v", gotCount, tt.want)
