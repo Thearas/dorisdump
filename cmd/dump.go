@@ -289,8 +289,6 @@ func outputSchemas(schemas []*src.DBSchema) error {
 		}
 	}
 
-	printSql := logrus.GetLevel() == logrus.TraceLevel
-
 	g := src.ParallelGroup(GlobalConfig.Parallel)
 	for _, s := range schemas {
 		s := s
@@ -306,10 +304,6 @@ func outputSchemas(schemas []*src.DBSchema) error {
 				filename = fmt.Sprintf("%s.%s.%s.sql", s.DB, s.Name, s.Type.Lower())
 				if AnonymizeConfig.Enabled {
 					s.CreateStmt = src.AnonymizeSql(AnonymizeConfig.Method, filename, s.CreateStmt)
-				}
-
-				if printSql {
-					logrus.Tracef("schema: %+v\n", *s)
 				}
 
 				path := filepath.Join(DumpConfig.OutputDDLDir, filename)
@@ -341,9 +335,6 @@ func outputSchemas(schemas []*src.DBSchema) error {
 			}
 			yml := string(yml_)
 
-			if printSql {
-				logrus.Tracef("stats: \n%s\n", yml)
-			}
 			if GlobalConfig.DryRun {
 				return nil
 			}
@@ -451,7 +442,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) ([][]st
 	return queries, nil
 }
 
-func outputQueries(queries [][]string) error {
+func outputQueries(queriess [][]string) error {
 	if !GlobalConfig.DryRun {
 		if err := os.MkdirAll(DumpConfig.OutputQueryDir, 0755); err != nil {
 			logrus.Errorln("Create output query directory failed, ", err)
@@ -459,12 +450,6 @@ func outputQueries(queries [][]string) error {
 		}
 	}
 
-	printSql := logrus.GetLevel() == logrus.TraceLevel
-
-	return outputDefaultQueries(queries, printSql)
-}
-
-func outputDefaultQueries(queriess [][]string, printSql bool) error {
 	if len(queriess) == 0 {
 		return nil
 	}
@@ -499,10 +484,7 @@ func outputDefaultQueries(queriess [][]string, printSql bool) error {
 				}
 				defer f.Close()
 			}
-			for i, query := range queries {
-				if printSql {
-					logrus.Tracef("queries %s: %+v\n", name+"#"+strconv.Itoa(i), query)
-				}
+			for _, query := range queries {
 				if GlobalConfig.DryRun {
 					continue
 				}

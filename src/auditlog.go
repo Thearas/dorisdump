@@ -26,7 +26,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+?\] \|Client=([^|]+?)\|User=([^|]+?)(?:\|Ctl=[^|]+)?\|Db=(%s?)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s?)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
 
 	// Doris will escape those characters in the audit log SQLs, so we need to unescape them.
 	// TODO: May incorrectly unescaped SQLs that originally contain those characters.
@@ -62,27 +62,28 @@ type AuditLogScanOpts struct {
 	Strict   bool
 }
 
+// push down filter to db
 func (opts *AuditLogScanOpts) sqlConditions() string {
-	// push down filter to db
-	conditions := "1=1"
+	// filter out doris self-executed sqls
+	conditions := " client_ip != ''"
 	if len(opts.DBs) > 0 {
-		conditions += fmt.Sprintf(` AND db IN ("%s")`, strings.Join(opts.DBs, `", "`))
+		conditions += fmt.Sprintf(` AND db IN ('%s')`, strings.Join(opts.DBs, `', '`))
 	}
 	if opts.QueryMinDurationMs > 0 {
 		conditions += fmt.Sprintf(` AND query_time >= %d`, opts.QueryMinDurationMs)
 	}
 	if len(opts.QueryStates) > 0 {
-		conditions += fmt.Sprintf(` AND state IN ("%s")`, strings.Join(opts.QueryStates, `", "`))
+		conditions += fmt.Sprintf(" AND `state` IN ('%s')", strings.Join(opts.QueryStates, `', '`))
 	}
 	if opts.OnlySelect {
 		conditions += ` AND is_query = 1`
 	}
 
 	if opts.From != "" {
-		conditions += fmt.Sprintf(` AND time >= "%s"`, opts.From)
+		conditions += fmt.Sprintf(" AND `time` >= '%s'", opts.From)
 	}
 	if opts.To != "" {
-		conditions += fmt.Sprintf(` AND time <= "%s"`, opts.To)
+		conditions += fmt.Sprintf(" AND `time` <= '%s'", opts.To)
 	}
 	return conditions
 }

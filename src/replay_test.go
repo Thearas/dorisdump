@@ -57,6 +57,7 @@ func TestDecodeReplaySqls(t *testing.T) {
 				t.Errorf("DecodeReplaySqls() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			assert.Less(t, got[0].Sqls[0].Ts, got[1].Sqls[0].Ts)
 
 			gotCount := lo.SliceToMap(got, func(v ClientSqls) (string, int) {
 				return v.Client, len(v.Sqls)

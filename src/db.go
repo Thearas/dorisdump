@@ -360,7 +360,7 @@ func GetDBAuditLogs(
 		return []string{}, nil
 	}
 	if total > 1_000_000 {
-		if !Confirm(fmt.Sprintf("Audit log count(%d) may bigger than 1 million, continue", total)) {
+		if !Confirm(fmt.Sprintf("Audit log count(%d) may be bigger than 1 million, continue", total)) {
 			return []string{}, nil
 		}
 	}
@@ -375,37 +375,18 @@ func GetDBAuditLogs(
 		logScans[i] = s
 	}
 
-	const LimitPerSelect = 100
-	chunksNum := total / LimitPerSelect
-	if total%LimitPerSelect != 0 {
-		chunksNum += 1
-	}
-	if chunksNum < parallel {
-		parallel = chunksNum
-	}
-	chunkPerThread := chunksNum / parallel
-	chunkRemain := chunksNum % parallel
-
 	g := ParallelGroup(parallel)
+	perThreadCount := total / parallel
 	conditions := opts.sqlConditions()
-	var scanned int
-	for i := 0; i < parallel; i++ {
-		logScan := logScans[i]
-
-		chunks := chunkPerThread
-		if i < chunkRemain {
-			chunks += 1
-		}
-		limitPerThread := chunks * LimitPerSelect
-
-		start := scanned
-		end := start + limitPerThread
-		if end > total {
+	for i, logScan := range logScans {
+		start, end := i*perThreadCount, (i+1)*perThreadCount-1
+		if i == len(logScans)-1 {
 			end = total
 		}
-		scanned = end
 
 		g.Go(func() error {
+			const LimitPerSelect = 100
+
 			pageConds := ""
 			for offset := start; offset < end; offset += LimitPerSelect {
 				limit := LimitPerSelect
@@ -424,10 +405,8 @@ func GetDBAuditLogs(
 				if err != nil {
 					return err
 				}
-				pageConds = ""
-				if time != "" && queryId != "" {
-					pageConds = fmt.Sprintf(` AND time > "%s" AND query_id > "%s"`, time, queryId)
-				}
+				// next page with bigger `time` or with same `time` and bigger query_id
+				pageConds = fmt.Sprintf(" AND (`time` > '%s' OR (`time` = '%s' AND query_id > '%s'))", time, time, queryId)
 			}
 			return nil
 		})
@@ -449,7 +428,7 @@ func getDBAuditLogs(
 ) (lastTime string, lastQueryId string, err error) {
 	const MaxRetry = 5
 	for retry := 0; retry < MaxRetry; retry++ {
-		stmt := fmt.Sprintf("SELECT time, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s ORDER BY time asc, query_id asc LIMIT %d OFFSET %d",
+		stmt := fmt.Sprintf("SELECT `time`, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s ORDER BY `time`, query_id LIMIT %d OFFSET %d",
 			dbname,
 			table,
 			conditions,
@@ -484,6 +463,7 @@ func getDBAuditLogs(
 				break
 			}
 			lastTime, lastQueryId = vals[0], vals[5]
+
 			logScan.onMatch(vals, true)
 		}
 
