@@ -35,9 +35,9 @@ import (
 )
 
 var (
-	noColor         bool
-	minDurationDiff time.Duration
-	originalDumpSQL string
+	noColor          bool
+	minDurationDiff  time.Duration
+	originalDumpSQLs []string
 )
 
 // diffCmd represents the diff command
@@ -45,7 +45,7 @@ var diffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "Diff a replay result with another or the original dump sql",
 	Example: `dorisdump diff replay1/ replay2/
-dorisdump diff --original-sql dump.sql replay1/`,
+dorisdump diff --original-sqls dump.sql replay1/`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if noColor {
 			if err := os.Setenv("NO_COLOR", "true"); err != nil {
@@ -53,12 +53,12 @@ dorisdump diff --original-sql dump.sql replay1/`,
 			}
 		}
 
-		if len(args) != 2 && originalDumpSQL == "" {
-			return errors.New("diff requires two replay result dirs or --original-sql flag")
+		if !(len(args) == 2 || (len(originalDumpSQLs) > 0 && len(args) == 1)) {
+			return errors.New("diff requires two replay result dirs or --original-sqls flag with one replay result dir")
 		}
 
-		if originalDumpSQL != "" {
-			return diffDumpSQL(originalDumpSQL, args[0])
+		if len(originalDumpSQLs) > 0 {
+			return diffDumpSQL(originalDumpSQLs, args[0])
 		}
 		return diffTwoReplays(args[0], args[1])
 	},
@@ -72,35 +72,19 @@ func init() {
 	flags := diffCmd.Flags()
 	flags.BoolVar(&noColor, "no-color", false, "Disable color output")
 	flags.DurationVar(&minDurationDiff, "min-duration-diff", 100*time.Millisecond, "Print diff if duration difference is greater than this value")
-	flags.StringVar(&originalDumpSQL, "original-sql", "", "Diff with original dump sql instead of another replay result")
+	flags.StringSliceVar(&originalDumpSQLs, "original-sqls", nil, "Diff with original dump sql instead of another replay result")
 }
 
-func diffDumpSQL(originalDump, replay string) error {
-	lstats, err := os.Stat(originalDump)
-	if err != nil {
-		return err
-	}
+func diffDumpSQL(originalDumps []string, replay string) error {
 	rstats, err := os.Stat(replay)
 	if err != nil {
 		return err
 	}
-	if lstats.IsDir() || !rstats.IsDir() {
-		return errors.New("original dump sql should be a file and replay result should be a directory")
+	if !rstats.IsDir() {
+		return errors.New("replay result should be a directory")
 	}
 
-	f, err := os.Open(originalDump)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	client2sqls, _, _, err := src.DecodeReplaySqls(
-		bufio.NewScanner(f),
-		make(map[string]struct{}),
-		make(map[string]struct{}),
-		0, 0,
-		-1,
-	)
+	client2sqls, err := readOriginalDumpSQLs()
 	if err != nil {
 		return err
 	}
@@ -135,6 +119,44 @@ func diffDumpSQL(originalDump, replay string) error {
 		}
 		return nil
 	})
+}
+
+func readOriginalDumpSQLs() (map[string][]*src.ReplaySql, error) {
+	sqls := []string{}
+	for _, s := range originalDumpSQLs {
+		localPaths, err := filepath.Glob(s)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid original sql path: %s, error: %v", s, err)
+		}
+		sqls = append(sqls, localPaths...)
+	}
+
+	client2sqls := make(map[string][]*src.ReplaySql, 10240)
+	for _, originalDumpSQL := range sqls {
+		f, err := os.Open(originalDumpSQL)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		client2sqls_, _, _, err := src.DecodeReplaySqls(
+			bufio.NewScanner(f),
+			make(map[string]struct{}),
+			make(map[string]struct{}),
+			0, 0,
+			-1,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		for client, sqls := range client2sqls_ {
+			client2sqls[client] = append(client2sqls[client], sqls...)
+		}
+	}
+
+	return client2sqls, nil
+
 }
 
 func diffTwoReplays(replay1, replay2 string) error {
@@ -261,24 +283,24 @@ type diff2 struct {
 func (d *diff2) result() string {
 	var result []string
 
-	// dump sql from audit log does not have err and return rows
-	if originalDumpSQL == "" {
-		if d.r1.Err != d.r2.Err {
-			r1e := d.r1.Err
-			if r1e == "" {
-				r1e = "<empty>"
-			}
-			r2e := d.r2.Err
-			if r2e == "" {
-				r2e = "<empty>"
-			}
+	// NOTE: original dump sql does not have err and return rows
+	if d.r1.Err != d.r2.Err {
+		r1e := d.r1.Err
+		if r1e == "" {
+			r1e = "<empty>"
+		}
+		r2e := d.r2.Err
+		if r2e == "" {
+			r2e = "<empty>"
+		}
 
-			result = append(result, fmt.Sprintf(`err not match:
+		result = append(result, fmt.Sprintf(`err not match:
 %s
 ------
 %s`, color.GreenString(r1e), color.RedString(r2e)))
-		}
+	}
 
+	if len(originalDumpSQLs) == 0 {
 		if d.r1.ReturnRows != d.r2.ReturnRows {
 			result = append(result, fmt.Sprintf("rows count not match: %s != %s", color.GreenString(strconv.Itoa(d.r1.ReturnRows)), color.RedString(strconv.Itoa(d.r2.ReturnRows))))
 		}

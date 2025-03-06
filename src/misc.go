@@ -85,7 +85,7 @@ func Confirm(msg string) bool {
 	if os.Getenv("DORIS_YES") != "" {
 		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("y")))
 	} else if os.Getenv("DORIS_NO") != "" {
-		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("n")))
+		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("N")))
 	}
 	result, _ := prompt.Run()
 	return result == "y"

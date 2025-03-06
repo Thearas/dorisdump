@@ -367,6 +367,10 @@ func GetDBAuditLogs(
 
 	logrus.Debugf("need to scan %d audit log row(s)\n", total)
 
+	if parallel > total {
+		parallel = total
+	}
+
 	logScans := make([]*SimpleAuditLogScanner, parallel)
 	for i := range logScans {
 		s := NewSimpleAuditLogScanner(opts)

@@ -6,7 +6,7 @@ Main features:
 2. **Replay** dump queries with speed control
 3. **Anonymize** database, table and column names in SQLs
 
-See [Intro & FAQ](./introduction-zh.md) for more details.
+See [Introduction & FAQ](./introduction-zh.md) for more details.
 
 [![demo](https://asciinema.org/a/706093.svg)](https://asciinema.org/a/706093)
 
@@ -54,7 +54,7 @@ dorisdump replay -f output/sql/q0.sql \
 dorisdump diff --help
 
 # Print diff of replay result which is slower more than 200ms than original
-dorisdump diff --min-duration-diff 200ms --original-sql output/sql/q0.sql output/replay
+dorisdump diff --min-duration-diff 200ms --original-sqls output/sql/q0.sql output/replay
 
 # Print diff of two replay result directories
 dorisdump diff replay1/ replay2/
