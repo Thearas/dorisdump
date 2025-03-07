@@ -77,10 +77,9 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
-	Aliases:                    []string{"d"},
-	Example:                    "dorisdump dump --dump-schema --dump-query -dbs db1 --audit-logs /path/to/audit.log",
-	TraverseChildren:           true,
-	SuggestionsMinimumDistance: 2,
+	Aliases:          []string{"d"},
+	Example:          "dorisdump dump --dump-schema --dump-query -dbs db1 --audit-logs /path/to/audit.log",
+	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
@@ -92,7 +91,10 @@ or environment variables with prefix 'DORIS_', e.g.
 		}
 
 		if DumpConfig.Clean {
-			if err := cleanAllFiles(true); err != nil {
+			if err := cleanFile(DumpConfig.OutputDDLDir, true); err != nil {
+				return err
+			}
+			if err := cleanFile(DumpConfig.OutputQueryDir, true); err != nil {
 				return err
 			}
 		}

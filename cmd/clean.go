@@ -54,12 +54,18 @@ func cleanAllFiles(force bool) error {
 func cleanFile(path string, force bool) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
+		if err == os.ErrNotExist {
+			return nil
+		}
 		return err
 	}
 
 	yes := force || src.Confirm(fmt.Sprintf("Delete %s", absPath))
 	if yes && !GlobalConfig.DryRun {
 		err = os.RemoveAll(absPath)
+	}
+	if err == os.ErrNotExist {
+		return nil
 	}
 	return err
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -64,11 +65,10 @@ or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
-	Example:                    "dorisdump dump --help",
-	SuggestFor:                 []string{"dump", "replay"},
-	ValidArgs:                  []string{"completion", "help", "clean", "dump", "anonymize", "replay", "diff"},
-	TraverseChildren:           true,
-	SuggestionsMinimumDistance: 2,
+	Example:          "dorisdump dump --help",
+	SuggestFor:       []string{"dump", "replay"},
+	ValidArgs:        []string{"completion", "help", "clean", "dump", "anonymize", "replay", "diff"},
+	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
@@ -90,13 +90,18 @@ func init() {
 	rootCmd.PersistentFlags().SortFlags = false
 	rootCmd.Flags().SortFlags = false
 
+	parallel := runtime.NumCPU()
+	if parallel > 10 {
+		parallel = 10
+	}
+
 	pFlags := rootCmd.PersistentFlags()
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
 	pFlags.StringVar(&GlobalConfig.DataDir, "data-dir", "./.dorisdump/", "Directory for storing data")
 	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
-	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", 10, "Parallel dump worker")
+	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", parallel, "Parallel dump worker")
 
 	pFlags.StringVarP(&GlobalConfig.DBHost, "host", "H", "127.0.0.1", "DB Host")
 	pFlags.Uint16VarP(&GlobalConfig.DBPort, "port", "P", 9030, "DB Port")

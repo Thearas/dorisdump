@@ -82,10 +82,11 @@ func Confirm(msg string) bool {
 		Label:     msg,
 		IsConfirm: true,
 	}
-	if os.Getenv("DORIS_YES") != "" {
-		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("y")))
-	} else if os.Getenv("DORIS_NO") != "" {
+	defaultYes := os.Getenv("DORIS_YES")
+	if defaultYes == "0" {
 		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("N")))
+	} else if defaultYes != "" {
+		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("y")))
 	}
 	result, _ := prompt.Run()
 	return result == "y"
