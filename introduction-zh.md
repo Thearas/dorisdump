@@ -13,6 +13,7 @@
   - [环境变量和配置文件](#环境变量和配置文件)
   - [监看导出/回放过程](#监看导出回放过程)
   - [自定义回放逻辑](#自定义回放逻辑)
+  - [找出回放时长超过 1s 的 SQL](#找出回放时长超过-1s-的-sql)
   - [自动化](#自动化)
 - [脱敏](#脱敏)
 - [FAQ](#faq)
@@ -70,7 +71,7 @@ output
 
 注意：
 
-- 从日志文件导出时，`q0.sql` 对应第一个审计日志、`q1.sql` 对应第二个、以此类推，但从日志表导出时，只会写入到 `q0.sql`
+- 从日志文件导出时，`q0.sql` 对应第一个日志文件、`q1.sql` 对应第二个、以此类推，但从日志表导出时，只会写入到 `q0.sql`
 - 多次执行导出命令，结果会追加到前一次导出的 SQL 文件中，除非指定 `--clean`，删除之前的 `output/ddl` 和 `output/sql` 目录
 
 ### 其他导出参数
@@ -90,7 +91,7 @@ output
 
 `dorisdump replay --help`
 
-需要先跑审计日志导出，然后基于导出的 SQL 文件回放。回放的时候可以控制回放速度和并发。
+需要先[导出查询](#导出查询)，然后基于导出的 SQL 文件回放。回放的时候可以控制回放速度和并发。
 
 ```sh
 # 导出
@@ -100,14 +101,14 @@ dorisdump dump --dump-query --audit-logs fe.audit.log
 dorisdump replay -f output/q0.sql
 ```
 
-回放时不同客户端之间并发，同一客户端内的 SQL 串行且有间隔时长，严格按照审计日志计算出来：
+回放时，不同客户端的 SQL 并发，同一客户端的 SQL 串行且有间隔时长：
 
 ```sh
 # sql1 和 sql2 是同一个客户端相邻执行的两条 SQL
 间隔时长 = sql1 开始时间 - sql2 开始时间 - sql1 执行时长
 ```
 
-结果默认会放在 `output/replay` 目录下，每个文件代表一个客户端，文件名即客户端的 `ip:port`，文件中每行代表一条 SQL 结果。
+结果默认放在 `output/replay` 目录下，每个文件代表一个客户端，文件名即客户端 `ip:port`，文件中每行代表一条 SQL 的结果。
 
 > 注意：执行多次回放命令，结果会追加到前一次的结果中，除非指定 `--clean`，删除之前的 `output/replay` 目录
 
@@ -161,7 +162,7 @@ dorisdump replay -f output/q0.sql
 
 `dorisdump completion --help`
 
-安装完成或执行上面命令，会给出启用自动补全的方法。
+安装完成或执行上面的命令时，会给出启用自动补全的方法。
 
 ---
 
@@ -169,8 +170,10 @@ dorisdump replay -f output/q0.sql
 
 `dorisdump --help`
 
-- 通过前缀为 `DORIS_xxx` 的大写环境变量传参，比如 `DORIS_HOST=xxx` 等价于  `--host xxx`
-- 通过配置文件传参，比如 `dorisdump --config-file xxx.yaml`，见 [example](./example/example.dorisdump.yaml)
+除了命令行传参，还有两种方式：
+
+1. 通过前缀为 `DORIS_xxx` 的大写环境变量传参，比如 `DORIS_HOST=xxx` 等价于  `--host xxx`
+2. 通过配置文件传参，比如 `dorisdump --config-file xxx.yaml`，见 [example](./example/example.dorisdump.yaml)
 
 参数优先级由高到低：
 
@@ -195,7 +198,21 @@ dorisdump replay -f output/q0.sql
 
 Q: 我不想跟线上一样的回放，就只想跑一遍审计日志里的查询，**每个查询相互独立无依赖**
 
-A: 把「导出后的 SQL 文件」里 `/*dorisdump{...}*/` 注释中的 `ts` 都改成一样的，然后 `client` 改成跟并发数一样多的，比如 100 并发，就改成 100 个不同的 client
+A: 把「导出后的 SQL 文件」里，每条 SQL 开头的 `/*dorisdump{...}*/` 中的 `ts` 都改成一样的，然后 `client` 改成跟并发数一样多的，比如 100 并发，就改成 100 个不同的 client
+
+---
+
+### 找出回放时长超过 1s 的 SQL
+
+直接搜索回放结果目录，建议用 [ripgrep](https://github.com/BurntSushi/ripgrep)，用 `grep` 也类似：
+
+```sh
+# 找出执行时间超过 1s 的
+rg '"durationMs":\d{4}' output/replay
+
+# 找出执行时间超过 6s 的
+rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
+```
 
 ---
 
@@ -275,7 +292,7 @@ columns:
 
 有两种情况：
 
-1. 因为审计日志中没有 `connection id`，所以工具以客户端（ip:port）而不是连接为单位进行回放，但一个客户端可能由多个串行的连接组成，这样不知道何时断开连接，从而导致连接不能及时释放。
+1. 因为审计日志中没有 `connection id`，所以工具以客户端（`ip:port`）而不是连接为单位进行回放，但一个客户端可能由多个串行的连接组成，这样工具不知道何时断开连接，从而导致连接不能及时释放
 
     回放连接默认 10s 无活动自动释放，但有时还是会出现连接过多和 session 变量丢失的情况，可以调整 `--max-conn-idle-time`
 2. `--speed` 设置过大，过多的 SQL 被挤压到一小段时间执行，减小 `--speed` 值即可解决，或者参考[自定义回放逻辑](#自定义回放逻辑)
