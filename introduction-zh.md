@@ -253,7 +253,7 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 然后打开 `--log-level=debug`，看看是不是以下情况：
 
 - `ignore sql with duplicated query_id`：重复的 `query_id` 会被忽略，这是 Doris 本身的 bug
-- `query has been truncated`：SQL 过长会被截断，请检查 Doris 的 `audit_plugin_max_sql_length` 配置
+- `query has been truncated`：SQL 过长会被截断，请检查 Doris 的 [`audit_plugin_max_sql_length`](https://doris.apache.org/docs/admin-manual/audit-plugin#audit-log-configuration) 配置
 
 ---
 
@@ -296,3 +296,5 @@ columns:
 
     回放连接默认 10s 无活动自动释放，但有时还是会出现连接过多和 session 变量丢失的情况，可以调整 `--max-conn-idle-time`
 2. `--speed` 设置过大，过多的 SQL 被挤压到一小段时间执行，减小 `--speed` 值即可解决，或者参考[自定义回放逻辑](#自定义回放逻辑)
+
+另外有一个通解：调大用户最大连接数 [`max_user_connections`](https://doris.apache.org/docs/admin-manual/config/user-property#max_user_connections)。
