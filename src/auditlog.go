@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
 	"github.com/dlclark/regexp2"
 	"github.com/edsrzf/mmap-go"
@@ -44,7 +45,7 @@ var (
 type AuditLogScanner interface {
 	Init()
 	ScanOne(oneLine []byte) error
-	Result() (sqls []string)
+	Consume(w SqlWriter) (int, error)
 	Close()
 }
 
@@ -88,19 +89,25 @@ func (opts *AuditLogScanOpts) sqlConditions() string {
 	return conditions
 }
 
+type SqlWriter interface {
+	io.Closer
+	WriteSql(s string) error
+}
+
 // ExtractQueriesFromAuditLog extracts the query from an audit log.
 func ExtractQueriesFromAuditLogs(
+	writers []SqlWriter,
 	auditlogPaths []string,
 	encoding string,
 	opts AuditLogScanOpts,
 	parallel int,
-) ([][]string, error) {
+) (int, error) {
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", opts.DBs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
 	useMmap := os.Getenv("MMAP") != ""
 
-	sqlss := make([][]string, len(auditlogPaths))
+	counter := &atomic.Int32{}
 	for i, auditlogPath := range auditlogPaths {
 		i, auditlogPath := i, auditlogPath
 		g.Go(func() error {
@@ -135,40 +142,42 @@ func ExtractQueriesFromAuditLogs(
 
 			// read log file line by line
 			s := NewAuditLogScanner(opts)
-			sqls, err := extractQueriesFromAuditLog(s, buf)
+			count, err := extractQueriesFromAuditLog(writers[i], s, buf)
 			if err != nil {
 				return err
 			}
 
-			sqlss[i] = sqls
+			counter.Add(int32(count))
 
 			return nil
 		})
 	}
 
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return sqlss, nil
+	return int(counter.Load()), nil
 }
 
 func extractQueriesFromAuditLog(
+	w SqlWriter,
 	s AuditLogScanner,
 	auditlog *bufio.Scanner,
-) ([]string, error) {
+) (int, error) {
 	s.Init()
 	defer s.Close()
 
 	// read log file line by line
 	if !auditlog.Scan() {
 		logrus.Warningln("Failed to scan audit log file, maybe empty?")
-		return []string{}, nil
+		return 0, nil
 	}
 	var (
 		line   = auditlog.Bytes()
 		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
 		eof    = false
+		count  = 0
 	)
 
 	for !eof {
@@ -196,11 +205,18 @@ func extractQueriesFromAuditLog(
 		// parse log
 		if err := s.ScanOne(oneLog); err != nil {
 			logrus.Errorln("Failed to scan audit log file")
-			return nil, err
+			return 0, err
 		}
+		// write to file immediately to avoid using too much memory
+		count_, err := s.Consume(w)
+		if err != nil {
+			logrus.Errorln("Failed to output audit log")
+			return 0, err
+		}
+		count += count_
 	}
 
-	return s.Result(), nil
+	return count, nil
 }
 
 type SimpleAuditLogScanner struct {
@@ -240,8 +256,16 @@ func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
 	return nil
 }
 
-func (s *SimpleAuditLogScanner) Result() []string {
-	return s.sqls
+func (s *SimpleAuditLogScanner) Consume(w SqlWriter) (int, error) {
+	count := len(s.sqls)
+	for _, s := range s.sqls {
+		if err := w.WriteSql(s); err != nil {
+			logrus.Errorln("Failed to output audit log")
+			return 0, err
+		}
+	}
+	s.sqls = s.sqls[:0]
+	return count, nil
 }
 
 func (s *SimpleAuditLogScanner) Close() {}

@@ -13,6 +13,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type sqlWriter struct {
+	sqls []string
+}
+
+func (w *sqlWriter) WriteSql(s string) error {
+	w.sqls = append(w.sqls, s)
+	return nil
+}
+
+func (w *sqlWriter) Close() error {
+	return nil
+}
+
 func TestExtractQueriesFromAuditLogs(t *testing.T) {
 	t.Parallel()
 	chroot()
@@ -33,7 +46,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []int
+		want    int
 		wantErr bool
 	}{
 		{
@@ -46,7 +59,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				onlySelect:        true,
 				strict:            true,
 			},
-			want: []int{8},
+			want: 8,
 		},
 		{
 			name: "not_only_select",
@@ -57,7 +70,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				onlySelect:    false,
 				strict:        true,
 			},
-			want: []int{9},
+			want: 9,
 		},
 		{
 			name: "from_to",
@@ -70,7 +83,7 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				from:          "2024-08-06 23:44:11",
 				to:            "2024-08-06 23:44:12",
 			},
-			want: []int{7},
+			want: 7,
 		},
 	}
 	for _, tt := range tests {
@@ -85,13 +98,13 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				Unescape:           tt.args.unescape,
 				Strict:             tt.args.strict,
 			}
-			got, err := ExtractQueriesFromAuditLogs(tt.args.auditlogPaths, tt.args.encoding, opts, tt.args.parallel)
-			gotCount := lo.Map(got, func(s []string, _ int) int { return len(s) })
+			writers := lo.RepeatBy(len(tt.args.auditlogPaths), func(index int) SqlWriter { return &sqlWriter{} })
+			gotCount, err := ExtractQueriesFromAuditLogs(writers, tt.args.auditlogPaths, tt.args.encoding, opts, tt.args.parallel)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExtractQueriesFromAuditLogs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			for _, sql := range got[0] {
+			for _, sql := range writers[0].(*sqlWriter).sqls {
 				assert.Contains(t, sql, `"user":"root"`)
 				assert.True(t, strings.Contains(sql, `"db":"mydb"`) || strings.Contains(sql, `"db":"__internal_schema"`))
 			}

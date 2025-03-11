@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -119,16 +120,12 @@ or environment variables with prefix 'DORIS_', e.g.
 
 		// dump queries
 		if DumpConfig.DumpQuery {
-			queries, err := dumpQueries(ctx)
+			count, err := dumpQueries(ctx)
 			if err != nil {
 				return err
 			}
 
-			logrus.Infof("Found %d query(s)\n", lo.SumBy(queries, func(s []string) int { return len(s) }))
-
-			if err := outputQueries(queries); err != nil {
-				return err
-			}
+			logrus.Infof("Found %d query(s)\n", count)
 		}
 
 		// store anonymize hash dict
@@ -350,7 +347,14 @@ func outputSchemas(schemas []*src.DBSchema) error {
 	return g.Wait()
 }
 
-func dumpQueries(ctx context.Context) ([][]string, error) {
+func dumpQueries(ctx context.Context) (int, error) {
+	if !GlobalConfig.DryRun {
+		if err := os.MkdirAll(DumpConfig.OutputQueryDir, 0755); err != nil {
+			logrus.Errorln("Create output query directory failed, ", err)
+			return 0, err
+		}
+	}
+
 	opts := src.AuditLogScanOpts{
 		DBs:                GlobalConfig.DBs,
 		QueryMinDurationMs: DumpConfig.QueryMinDurationMs,
@@ -368,9 +372,9 @@ func dumpQueries(ctx context.Context) ([][]string, error) {
 	return dumpQueriesFromFile(ctx, opts)
 }
 
-func dumpQueriesFromTable(ctx context.Context, opts src.AuditLogScanOpts) ([][]string, error) {
+func dumpQueriesFromTable(ctx context.Context, opts src.AuditLogScanOpts) (int, error) {
 	if opts.From == "" || opts.To == "" {
-		return nil, errors.New("Must specific both '--from' and '--to' when dumping from audit log table")
+		return 0, errors.New("Must specific both '--from' and '--to' when dumping from audit log table")
 	}
 
 	dbTable := strings.SplitN(DumpConfig.AuditLogTable, ".", 2)
@@ -378,25 +382,29 @@ func dumpQueriesFromTable(ctx context.Context, opts src.AuditLogScanOpts) ([][]s
 
 	db, err := connectDB(dbname)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	logrus.Infof("Dumping queries from audit log table '%s'...\n", DumpConfig.AuditLogTable)
 
-	sqls, err := src.GetDBAuditLogs(ctx, db, dbname, table, opts, GlobalConfig.Parallel)
+	w := NewQueryWriter(1, 0)
+	defer w.Close()
+
+	count, err := src.GetDBAuditLogs(ctx, w, db, dbname, table, opts, GlobalConfig.Parallel)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs table failed, %v\n", err)
-		return nil, err
+		return 0, err
 	}
-	return [][]string{sqls}, nil
+
+	return count, nil
 }
 
-func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) ([][]string, error) {
+func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, error) {
 	auditLogs := DumpConfig.AuditLogPaths
 	if len(auditLogs) == 0 {
 		sshUrl, err := chooseRemoteAuditLog(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("Please specific audit log files by '--audit-logs' or table by '--audit-log-table', error: %v", err)
+			return 0, fmt.Errorf("Please specific audit log files by '--audit-logs' or table by '--audit-log-table', error: %v", err)
 		}
 		auditLogs = []string{sshUrl}
 	}
@@ -412,7 +420,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) ([][]st
 			localPath = filepath.Join(DumpConfig.LocalAuditLogCacheDir, path.Base(auditLog))
 			if err := copyAuditLog(ctx, auditLog, localPath); err != nil {
 				logrus.Errorln("Copy remote audit log failed:", err)
-				return nil, err
+				return 0, err
 			}
 			auditLogFiles = append(auditLogFiles, localPath)
 			continue
@@ -422,15 +430,23 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) ([][]st
 		localPath = strings.TrimPrefix(auditLog, "file://")
 		localPaths, err := filepath.Glob(localPath)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid audit log path: %s, error: %v", localPath, err)
+			return 0, fmt.Errorf("Invalid audit log path: %s, error: %v", localPath, err)
 		}
 
 		auditLogFiles = append(auditLogFiles, localPaths...)
 	}
 
+	// 3. Start dumping.
 	logrus.Infoln("Dumping queries from audit log files...")
 
-	queries, err := src.ExtractQueriesFromAuditLogs(
+	writers := make([]src.SqlWriter, len(auditLogFiles))
+	for i := range auditLogFiles {
+		writers[i] = NewQueryWriter(len(auditLogFiles), i)
+		defer writers[i].Close()
+	}
+
+	count, err := src.ExtractQueriesFromAuditLogs(
+		writers,
 		auditLogFiles,
 		DumpConfig.AuditLogEncoding,
 		opts,
@@ -438,68 +454,73 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) ([][]st
 	)
 	if err != nil {
 		logrus.Errorf("Extract queries from audit logs file failed, %v\n", err)
-		return nil, err
+		return 0, err
 	}
 
-	return queries, nil
+	return count, nil
 }
 
-func outputQueries(queriess [][]string) error {
-	if !GlobalConfig.DryRun {
-		if err := os.MkdirAll(DumpConfig.OutputQueryDir, 0755); err != nil {
-			logrus.Errorln("Create output query directory failed, ", err)
+type queryWriter struct {
+	filename string
+	f        *os.File
+	w        *bufio.Writer
+	count    int
+}
+
+func NewQueryWriter(filecount, fileidx int) *queryWriter {
+	format := outputQueryFileNameFormat(filecount)
+	name := fmt.Sprintf(format, fileidx)
+	path := filepath.Join(DumpConfig.OutputQueryDir, name)
+
+	w := &queryWriter{filename: name}
+	if GlobalConfig.DryRun {
+		return w
+	}
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		logrus.Fatalln("Can not open output sql file:", path, ", err:", err)
+	}
+
+	return &queryWriter{
+		filename: name,
+		f:        f,
+		w:        bufio.NewWriterSize(f, 256*1024),
+	}
+}
+
+func (w *queryWriter) WriteSql(s string) error {
+	if AnonymizeConfig.Enabled {
+		// // anonymizer will strip leading '/*dorisdump...*/ ' comment,
+		// // we need restoring it after anonymize
+		// var leadComment string
+		// if strings.HasPrefix(query, src.ReplaySqlPrefix) {
+		// 	leadComment = query[:strings.Index(query, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
+		// }
+		// queries[i] = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
+		s = src.AnonymizeSql(AnonymizeConfig.Method, w.filename+"#"+strconv.Itoa(w.count), s)
+	}
+	w.count++
+	if w.w == nil {
+		return nil
+	}
+	if _, err := w.w.WriteString(s); err != nil {
+		return err
+	}
+	_, err := w.w.WriteRune('\n')
+	return err
+}
+
+func (w *queryWriter) Close() error {
+	if w.w != nil {
+		if err := w.w.Flush(); err != nil {
 			return err
 		}
 	}
-
-	if len(queriess) == 0 {
-		return nil
+	if w.f != nil {
+		return w.f.Close()
 	}
-
-	format := outputQueryFileNameFormat(len(queriess))
-
-	g := src.ParallelGroup(GlobalConfig.Parallel)
-	for i, queries := range queriess {
-		i, queries := i, queries
-		g.Go(func() (err error) {
-			name := fmt.Sprintf(format, i)
-			path := filepath.Join(DumpConfig.OutputQueryDir, name)
-
-			if AnonymizeConfig.Enabled {
-				for i, query := range queries {
-					// // anonymizer will strip leading '/*dorisdump...*/ ' comment,
-					// // we need restoring it after anonymize
-					// var leadComment string
-					// if strings.HasPrefix(query, src.ReplaySqlPrefix) {
-					// 	leadComment = query[:strings.Index(query, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
-					// }
-					// queries[i] = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
-					queries[i] = src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
-				}
-			}
-
-			var f *os.File
-			if !GlobalConfig.DryRun {
-				f, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
-				if err != nil {
-					return err
-				}
-				defer f.Close()
-			}
-			for _, query := range queries {
-				if GlobalConfig.DryRun {
-					continue
-				}
-				_, err = f.WriteString(query + "\n")
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-	}
-
-	return g.Wait()
+	return nil
 }
 
 func outputQueryFileNameFormat(total int) string {

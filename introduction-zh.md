@@ -244,6 +244,8 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 
 客户不能科学上网的话，把[最新二进制](https://github.com/Thearas/dorisdump/releases)下载下来直接给，Linux 版是无依赖的，放机器上就能跑。
 
+对集群不会有任何写入操作，担心消耗资源的话，可以把 `--parallel` 调小。
+
 ---
 
 ### 导出的 SQL 数量比审计日志里的少

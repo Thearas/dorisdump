@@ -7,6 +7,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -346,22 +348,23 @@ func CountAuditlogs(
 
 func GetDBAuditLogs(
 	ctx context.Context,
+	w SqlWriter,
 	db *sqlx.DB,
 	dbname, table string,
 	opts AuditLogScanOpts,
 	parallel int,
-) ([]string, error) {
+) (int, error) {
 	total, err := CountAuditlogs(ctx, db, dbname, table, opts)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if total <= 0 {
 		logrus.Warnln("no audit log found")
-		return []string{}, nil
+		return 0, nil
 	}
 	if total > 1_000_000 {
 		if !Confirm(fmt.Sprintf("Audit log count(%d) may be bigger than 1 million, continue", total)) {
-			return []string{}, nil
+			return 0, nil
 		}
 	}
 
@@ -379,11 +382,18 @@ func GetDBAuditLogs(
 		logScans[i] = s
 	}
 
-	g := ParallelGroup(parallel)
-	perThreadCount := total / parallel
-	conditions := opts.sqlConditions()
+	var (
+		g              = ParallelGroup(parallel)
+		perThreadCount = total / parallel
+		conditions     = opts.sqlConditions()
+		count          = 0
+
+		outputThread = &atomic.Int32{}
+		outputLock   = new(sync.RWMutex)
+		outputCond   = sync.NewCond(outputLock)
+	)
 	for i, logScan := range logScans {
-		start, end := i*perThreadCount, (i+1)*perThreadCount-1
+		start, end := i*perThreadCount, (i+1)*perThreadCount
 		if i == len(logScans)-1 {
 			end = total
 		}
@@ -411,15 +421,37 @@ func GetDBAuditLogs(
 				}
 				// next page with bigger `time` or with same `time` and bigger query_id
 				pageConds = fmt.Sprintf(" AND (`time` > '%s' OR (`time` = '%s' AND query_id > '%s'))", time, time, queryId)
+
+				if int(outputThread.Load()) == i {
+					count_, err := logScan.Consume(w)
+					if err != nil {
+						return err
+					}
+					count += count_
+				}
 			}
+
+			// write to file immediately to avoid using too much memory
+			outputLock.Lock()
+			defer outputLock.Unlock()
+			for int(outputThread.Load()) != i {
+				outputCond.Wait()
+			}
+			count_, err := logScan.Consume(w)
+			if err != nil {
+				return err
+			}
+			count += count_
+			outputThread.Add(1)
+			outputCond.Broadcast()
 			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return lo.Flatten(lo.Map(logScans, func(s *SimpleAuditLogScanner, _ int) []string { return s.Result() })), nil
+	return count, nil
 }
 
 func getDBAuditLogs(
