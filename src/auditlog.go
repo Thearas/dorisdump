@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 
 	"github.com/dlclark/regexp2"
-	"github.com/edsrzf/mmap-go"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
@@ -27,7 +26,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s?)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
 
 	// Doris will escape those characters in the audit log SQLs, so we need to unescape them.
 	// TODO: May incorrectly unescaped SQLs that originally contain those characters.
@@ -105,7 +104,6 @@ func ExtractQueriesFromAuditLogs(
 	logrus.Infof("Extracting queries of database %v, audit logs: %v\n", opts.DBs, auditlogPaths)
 
 	g := ParallelGroup(parallel)
-	useMmap := os.Getenv("MMAP") != ""
 
 	counter := &atomic.Int32{}
 	for i, auditlogPath := range auditlogPaths {
@@ -124,19 +122,8 @@ func ExtractQueriesFromAuditLogs(
 				return err
 			}
 
-			var reader io.Reader = f
-			if useMmap {
-				m, err := mmap.Map(f, mmap.RDONLY, 0)
-				if err != nil {
-					logrus.Errorln("Unable to mmap audit log file:", auditlogPath, "err:", err)
-					return err
-				}
-				defer m.Unmap()
-				reader = bytes.NewReader(m)
-			}
-
-			buf := bufio.NewScanner(transform.NewReader(reader, enc.NewDecoder()))
-			buf.Buffer(make([]byte, 10*1024*1024), 1024*1024)
+			buf := bufio.NewScanner(transform.NewReader(f, enc.NewDecoder()))
+			buf.Buffer(make([]byte, 0, 10*1024*1024), 10*1024*1024)
 
 			logrus.Debugln("Extracting queries from audit log:", auditlogPath, "with encoding:", enc)
 
@@ -224,6 +211,7 @@ type SimpleAuditLogScanner struct {
 
 	sqls             []string
 	distinctQueryIds map[string]struct{}
+	distinctQueryTs  string
 
 	re *regexp2.Regexp
 }
@@ -232,7 +220,7 @@ func NewSimpleAuditLogScanner(opts AuditLogScanOpts) *SimpleAuditLogScanner {
 	return &SimpleAuditLogScanner{
 		AuditLogScanOpts: opts,
 		sqls:             make([]string, 0, 1024),
-		distinctQueryIds: make(map[string]struct{}, 1024),
+		distinctQueryIds: make(map[string]struct{}),
 	}
 }
 
@@ -250,14 +238,18 @@ func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
 		return nil
 	}
 
-	caps := lo.Map(matches.Groups(), func(g regexp2.Group, _ int) string { return g.String() })
-	s.onMatch(caps[1:], false)
+	caps := lo.Map(matches.Groups()[1:], func(g regexp2.Group, _ int) string { return g.String() })
+	s.onMatch(caps, false)
 
 	return nil
 }
 
 func (s *SimpleAuditLogScanner) Consume(w SqlWriter) (int, error) {
 	count := len(s.sqls)
+	if count == 0 {
+		return 0, nil
+	}
+
 	for _, s := range s.sqls {
 		if err := w.WriteSql(s); err != nil {
 			logrus.Errorln("Failed to output audit log")
@@ -281,12 +273,18 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	time = strings.Replace(time, ",", ".", 1) // 2006-01-02 15:04:05,000 -> 2006-01-02 15:04:05.000
 	stmt = strings.TrimSpace(stmt)
 
-	// to avoid duplicate queries with same query_id
+	// BUG: Doris may concurrently write many same query_id with same ts.
+	// To avoid duplicate queries with same query_id:
 	if _, ok := s.distinctQueryIds[queryId]; ok {
 		logrus.Debugln("ignore sql with duplicated query_id:", queryId)
 		return
+	} else if time <= s.distinctQueryTs && len(s.distinctQueryIds) < 1024 {
+		s.distinctQueryIds[queryId] = struct{}{}
+	} else {
+		clear(s.distinctQueryIds)
+		s.distinctQueryIds[queryId] = struct{}{}
+		s.distinctQueryTs = time
 	}
-	s.distinctQueryIds[queryId] = struct{}{}
 
 	ok := s.filterStmtFromMatch(time, queryId, stmt, durationMs, skipOptsFilter)
 	if !ok {
@@ -383,7 +381,7 @@ func auditlogQueryRe(dbs, states []string, onlySelect bool) string {
 		stateFilter = "[^|]*"
 	}
 
-	isQuery := "(?:true|false)"
+	isQuery := "[^|]+"
 	if onlySelect {
 		isQuery = "true"
 	}

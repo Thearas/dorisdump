@@ -24,11 +24,10 @@ type HyperAuditLogScanner struct {
 
 	database chimera.BlockDatabase
 	scratch  *chimera.Scratch
-	close    func()
 }
 
 func (s *HyperAuditLogScanner) Init() {
-	s.database, s.scratch, s.close = hs_alloc(s.DBs, s.QueryStates, s.OnlySelect)
+	s.database, s.scratch = hs_alloc(s.DBs, s.QueryStates, s.OnlySelect)
 }
 
 func (s *HyperAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -41,7 +40,7 @@ func (s *HyperAuditLogScanner) ScanOne(oneLog []byte) error {
 }
 
 func (s *HyperAuditLogScanner) Close() {
-	s.close()
+	s.scratch.Free()
 }
 
 type hs_handler struct{}
@@ -50,8 +49,8 @@ type hs_handler struct{}
 func (h *hs_handler) OnMatch(_ uint, _, _ uint64, _ uint, captured []*chimera.Capture, ctx any) chimera.Callback {
 	c, _ := ctx.(*HyperAuditLogScanner)
 
-	caps := lo.Map(captured, func(cap *chimera.Capture, _ int) string { return string(cap.Bytes) })
-	c.onMatch(caps[1:], false)
+	caps := lo.Map(captured[1:], func(cap *chimera.Capture, _ int) string { return string(cap.Bytes) })
+	c.onMatch(caps, false)
 
 	return chimera.Continue
 }
@@ -63,14 +62,14 @@ func (h *hs_handler) OnError(event chimera.ErrorEvent, _ uint, _, _ any) chimera
 	return chimera.Continue
 }
 
-type hyperscanAlloc = func() (chimera.BlockDatabase, *chimera.Scratch, func())
+type hyperscanAlloc = func() (chimera.BlockDatabase, *chimera.Scratch)
 
 var (
 	hsAlloc hyperscanAlloc
 	hslock  sync.Mutex
 )
 
-func hs_alloc(dbs, states []string, onlySelect bool) (chimera.BlockDatabase, *chimera.Scratch, func()) {
+func hs_alloc(dbs, states []string, onlySelect bool) (chimera.BlockDatabase, *chimera.Scratch) {
 	hslock.Lock()
 	defer hslock.Unlock()
 
@@ -84,23 +83,21 @@ func hs_makeAuditLogQueryRegex(dbs, states []string, onlySelect bool) hyperscanA
 	re := auditlogQueryRe(dbs, states, onlySelect)
 
 	pattern := chimera.NewPattern(re, chimera.MultiLine|chimera.DotAll|chimera.SingleMatch|chimera.Utf8Mode|chimera.UnicodeProperty)
-	database, err := chimera.NewBlockDatabase(pattern)
+	database, err := chimera.NewManagedBlockDatabase(pattern)
 	if err != nil {
 		logrus.Fatalf(`[hyperscan] Unable to compile pattern "%s": %v\n`, pattern.String(), err)
 	}
-	scratchPool := sync.Pool{
-		New: func() any {
-			scratch, err := chimera.NewManagedScratch(database)
-			if err != nil {
-				logrus.Fatalln("[hyperscan] Unable to allocate scratch space")
-			}
-			return scratch
-		},
+	scratch, err := chimera.NewScratch(database)
+	if err != nil {
+		logrus.Fatalln("[hyperscan] Unable to allocate scratch space")
 	}
 
-	scratchAlloc := func() (chimera.BlockDatabase, *chimera.Scratch, func()) {
-		scratch, _ := scratchPool.Get().(*chimera.Scratch)
-		return database, scratch, func() { scratchPool.Put(scratch) }
+	scratchAlloc := func() (chimera.BlockDatabase, *chimera.Scratch) {
+		scratchClone, err := scratch.Clone()
+		if err != nil {
+			logrus.Fatalln("[hyperscan] Unable to clone scratch")
+		}
+		return database, scratchClone
 	}
 	return scratchAlloc
 }

@@ -10,11 +10,11 @@ build-hyper:
 	CXX=$(CXX) go build -tags chimera -o dorisdump main.go
 
 build-darwin:
-	CXX=$(CXX) GOOS=darwin CGO_ENABLED=1 GOEXPERIMENT=newinliner CGO_LDFLAGS='-static-libstdc++' go build -tags chimera -o dorisdump-darwin-$(GOARCH) -a -trimpath -ldflags "-s"
+	CXX=$(CXX) GOOS=darwin CGO_ENABLED=1 GOEXPERIMENT=newinliner CGO_LDFLAGS='-static-libstdc++' go build -tags chimera -o dorisdump-darwin-$(GOARCH) -a -trimpath -ldflags "-w -s"
 	tar czf dorisdump-darwin-$(GOARCH).tar.gz dorisdump-darwin-$(GOARCH)
 
 build-linux:
-	GOOS=linux CGO_ENABLED=1 GOEXPERIMENT=newinliner go build -tags chimera -o dorisdump-linux-$(GOARCH) -a -trimpath -installsuffix cgo -ldflags "-s -linkmode external -extldflags -static"
+	GOOS=linux CGO_ENABLED=1 GOEXPERIMENT=newinliner go build -tags chimera -o dorisdump-linux-$(GOARCH) -a -trimpath -installsuffix cgo -ldflags "-w -s -linkmode external -extldflags -static"
 	tar czf dorisdump-linux-$(GOARCH).tar.gz dorisdump-linux-$(GOARCH)
 
 run:

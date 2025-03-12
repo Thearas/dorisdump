@@ -1,12 +1,11 @@
 module github.com/Thearas/dorisdump
 
-go 1.23.2
+go 1.24.1
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
-	github.com/edsrzf/mmap-go v1.2.0
 	github.com/fatih/color v1.17.0
 	github.com/flier/gohs v1.2.2
 	github.com/go-sql-driver/mysql v1.7.1

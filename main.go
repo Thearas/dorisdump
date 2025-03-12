@@ -24,12 +24,20 @@ import (
 
 func main() {
 	if os.Getenv("PPROF") != "" {
-		f, perr := os.Create("cpu.pprof")
+		cpuF, perr := os.Create("cpu.pprof")
 		if perr != nil {
 			panic(perr)
 		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
+		memF, perr := os.Create("mem.pprof")
+		if perr != nil {
+			panic(perr)
+		}
+		pprof.StartCPUProfile(cpuF)
+		defer func() {
+			pprof.StopCPUProfile()
+			// runtime.GC()
+			pprof.WriteHeapProfile(memF)
+		}()
 	}
 
 	cmd.Execute()
