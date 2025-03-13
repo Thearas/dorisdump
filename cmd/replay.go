@@ -61,7 +61,7 @@ var replayCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := completeReplayConfig(); err != nil {
-			return nil
+			return err
 		}
 		if ReplayConfig.Clean {
 			if err := cleanFile(ReplayConfig.ReplayResultDir, true); err != nil {

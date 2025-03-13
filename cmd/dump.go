@@ -490,17 +490,17 @@ func NewQueryWriter(filecount, fileidx int) *queryWriter {
 }
 
 func (w *queryWriter) WriteSql(s string) error {
-	if AnonymizeConfig.Enabled {
-		// // anonymizer will strip leading '/*dorisdump...*/ ' comment,
-		// // we need restoring it after anonymize
-		// var leadComment string
-		// if strings.HasPrefix(query, src.ReplaySqlPrefix) {
-		// 	leadComment = query[:strings.Index(query, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
-		// }
-		// queries[i] = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, name+"#"+strconv.Itoa(i), query)
-		s = src.AnonymizeSql(AnonymizeConfig.Method, w.filename+"#"+strconv.Itoa(w.count), s)
-	}
 	w.count++
+
+	if AnonymizeConfig.Enabled {
+		// anonymizer will strip leading '/*dorisdump...*/ ' comment,
+		// we need restoring it after anonymize
+		var leadComment string
+		if strings.HasPrefix(s, src.ReplaySqlPrefix) {
+			leadComment = s[:strings.Index(s, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
+		}
+		s = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, w.filename+"#"+strconv.Itoa(w.count), s)
+	}
 	if w.w == nil {
 		return nil
 	}

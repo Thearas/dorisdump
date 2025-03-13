@@ -12,6 +12,7 @@
   - [命令行提示与自动补全](#命令行提示与自动补全)
   - [环境变量和配置文件](#环境变量和配置文件)
   - [监看导出/回放过程](#监看导出回放过程)
+  - [分批回放](#分批回放)
   - [自定义回放逻辑](#自定义回放逻辑)
   - [找出回放时长超过 1s 的 SQL](#找出回放时长超过-1s-的-sql)
   - [自动化](#自动化)
@@ -190,6 +191,34 @@ dorisdump replay -f output/q0.sql
 `--log-level debug/trace`
 
 `debug` 输出简略过程，而 `trace` 可以看到详细过程，比如回放时 SQL 的执行时间和详情等。
+
+---
+
+### 分批回放
+
+回放的 SQL 量太大时，比如回放 31 天的日志，最好按小时为单位分批回放，在导出时用 `--from` 和 `--to` 分批（或导出后手动分批），示例：
+
+```sh
+for day in {1..31} ; do
+  day=$(printf "%02d" $day)
+  for hour in {0..23} ; do
+      hour=$(printf "%02d" $hour)
+      output=output/$day/$hour
+      sql=$output/q0.sql
+
+      echo "dumping and replaying at $day-$hour"
+
+      # 导出
+      dorisdump dump --dump-query --from "2025-03-$day $hour:00:00" --to "2025-03-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
+
+      # 回放，并清除前一次回放结果
+      dorisdump replay -f "$sql" --result-dir result --clean
+
+      # 查看回放结果
+      dorisdump diff --min-duration-diff 1s --original-sqls $sql result | tee -a "result-$day-$hour.txt"
+  done
+done
+```
 
 ---
 

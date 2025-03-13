@@ -389,7 +389,7 @@ func GetDBAuditLogs(
 		count          = 0
 
 		outputThread = &atomic.Int32{}
-		outputLock   = new(sync.RWMutex)
+		outputLock   = new(sync.Mutex)
 		outputCond   = sync.NewCond(outputLock)
 	)
 	for i, logScan := range logScans {
