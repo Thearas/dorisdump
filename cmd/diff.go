@@ -58,7 +58,7 @@ dorisdump diff --original-sqls dump.sql replay1/`,
 		}
 
 		if len(originalDumpSQLs) > 0 {
-			return diffDumpSQL(originalDumpSQLs, args[0])
+			return diffDumpSQL(args[0])
 		}
 		return diffTwoReplays(args[0], args[1])
 	},
@@ -75,7 +75,22 @@ func init() {
 	flags.StringSliceVar(&originalDumpSQLs, "original-sqls", nil, "Diff with original dump sql instead of another replay result")
 }
 
-func diffDumpSQL(originalDumps []string, replay string) error {
+func guessClientCount(replay string) (int, error) {
+	fs, err := os.ReadDir(replay)
+	if err != nil {
+		return 0, err
+	}
+
+	return lo.SumBy(fs, func(f os.DirEntry) int {
+		name := f.Name()
+		if f.IsDir() || !strings.HasPrefix(name, src.ReplayCustomClientPrefix) || !strings.HasSuffix(name, src.ReplayResultFileExt) {
+			return 0
+		}
+		return 1
+	}), nil
+}
+
+func diffDumpSQL(replay string) error {
 	rstats, err := os.Stat(replay)
 	if err != nil {
 		return err
@@ -84,7 +99,12 @@ func diffDumpSQL(originalDumps []string, replay string) error {
 		return errors.New("replay result should be a directory")
 	}
 
-	client2sqls, err := readOriginalDumpSQLs()
+	clientCount, err := guessClientCount(replay)
+	if err != nil {
+		return err
+	}
+
+	client2sqls, err := readOriginalDumpSQLs(clientCount)
 	if err != nil {
 		return err
 	}
@@ -121,7 +141,7 @@ func diffDumpSQL(originalDumps []string, replay string) error {
 	})
 }
 
-func readOriginalDumpSQLs() (map[string][]*src.ReplaySql, error) {
+func readOriginalDumpSQLs(clientCount int) (map[string][]*src.ReplaySql, error) {
 	sqls := []string{}
 	for _, s := range originalDumpSQLs {
 		localPaths, err := filepath.Glob(s)
@@ -144,6 +164,7 @@ func readOriginalDumpSQLs() (map[string][]*src.ReplaySql, error) {
 			make(map[string]struct{}),
 			make(map[string]struct{}),
 			0, 0,
+			clientCount,
 			-1,
 		)
 		if err != nil {
@@ -256,12 +277,12 @@ func (r *diffReader) get(queryId string) *src.ReplayResult {
 		if len(b) == 0 {
 			return nil
 		}
-		var result src.ReplayResult
-		if err := json.Unmarshal(b, &result); err != nil {
+		result := &src.ReplayResult{}
+		if err := json.Unmarshal(b, result); err != nil {
 			logrus.Errorf("unmarshal %s failed, err: %v\n", r.scan.Text(), err)
 			return nil
 		}
-		return &result
+		return result
 	}
 
 	if len(r.id2sqls) == 0 {
