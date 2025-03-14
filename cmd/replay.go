@@ -38,6 +38,7 @@ type Replay struct {
 	ReplayResultDir string
 	Users_          []string
 	From_, To_      string
+	ClientCount     int
 	Count           int
 	Speed           float32
 	MaxHashRows     int
@@ -85,6 +86,7 @@ func init() {
 	pFlags.StringSliceVar(&ReplayConfig.Users_, "users", []string{}, "Replay queries from these users")
 	pFlags.StringVar(&ReplayConfig.From_, "from", "", "Replay queries from this time, like '2006-01-02 15:04:05'")
 	pFlags.StringVar(&ReplayConfig.To_, "to", "", "Replay queries to this time, like '2006-01-02 16:04:05'")
+	pFlags.IntVar(&ReplayConfig.ClientCount, "client-count", 0, "Set replay client count")
 	pFlags.IntVar(&ReplayConfig.Count, "count", -1, "Max SQL count to replay, < 0 means unlimited")
 	pFlags.Float32Var(&ReplayConfig.Speed, "speed", 1.0, "Replay speed, like 0.5, 2, 4, ...")
 	pFlags.IntVar(&ReplayConfig.MaxHashRows, "max-hash-rows", 0, "Number of query return rows to hash, useful when diff replay result")
@@ -144,17 +146,21 @@ func replay(ctx context.Context) error {
 	)
 
 	// TODO: better to use connection -> sqls, but no connection id in audit log yet
-	clientSqls, minTs, count, err := src.DecodeReplaySqlsAndSort(
+	client2Sqls, minTs, count, err := src.DecodeReplaySqls(
 		bufio.NewScanner(f),
 		ReplayConfig.DBs,
 		ReplayConfig.Users,
 		ReplayConfig.From,
 		ReplayConfig.To,
+		ReplayConfig.ClientCount,
 		ReplayConfig.Count,
 	)
 	if err != nil {
 		return err
 	}
+	clientSqls := lo.MapToSlice(client2Sqls, func(k string, v []*src.ReplaySql) src.ClientSqls {
+		return src.ClientSqls{Client: k, Sqls: v}
+	})
 	if len(clientSqls) == 0 {
 		return fmt.Errorf("no SQLs found in replay file: %s", ReplayConfig.ReplayFile)
 	}

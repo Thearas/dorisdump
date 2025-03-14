@@ -24,12 +24,13 @@ func TestDecodeReplaySqls(t *testing.T) {
 	assert.NoError(t, err)
 
 	type args struct {
-		s        *bufio.Scanner
-		dbs      map[string]struct{}
-		users    map[string]struct{}
-		from     int64
-		to       int64
-		maxCount int
+		s           *bufio.Scanner
+		dbs         map[string]struct{}
+		users       map[string]struct{}
+		from        int64
+		to          int64
+		clientCount int
+		maxCount    int
 	}
 	tests := []struct {
 		name    string
@@ -49,21 +50,38 @@ func TestDecodeReplaySqls(t *testing.T) {
 			},
 			want1: minTs.UnixMilli(),
 		},
+		{
+			name: "custom client",
+			args: args{
+				s:           bufio.NewScanner(replayFile),
+				clientCount: 4,
+			},
+			want: map[string]int{
+				"client1": 3,
+				"client2": 3,
+				"client3": 3,
+				"client4": 3,
+			},
+			want1: minTs.UnixMilli(),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, _, err := DecodeReplaySqlsAndSort(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.maxCount)
+			replayFile.Seek(0, 0)
+			got, got1, _, err := DecodeReplaySqls(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.clientCount, tt.args.maxCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeReplaySqls() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Less(t, got[0].Sqls[0].Ts, got[1].Sqls[0].Ts)
+			clientSqls := lo.MapToSlice(got, func(k string, v []*ReplaySql) ClientSqls {
+				return ClientSqls{Client: k, Sqls: v}
+			})
 
-			gotCount := lo.SliceToMap(got, func(v ClientSqls) (string, int) {
+			clientsqls := lo.SliceToMap(clientSqls, func(v ClientSqls) (string, int) {
 				return v.Client, len(v.Sqls)
 			})
-			if !reflect.DeepEqual(gotCount, tt.want) {
-				t.Errorf("DecodeReplaySqls() got = %v, want %v", gotCount, tt.want)
+			if !reflect.DeepEqual(clientsqls, tt.want) {
+				t.Errorf("DecodeReplaySqls() got = %v, want %v", clientsqls, tt.want)
 			}
 			if got1 != tt.want1 {
 				t.Errorf("DecodeReplaySqls() got1 = %v, want %v", got1, tt.want1)

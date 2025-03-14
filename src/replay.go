@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,16 +18,16 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/goccy/go-json"
 	"github.com/jmoiron/sqlx"
-	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 )
 
 const (
-	ReplaySqlPrefix     = `/*dorisdump{`
-	ReplaySqlSuffix     = `*/`
-	replayTsFormat      = "2006-01-02 15:04:05.000"
-	ReplayResultFileExt = ".result"
+	ReplaySqlPrefix          = `/*dorisdump{`
+	ReplaySqlSuffix          = `*/`
+	replayTsFormat           = "2006-01-02 15:04:05.000"
+	ReplayResultFileExt      = ".result"
+	ReplayCustomClientPrefix = "client"
 )
 
 type ReplayResult struct {
@@ -290,10 +289,12 @@ func ReplaySqls(
 	if len(clientSqls) == 0 {
 		return fmt.Errorf("no sqls to replay")
 	}
-	if parallel < len(clientSqls) {
-		logrus.Warnf("Parallel %d is less than client count %d", parallel, len(clientSqls))
+	if parallel != len(clientSqls) {
+		logrus.Warnf("Parallel %d is not equal to client count %d", parallel, len(clientSqls))
 		if Confirm("Set parallel to client count") {
 			parallel = len(clientSqls)
+		} else {
+			return errors.New("Parallel must be equal to client count")
 		}
 	}
 
@@ -355,11 +356,36 @@ type ClientSqls struct {
 	Sqls   []*ReplaySql
 }
 
+func clientNameFormat(clientCount int) string {
+	if clientCount == 0 {
+		return ""
+	}
+
+	count := 0
+	for clientCount != 0 {
+		clientCount /= 10
+		count++
+	}
+	return fmt.Sprintf("%s%%0%dd", ReplayCustomClientPrefix, count)
+}
+
+func getClientBySqlIdx(
+	format string, clientCount int,
+	originalClientName string, sqlIdx int,
+) string {
+	if format == "" {
+		return originalClientName
+	}
+
+	return fmt.Sprintf(format, (sqlIdx%clientCount)+1)
+}
+
 func DecodeReplaySqls(
 	s *bufio.Scanner,
 	dbs, users map[string]struct{},
 	from, to int64, // ms
-	maxCount int,
+	clientCount int,
+	maxSqlCount int,
 ) (map[string][]*ReplaySql, int64, int, error) {
 	if !s.Scan() {
 		logrus.Warningln("Failed to scan reply sql file, maybe empty?")
@@ -367,9 +393,10 @@ func DecodeReplaySqls(
 	}
 
 	var (
-		line  = s.Bytes()
-		eof   = false
-		count int
+		clientNameFmt = clientNameFormat(clientCount)
+		line          = s.Bytes()
+		eof           = false
+		count         int
 	)
 
 	// check the replay file is valid by first line prefix
@@ -379,7 +406,7 @@ func DecodeReplaySqls(
 
 	client2sqls := make(map[string][]*ReplaySql, 1024)
 	minTs := int64(math.MaxInt64)
-	for !eof {
+	for i := 0; !eof; i++ {
 		oneSql := bytes.Clone(line)
 
 		// one log may have multiple lines
@@ -433,11 +460,11 @@ func DecodeReplaySqls(
 		if !meta.matchTime(from, to) {
 			continue
 		}
-		if maxCount > 0 && count >= maxCount {
+		if maxSqlCount > 0 && count >= maxSqlCount {
 			break
 		}
 
-		// log may out of order
+		// logs may out of order
 		ts, err := meta.Timestamp()
 		if err != nil {
 			continue
@@ -447,7 +474,8 @@ func DecodeReplaySqls(
 		}
 
 		// add to result
-		client2sqls[meta.Client] = append(client2sqls[meta.Client], &ReplaySql{
+		client := getClientBySqlIdx(clientNameFmt, clientCount, meta.Client, i)
+		client2sqls[client] = append(client2sqls[client], &ReplaySql{
 			ReplaySqlMeta: meta,
 			Stmt:          stmt,
 		})
@@ -455,35 +483,6 @@ func DecodeReplaySqls(
 	}
 
 	return client2sqls, minTs, count, nil
-}
-
-// Decode and sort replay sqls by first sql timestamp from dump.
-func DecodeReplaySqlsAndSort(
-	s *bufio.Scanner,
-	dbs, users map[string]struct{},
-	from, to int64, // ms
-	maxCount int,
-) ([]ClientSqls, int64, int, error) {
-	client2sqls, minTs, count, err := DecodeReplaySqls(s, dbs, users, from, to, maxCount)
-	if err != nil {
-		return nil, minTs, count, err
-	}
-
-	// sort to puth the earliest client at the first
-	clientSqls := lo.MapToSlice(client2sqls, func(k string, v []*ReplaySql) ClientSqls {
-		return ClientSqls{Client: k, Sqls: v}
-	})
-	slices.SortFunc(clientSqls, func(l, r ClientSqls) int {
-		lts, rts := l.Sqls[0].Ts, r.Sqls[0].Ts
-		if lts < rts {
-			return -1
-		} else if lts > rts {
-			return 1
-		}
-		return 0
-	})
-
-	return clientSqls, minTs, count, nil
 }
 
 type ReplaySql struct {
