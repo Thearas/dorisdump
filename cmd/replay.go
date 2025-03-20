@@ -136,6 +136,8 @@ func replay(ctx context.Context) error {
 		return err
 	}
 	defer f.Close()
+	buf := bufio.NewScanner(f)
+	buf.Buffer(make([]byte, 0, 10*1024*1024), 10*1024*1024)
 
 	logrus.Debugf("replay file %s with filter, db: %v, user: %v, from: %s, to: %s, count: %d\n",
 		ReplayConfig.ReplayFile,
@@ -147,7 +149,7 @@ func replay(ctx context.Context) error {
 
 	// TODO: better to use connection -> sqls, but no connection id in audit log yet
 	client2Sqls, minTs, count, err := src.DecodeReplaySqls(
-		bufio.NewScanner(f),
+		buf,
 		ReplayConfig.DBs,
 		ReplayConfig.Users,
 		ReplayConfig.From,
