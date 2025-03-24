@@ -127,8 +127,9 @@ func (c *ReplayClient) query(ctx context.Context, currdb, stmt string, args ...a
 
 func (c *ReplayClient) queryWithReconnect(ctx context.Context, currdb, stmt string, args ...any) (*sql.Rows, int64, error) {
 	r, duration, err := c.query(ctx, currdb, stmt, args...)
-	if errors.Is(err, net.ErrClosed) || errors.Is(err, mysql.ErrInvalidConn) {
+	if errors.Is(err, sql.ErrConnDone) || errors.Is(err, net.ErrClosed) || errors.Is(err, mysql.ErrInvalidConn) {
 		// reconnect
+		c.Close(false)
 		_, err = c.conn(ctx, currdb, true)
 		if err != nil {
 			return nil, 0, err
@@ -166,7 +167,13 @@ func (c *ReplayClient) Close(closefile bool) {
 		c.db.Close()
 		c.db = nil
 	}
-	if closefile && c.resultFile != nil {
+	if closefile {
+		c.closeResultFile()
+	}
+}
+
+func (c *ReplayClient) closeResultFile() {
+	if c.resultFile != nil {
 		c.resultFile.Sync()
 		c.resultFile.Close()
 		c.resultFile = nil
@@ -211,15 +218,17 @@ func (c *ReplayClient) replay(ctx context.Context) error {
 
 	for _, s := range c.sqls {
 		// 1. Wait
-		sleepMs := float32(s.Ts-prevTs-prevDurationMs) / c.speed
-		if sleepMs > 2 /*ms*/ {
-			sleep := time.Duration(sleepMs) * time.Millisecond
-
-			if c.maxConnIdleTime > 0 && sleep > c.maxConnIdleTime {
+		sleepDuration := time.Duration(float32(s.Ts-prevTs-prevDurationMs)/c.speed) * time.Millisecond
+		if sleepDuration > 2*time.Millisecond {
+			if sleepDuration > time.Second {
+				// prevent open too many files
+				c.closeResultFile()
+			}
+			if c.maxConnIdleTime > 0 && sleepDuration > c.maxConnIdleTime*time.Millisecond {
 				// close conn if idle time is too long
 				c.Close(false)
 			}
-			time.Sleep(sleep)
+			time.Sleep(sleepDuration)
 		}
 		prevTs = s.Ts
 		prevDurationMs = s.DurationMs
