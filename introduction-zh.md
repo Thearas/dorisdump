@@ -83,7 +83,6 @@ output
 - `--query-min-duration` 导出 SQL 的最小执行时长
 - `--query-states` 导出 SQL 的状态，可以是 `ok`、`eof` 和 `err`
 - `-s, --strict` 从审计日志导出时校验 SQL 语法正确性
-- `--audit-log-unescape` 从审计日志导出时反转义 SQL 中的 `\\r`、`\\n` 和 `\\t`，默认开启
 - `--audit-log-encoding` 审计日志文件编码，默认自动检测
 - `--anonymize` 导出时脱敏，比如 `select * from table1` 变为 `select * from a`
 - `--anonymize-xxx` 其他脱敏参数，见 [脱敏](#脱敏)
@@ -197,9 +196,10 @@ dorisdump replay -f output/q0.sql
 
 ### 分批回放
 
-回放的 SQL 量太大时，比如回放 31 天的日志，最好以小时为单位分批回放，在导出时用 `--from` 和 `--to` 分批（或导出后手动分批），示例：
+回放的 SQL 量太大时，比如回放一个月 31 天的日志，最好以小时为单位分批回放，在导出时用 `--from` 和 `--to` 分批（或导出后手动分批），示例：
 
 ```sh
+export YEAR_MONTH="2025-03" # <-- 改这一行
 export DORIS_YES=1
 
 for day in {1..31} ; do
@@ -213,10 +213,10 @@ for day in {1..31} ; do
       echo "dumping and replaying at $day-$hour"
 
       # 导出
-      dorisdump dump --dump-query --from "2025-03-$day $hour:00:00" --to "2025-03-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
+      dorisdump dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
 
-      # 回放，并清除前一次回放结果
-      dorisdump replay -f "$sql" --result-dir result --clean
+      # 回放，并清除前一次回放结果，50 个客户端并发，不间断跑
+      dorisdump replay -f "$sql" --result-dir result --clean --client-count 50 --speed 999999
 
       # 查看回放结果
       dorisdump diff --min-duration-diff 1s --original-sqls $sql result -Ldebug 2>&1 | tee -a "result-$day.txt"
@@ -289,7 +289,7 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 
 建议在导出时加上 `-s, --strict` 参数，校验 SQL 语法正确性。然后看工具输出的 `query_id`，去审计日志里找，有可能是以下两种情况：
 
-1. 工具默认会反转义日志 SQL 中的 `\\r`、`\\n` 和 `\\t`，但如果原始 SQL 本身包含这些字符，就会导致语法错误
+1. 工具默认会反转义日志 SQL 中的 `\\r`、`\\n` 和 `\\t`，但如果原始 SQL 本身包含这些字符，就可能导致语法错误
 2. 审计日志本身有问题
 
 一般出错的情况不多，手动修改导出后的 SQL 即可。

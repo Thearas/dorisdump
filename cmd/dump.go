@@ -43,7 +43,6 @@ type Dump struct {
 	AuditLogPaths []string
 	AuditLogTable string
 
-	AuditLogUnescape      bool
 	OutputDDLDir          string
 	OutputQueryDir        string
 	LocalAuditLogCacheDir string
@@ -154,7 +153,6 @@ func init() {
 	pFlags.StringVar(&DumpConfig.To, "to", "", "Dump queries to this time, like '2006-01-02 16:04:05'")
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Scan query from audit log files, either local path or 'ssh://xxx'")
 	pFlags.StringVar(&DumpConfig.AuditLogTable, "audit-log-table", "", "Scan query from audit log table, like 'audit_db.audit_tbl'")
-	pFlags.BoolVar(&DumpConfig.AuditLogUnescape, "audit-log-unescape", true, "Unescape '\\n', '\\t' and '\\r' in audit log")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is 'root@{db_host}:22'")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for '--ssh-address'")
@@ -359,7 +357,6 @@ func dumpQueries(ctx context.Context) (int, error) {
 		DBs:                GlobalConfig.DBs,
 		QueryMinDurationMs: DumpConfig.QueryMinDurationMs,
 		QueryStates:        DumpConfig.QueryStates,
-		Unescape:           DumpConfig.AuditLogUnescape,
 		OnlySelect:         DumpConfig.OnlySelect,
 		Strict:             DumpConfig.Strict,
 		From:               DumpConfig.From,

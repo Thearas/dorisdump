@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dlclark/regexp2"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,6 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 				OnlySelect:         tt.args.onlySelect,
 				From:               tt.args.from,
 				To:                 tt.args.to,
-				Unescape:           tt.args.unescape,
 				Strict:             tt.args.strict,
 			}
 			writers := lo.RepeatBy(len(tt.args.auditlogPaths), func(index int) SqlWriter { return &sqlWriter{} })
@@ -110,6 +110,50 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotCount, tt.want) {
 				t.Errorf("ExtractQueriesFromAuditLogs() = %v, want %v", gotCount, tt.want)
+			}
+		})
+	}
+}
+
+func TestSimpleAuditLogScanner_unescapeStmt(t *testing.T) {
+	type fields struct {
+		AuditLogScanOpts AuditLogScanOpts
+		sqls             []string
+		distinctQueryIds map[string]struct{}
+		distinctQueryTs  string
+		re               *regexp2.Regexp
+	}
+	type args struct {
+		stmt string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "unescape",
+			args: args{
+				stmt: `select *\nfrom\n\tt\nwhere /*multiline\ncomment*/\n\ta = '1''\n1' and b = """sd\tad" and c = '\n' --signleline comment\n\norder by a;`,
+			},
+			want: `select *
+from
+	t
+where /*multiline\ncomment*/
+	a = '1''\n1' and b = """sd\tad" and c = '\n' --signleline comment
+
+order by a;`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SimpleAuditLogScanner{
+				sqls:             make([]string, 0, 1024),
+				distinctQueryIds: make(map[string]struct{}),
+			}
+			if got := s.unescapeStmt(tt.args.stmt); got != tt.want {
+				t.Errorf("SimpleAuditLogScanner.unescapeStmt() = %v, want %v", got, tt.want)
 			}
 		})
 	}

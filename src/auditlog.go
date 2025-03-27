@@ -58,8 +58,7 @@ type AuditLogScanOpts struct {
 	OnlySelect         bool
 	From, To           string
 
-	Unescape bool
-	Strict   bool
+	Strict bool
 }
 
 // push down filter to db
@@ -162,7 +161,7 @@ func extractQueriesFromAuditLog(
 	}
 	var (
 		line   = auditlog.Bytes()
-		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+		lineRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d`)
 		eof    = false
 		count  = 0
 	)
@@ -171,7 +170,7 @@ func extractQueriesFromAuditLog(
 		oneLog := bytes.Clone(line)
 
 		// one log may have multiple lines
-		// a line not starts with 'yyyy-mm-dd' is considered belonging to the previous line
+		// a line not starts with 'yyyy-mm-dd HH:MM:SS,S' is considered belonging to the previous line
 		for {
 			if !auditlog.Scan() {
 				eof = true
@@ -179,7 +178,7 @@ func extractQueriesFromAuditLog(
 			}
 			line = auditlog.Bytes()
 
-			const minLenToMatch = len("yyyy-mm-dd")
+			const minLenToMatch = len("yyyy-mm-dd HH:MM:SS,S")
 			if len(line) >= minLenToMatch && lineRe.Match(line[:minLenToMatch+1]) {
 				break
 			}
@@ -262,12 +261,6 @@ func (s *SimpleAuditLogScanner) Consume(w SqlWriter) (int, error) {
 
 func (s *SimpleAuditLogScanner) Close() {}
 
-func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
-	p := parser.NewParser(queryId, stmt)
-	_, err := p.Parse()
-	return err
-}
-
 func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], cast.ToInt64(caps[4]), caps[5], caps[6]
 	time = strings.Replace(time, ",", ".", 1) // 2006-01-02 15:04:05,000 -> 2006-01-02 15:04:05.000
@@ -291,9 +284,9 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 		return
 	}
 
-	if s.Unescape {
-		stmt = unescapeReplacer.Replace(stmt)
-	}
+	// TODO: May incorrectly unescaped SQLs that originally contain multiline string.
+	stmt = s.unescapeStmt(stmt)
+
 	if s.Strict && s.validateSQL(queryId, stmt) != nil {
 		return
 	}
@@ -348,6 +341,62 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 	}
 
 	return true
+}
+
+// unescapeStmt unescapes the \\n, \\t and \\r in SQL statement.
+// NOTE: It will not unescape chars in string literals, comments and multi-line comments.
+func (s *SimpleAuditLogScanner) unescapeStmt(stmt string) string {
+	var (
+		w           = strings.Builder{}
+		ignoreUntil = ""
+	)
+	for i := 0; i < len(stmt); i++ {
+		curr := stmt[i]
+
+		if i < len(stmt)-1 {
+			if ignoreUntil != "" {
+				if curr == ignoreUntil[0] && (len(ignoreUntil) < 2 || stmt[i+1] == ignoreUntil[1]) {
+					ignoreUntil = ""
+				}
+			} else if curr == '\'' || curr == '"' {
+				ignoreUntil = string(curr)
+			} else if curr == '/' && stmt[i+1] == '*' {
+				ignoreUntil = "*/"
+			} else if curr == '-' && stmt[i+1] == '-' {
+				ignoreUntil = "\\n"
+			}
+		}
+
+		if ignoreUntil == "" && curr == '\\' {
+			i++
+			if i >= len(stmt) {
+				logrus.Errorln("Invalid SQL statement ends with '\\'")
+				w.WriteByte(curr)
+				break
+			}
+			switch stmt[i] {
+			case 'n':
+				w.WriteByte('\n')
+			case 't':
+				w.WriteByte('\t')
+			case 'r':
+				w.WriteByte('\r')
+			default:
+				w.WriteByte('\\')
+				w.WriteByte(stmt[i])
+			}
+		} else {
+			w.WriteByte(curr)
+		}
+	}
+
+	return w.String()
+}
+
+func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
+	p := parser.NewParser(queryId, stmt)
+	_, err := p.Parse()
+	return err
 }
 
 // Which length is larger than audit_plugin_max_sql_length.

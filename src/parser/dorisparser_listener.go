@@ -214,6 +214,9 @@ type DorisParserListener interface {
 	// EnterCreateAliasFunction is called when entering the createAliasFunction production.
 	EnterCreateAliasFunction(c *CreateAliasFunctionContext)
 
+	// EnterAlterSystem is called when entering the alterSystem production.
+	EnterAlterSystem(c *AlterSystemContext)
+
 	// EnterAlterView is called when entering the alterView production.
 	EnterAlterView(c *AlterViewContext)
 
@@ -228,6 +231,9 @@ type DorisParserListener interface {
 
 	// EnterAlterWorkloadGroup is called when entering the alterWorkloadGroup production.
 	EnterAlterWorkloadGroup(c *AlterWorkloadGroupContext)
+
+	// EnterAlterCatalogProperties is called when entering the alterCatalogProperties production.
+	EnterAlterCatalogProperties(c *AlterCatalogPropertiesContext)
 
 	// EnterAlterWorkloadPolicy is called when entering the alterWorkloadPolicy production.
 	EnterAlterWorkloadPolicy(c *AlterWorkloadPolicyContext)
@@ -261,33 +267,6 @@ type DorisParserListener interface {
 
 	// EnterAlterRepository is called when entering the alterRepository production.
 	EnterAlterRepository(c *AlterRepositoryContext)
-
-	// EnterAddBackendClause is called when entering the addBackendClause production.
-	EnterAddBackendClause(c *AddBackendClauseContext)
-
-	// EnterDropBackendClause is called when entering the dropBackendClause production.
-	EnterDropBackendClause(c *DropBackendClauseContext)
-
-	// EnterDecommissionBackendClause is called when entering the decommissionBackendClause production.
-	EnterDecommissionBackendClause(c *DecommissionBackendClauseContext)
-
-	// EnterAddObserverClause is called when entering the addObserverClause production.
-	EnterAddObserverClause(c *AddObserverClauseContext)
-
-	// EnterDropObserverClause is called when entering the dropObserverClause production.
-	EnterDropObserverClause(c *DropObserverClauseContext)
-
-	// EnterAddFollowerClause is called when entering the addFollowerClause production.
-	EnterAddFollowerClause(c *AddFollowerClauseContext)
-
-	// EnterDropFollowerClause is called when entering the dropFollowerClause production.
-	EnterDropFollowerClause(c *DropFollowerClauseContext)
-
-	// EnterAddBrokerClause is called when entering the addBrokerClause production.
-	EnterAddBrokerClause(c *AddBrokerClauseContext)
-
-	// EnterDropBrokerClause is called when entering the dropBrokerClause production.
-	EnterDropBrokerClause(c *DropBrokerClauseContext)
 
 	// EnterDropCatalogRecycleBin is called when entering the dropCatalogRecycleBin production.
 	EnterDropCatalogRecycleBin(c *DropCatalogRecycleBinContext)
@@ -343,6 +322,9 @@ type DorisParserListener interface {
 	// EnterShowCreateDatabase is called when entering the showCreateDatabase production.
 	EnterShowCreateDatabase(c *ShowCreateDatabaseContext)
 
+	// EnterShowBackup is called when entering the showBackup production.
+	EnterShowBackup(c *ShowBackupContext)
+
 	// EnterShowBroker is called when entering the showBroker production.
 	EnterShowBroker(c *ShowBrokerContext)
 
@@ -370,6 +352,9 @@ type DorisParserListener interface {
 	// EnterShowSyncJob is called when entering the showSyncJob production.
 	EnterShowSyncJob(c *ShowSyncJobContext)
 
+	// EnterShowSnapshot is called when entering the showSnapshot production.
+	EnterShowSnapshot(c *ShowSnapshotContext)
+
 	// EnterShowLoadProfile is called when entering the showLoadProfile production.
 	EnterShowLoadProfile(c *ShowLoadProfileContext)
 
@@ -393,6 +378,9 @@ type DorisParserListener interface {
 
 	// EnterShowProcessList is called when entering the showProcessList production.
 	EnterShowProcessList(c *ShowProcessListContext)
+
+	// EnterShowRestore is called when entering the showRestore production.
+	EnterShowRestore(c *ShowRestoreContext)
 
 	// EnterShowRoles is called when entering the showRoles production.
 	EnterShowRoles(c *ShowRolesContext)
@@ -430,6 +418,9 @@ type DorisParserListener interface {
 	// EnterShowCollation is called when entering the showCollation production.
 	EnterShowCollation(c *ShowCollationContext)
 
+	// EnterShowStoragePolicy is called when entering the showStoragePolicy production.
+	EnterShowStoragePolicy(c *ShowStoragePolicyContext)
+
 	// EnterShowSqlBlockRule is called when entering the showSqlBlockRule production.
 	EnterShowSqlBlockRule(c *ShowSqlBlockRuleContext)
 
@@ -438,6 +429,9 @@ type DorisParserListener interface {
 
 	// EnterShowDataTypes is called when entering the showDataTypes production.
 	EnterShowDataTypes(c *ShowDataTypesContext)
+
+	// EnterShowData is called when entering the showData production.
+	EnterShowData(c *ShowDataContext)
 
 	// EnterShowCreateMaterializedView is called when entering the showCreateMaterializedView production.
 	EnterShowCreateMaterializedView(c *ShowCreateMaterializedViewContext)
@@ -493,11 +487,29 @@ type DorisParserListener interface {
 	// EnterShowTabletStorageFormat is called when entering the showTabletStorageFormat production.
 	EnterShowTabletStorageFormat(c *ShowTabletStorageFormatContext)
 
+	// EnterShowTabletId is called when entering the showTabletId production.
+	EnterShowTabletId(c *ShowTabletIdContext)
+
 	// EnterShowQueryProfile is called when entering the showQueryProfile production.
 	EnterShowQueryProfile(c *ShowQueryProfileContext)
 
 	// EnterShowConvertLsc is called when entering the showConvertLsc production.
 	EnterShowConvertLsc(c *ShowConvertLscContext)
+
+	// EnterShowTables is called when entering the showTables production.
+	EnterShowTables(c *ShowTablesContext)
+
+	// EnterShowViews is called when entering the showViews production.
+	EnterShowViews(c *ShowViewsContext)
+
+	// EnterShowTableStatus is called when entering the showTableStatus production.
+	EnterShowTableStatus(c *ShowTableStatusContext)
+
+	// EnterShowDatabases is called when entering the showDatabases production.
+	EnterShowDatabases(c *ShowDatabasesContext)
+
+	// EnterShowTabletsFromTable is called when entering the showTabletsFromTable production.
+	EnterShowTabletsFromTable(c *ShowTabletsFromTableContext)
 
 	// EnterSync is called when entering the sync production.
 	EnterSync(c *SyncContext)
@@ -541,32 +553,17 @@ type DorisParserListener interface {
 	// EnterShowRowPolicy is called when entering the showRowPolicy production.
 	EnterShowRowPolicy(c *ShowRowPolicyContext)
 
-	// EnterShowStoragePolicy is called when entering the showStoragePolicy production.
-	EnterShowStoragePolicy(c *ShowStoragePolicyContext)
-
 	// EnterShowStorageVault is called when entering the showStorageVault production.
 	EnterShowStorageVault(c *ShowStorageVaultContext)
 
 	// EnterShowOpenTables is called when entering the showOpenTables production.
 	EnterShowOpenTables(c *ShowOpenTablesContext)
 
-	// EnterShowTableStatus is called when entering the showTableStatus production.
-	EnterShowTableStatus(c *ShowTableStatusContext)
-
-	// EnterShowTables is called when entering the showTables production.
-	EnterShowTables(c *ShowTablesContext)
-
-	// EnterShowViews is called when entering the showViews production.
-	EnterShowViews(c *ShowViewsContext)
-
 	// EnterShowMaterializedView is called when entering the showMaterializedView production.
 	EnterShowMaterializedView(c *ShowMaterializedViewContext)
 
 	// EnterShowCreateFunction is called when entering the showCreateFunction production.
 	EnterShowCreateFunction(c *ShowCreateFunctionContext)
-
-	// EnterShowDatabases is called when entering the showDatabases production.
-	EnterShowDatabases(c *ShowDatabasesContext)
 
 	// EnterShowColumns is called when entering the showColumns production.
 	EnterShowColumns(c *ShowColumnsContext)
@@ -583,32 +580,14 @@ type DorisParserListener interface {
 	// EnterShowAlterTable is called when entering the showAlterTable production.
 	EnterShowAlterTable(c *ShowAlterTableContext)
 
-	// EnterShowData is called when entering the showData production.
-	EnterShowData(c *ShowDataContext)
-
 	// EnterShowPartitions is called when entering the showPartitions production.
 	EnterShowPartitions(c *ShowPartitionsContext)
-
-	// EnterShowTabletId is called when entering the showTabletId production.
-	EnterShowTabletId(c *ShowTabletIdContext)
-
-	// EnterShowTabletsFromTable is called when entering the showTabletsFromTable production.
-	EnterShowTabletsFromTable(c *ShowTabletsFromTableContext)
-
-	// EnterShowBackup is called when entering the showBackup production.
-	EnterShowBackup(c *ShowBackupContext)
-
-	// EnterShowRestore is called when entering the showRestore production.
-	EnterShowRestore(c *ShowRestoreContext)
 
 	// EnterShowResources is called when entering the showResources production.
 	EnterShowResources(c *ShowResourcesContext)
 
 	// EnterShowWorkloadGroups is called when entering the showWorkloadGroups production.
 	EnterShowWorkloadGroups(c *ShowWorkloadGroupsContext)
-
-	// EnterShowSnapshot is called when entering the showSnapshot production.
-	EnterShowSnapshot(c *ShowSnapshotContext)
 
 	// EnterShowFunctions is called when entering the showFunctions production.
 	EnterShowFunctions(c *ShowFunctionsContext)
@@ -871,20 +850,23 @@ type DorisParserListener interface {
 	// EnterGrantRole is called when entering the grantRole production.
 	EnterGrantRole(c *GrantRoleContext)
 
+	// EnterRevokeTablePrivilege is called when entering the revokeTablePrivilege production.
+	EnterRevokeTablePrivilege(c *RevokeTablePrivilegeContext)
+
+	// EnterRevokeResourcePrivilege is called when entering the revokeResourcePrivilege production.
+	EnterRevokeResourcePrivilege(c *RevokeResourcePrivilegeContext)
+
+	// EnterRevokeRole is called when entering the revokeRole production.
+	EnterRevokeRole(c *RevokeRoleContext)
+
 	// EnterPrivilege is called when entering the privilege production.
 	EnterPrivilege(c *PrivilegeContext)
 
 	// EnterPrivilegeList is called when entering the privilegeList production.
 	EnterPrivilegeList(c *PrivilegeListContext)
 
-	// EnterAlterSystem is called when entering the alterSystem production.
-	EnterAlterSystem(c *AlterSystemContext)
-
 	// EnterAlterDatabaseProperties is called when entering the alterDatabaseProperties production.
 	EnterAlterDatabaseProperties(c *AlterDatabasePropertiesContext)
-
-	// EnterAlterCatalogProperties is called when entering the alterCatalogProperties production.
-	EnterAlterCatalogProperties(c *AlterCatalogPropertiesContext)
 
 	// EnterAlterResource is called when entering the alterResource production.
 	EnterAlterResource(c *AlterResourceContext)
@@ -900,6 +882,33 @@ type DorisParserListener interface {
 
 	// EnterAlterUser is called when entering the alterUser production.
 	EnterAlterUser(c *AlterUserContext)
+
+	// EnterAddBackendClause is called when entering the addBackendClause production.
+	EnterAddBackendClause(c *AddBackendClauseContext)
+
+	// EnterDropBackendClause is called when entering the dropBackendClause production.
+	EnterDropBackendClause(c *DropBackendClauseContext)
+
+	// EnterDecommissionBackendClause is called when entering the decommissionBackendClause production.
+	EnterDecommissionBackendClause(c *DecommissionBackendClauseContext)
+
+	// EnterAddObserverClause is called when entering the addObserverClause production.
+	EnterAddObserverClause(c *AddObserverClauseContext)
+
+	// EnterDropObserverClause is called when entering the dropObserverClause production.
+	EnterDropObserverClause(c *DropObserverClauseContext)
+
+	// EnterAddFollowerClause is called when entering the addFollowerClause production.
+	EnterAddFollowerClause(c *AddFollowerClauseContext)
+
+	// EnterDropFollowerClause is called when entering the dropFollowerClause production.
+	EnterDropFollowerClause(c *DropFollowerClauseContext)
+
+	// EnterAddBrokerClause is called when entering the addBrokerClause production.
+	EnterAddBrokerClause(c *AddBrokerClauseContext)
+
+	// EnterDropBrokerClause is called when entering the dropBrokerClause production.
+	EnterDropBrokerClause(c *DropBrokerClauseContext)
 
 	// EnterDropAllBrokerClause is called when entering the dropAllBrokerClause production.
 	EnterDropAllBrokerClause(c *DropAllBrokerClauseContext)
@@ -1012,6 +1021,9 @@ type DorisParserListener interface {
 	// EnterShowQueuedAnalyzeJobs is called when entering the showQueuedAnalyzeJobs production.
 	EnterShowQueuedAnalyzeJobs(c *ShowQueuedAnalyzeJobsContext)
 
+	// EnterShowColumnHistogramStats is called when entering the showColumnHistogramStats production.
+	EnterShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
+
 	// EnterAnalyzeDatabase is called when entering the analyzeDatabase production.
 	EnterAnalyzeDatabase(c *AnalyzeDatabaseContext)
 
@@ -1024,6 +1036,9 @@ type DorisParserListener interface {
 	// EnterAlterColumnStats is called when entering the alterColumnStats production.
 	EnterAlterColumnStats(c *AlterColumnStatsContext)
 
+	// EnterShowIndexStats is called when entering the showIndexStats production.
+	EnterShowIndexStats(c *ShowIndexStatsContext)
+
 	// EnterDropStats is called when entering the dropStats production.
 	EnterDropStats(c *DropStatsContext)
 
@@ -1033,23 +1048,17 @@ type DorisParserListener interface {
 	// EnterDropExpiredStats is called when entering the dropExpiredStats production.
 	EnterDropExpiredStats(c *DropExpiredStatsContext)
 
+	// EnterShowTableStats is called when entering the showTableStats production.
+	EnterShowTableStats(c *ShowTableStatsContext)
+
 	// EnterDropAanalyzeJob is called when entering the dropAanalyzeJob production.
 	EnterDropAanalyzeJob(c *DropAanalyzeJobContext)
 
 	// EnterKillAnalyzeJob is called when entering the killAnalyzeJob production.
 	EnterKillAnalyzeJob(c *KillAnalyzeJobContext)
 
-	// EnterShowTableStats is called when entering the showTableStats production.
-	EnterShowTableStats(c *ShowTableStatsContext)
-
-	// EnterShowIndexStats is called when entering the showIndexStats production.
-	EnterShowIndexStats(c *ShowIndexStatsContext)
-
 	// EnterShowColumnStats is called when entering the showColumnStats production.
 	EnterShowColumnStats(c *ShowColumnStatsContext)
-
-	// EnterShowColumnHistogramStats is called when entering the showColumnHistogramStats production.
-	EnterShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
 
 	// EnterShowAnalyzeTask is called when entering the showAnalyzeTask production.
 	EnterShowAnalyzeTask(c *ShowAnalyzeTaskContext)
@@ -2008,6 +2017,9 @@ type DorisParserListener interface {
 	// ExitCreateAliasFunction is called when exiting the createAliasFunction production.
 	ExitCreateAliasFunction(c *CreateAliasFunctionContext)
 
+	// ExitAlterSystem is called when exiting the alterSystem production.
+	ExitAlterSystem(c *AlterSystemContext)
+
 	// ExitAlterView is called when exiting the alterView production.
 	ExitAlterView(c *AlterViewContext)
 
@@ -2022,6 +2034,9 @@ type DorisParserListener interface {
 
 	// ExitAlterWorkloadGroup is called when exiting the alterWorkloadGroup production.
 	ExitAlterWorkloadGroup(c *AlterWorkloadGroupContext)
+
+	// ExitAlterCatalogProperties is called when exiting the alterCatalogProperties production.
+	ExitAlterCatalogProperties(c *AlterCatalogPropertiesContext)
 
 	// ExitAlterWorkloadPolicy is called when exiting the alterWorkloadPolicy production.
 	ExitAlterWorkloadPolicy(c *AlterWorkloadPolicyContext)
@@ -2055,33 +2070,6 @@ type DorisParserListener interface {
 
 	// ExitAlterRepository is called when exiting the alterRepository production.
 	ExitAlterRepository(c *AlterRepositoryContext)
-
-	// ExitAddBackendClause is called when exiting the addBackendClause production.
-	ExitAddBackendClause(c *AddBackendClauseContext)
-
-	// ExitDropBackendClause is called when exiting the dropBackendClause production.
-	ExitDropBackendClause(c *DropBackendClauseContext)
-
-	// ExitDecommissionBackendClause is called when exiting the decommissionBackendClause production.
-	ExitDecommissionBackendClause(c *DecommissionBackendClauseContext)
-
-	// ExitAddObserverClause is called when exiting the addObserverClause production.
-	ExitAddObserverClause(c *AddObserverClauseContext)
-
-	// ExitDropObserverClause is called when exiting the dropObserverClause production.
-	ExitDropObserverClause(c *DropObserverClauseContext)
-
-	// ExitAddFollowerClause is called when exiting the addFollowerClause production.
-	ExitAddFollowerClause(c *AddFollowerClauseContext)
-
-	// ExitDropFollowerClause is called when exiting the dropFollowerClause production.
-	ExitDropFollowerClause(c *DropFollowerClauseContext)
-
-	// ExitAddBrokerClause is called when exiting the addBrokerClause production.
-	ExitAddBrokerClause(c *AddBrokerClauseContext)
-
-	// ExitDropBrokerClause is called when exiting the dropBrokerClause production.
-	ExitDropBrokerClause(c *DropBrokerClauseContext)
 
 	// ExitDropCatalogRecycleBin is called when exiting the dropCatalogRecycleBin production.
 	ExitDropCatalogRecycleBin(c *DropCatalogRecycleBinContext)
@@ -2137,6 +2125,9 @@ type DorisParserListener interface {
 	// ExitShowCreateDatabase is called when exiting the showCreateDatabase production.
 	ExitShowCreateDatabase(c *ShowCreateDatabaseContext)
 
+	// ExitShowBackup is called when exiting the showBackup production.
+	ExitShowBackup(c *ShowBackupContext)
+
 	// ExitShowBroker is called when exiting the showBroker production.
 	ExitShowBroker(c *ShowBrokerContext)
 
@@ -2164,6 +2155,9 @@ type DorisParserListener interface {
 	// ExitShowSyncJob is called when exiting the showSyncJob production.
 	ExitShowSyncJob(c *ShowSyncJobContext)
 
+	// ExitShowSnapshot is called when exiting the showSnapshot production.
+	ExitShowSnapshot(c *ShowSnapshotContext)
+
 	// ExitShowLoadProfile is called when exiting the showLoadProfile production.
 	ExitShowLoadProfile(c *ShowLoadProfileContext)
 
@@ -2187,6 +2181,9 @@ type DorisParserListener interface {
 
 	// ExitShowProcessList is called when exiting the showProcessList production.
 	ExitShowProcessList(c *ShowProcessListContext)
+
+	// ExitShowRestore is called when exiting the showRestore production.
+	ExitShowRestore(c *ShowRestoreContext)
 
 	// ExitShowRoles is called when exiting the showRoles production.
 	ExitShowRoles(c *ShowRolesContext)
@@ -2224,6 +2221,9 @@ type DorisParserListener interface {
 	// ExitShowCollation is called when exiting the showCollation production.
 	ExitShowCollation(c *ShowCollationContext)
 
+	// ExitShowStoragePolicy is called when exiting the showStoragePolicy production.
+	ExitShowStoragePolicy(c *ShowStoragePolicyContext)
+
 	// ExitShowSqlBlockRule is called when exiting the showSqlBlockRule production.
 	ExitShowSqlBlockRule(c *ShowSqlBlockRuleContext)
 
@@ -2232,6 +2232,9 @@ type DorisParserListener interface {
 
 	// ExitShowDataTypes is called when exiting the showDataTypes production.
 	ExitShowDataTypes(c *ShowDataTypesContext)
+
+	// ExitShowData is called when exiting the showData production.
+	ExitShowData(c *ShowDataContext)
 
 	// ExitShowCreateMaterializedView is called when exiting the showCreateMaterializedView production.
 	ExitShowCreateMaterializedView(c *ShowCreateMaterializedViewContext)
@@ -2287,11 +2290,29 @@ type DorisParserListener interface {
 	// ExitShowTabletStorageFormat is called when exiting the showTabletStorageFormat production.
 	ExitShowTabletStorageFormat(c *ShowTabletStorageFormatContext)
 
+	// ExitShowTabletId is called when exiting the showTabletId production.
+	ExitShowTabletId(c *ShowTabletIdContext)
+
 	// ExitShowQueryProfile is called when exiting the showQueryProfile production.
 	ExitShowQueryProfile(c *ShowQueryProfileContext)
 
 	// ExitShowConvertLsc is called when exiting the showConvertLsc production.
 	ExitShowConvertLsc(c *ShowConvertLscContext)
+
+	// ExitShowTables is called when exiting the showTables production.
+	ExitShowTables(c *ShowTablesContext)
+
+	// ExitShowViews is called when exiting the showViews production.
+	ExitShowViews(c *ShowViewsContext)
+
+	// ExitShowTableStatus is called when exiting the showTableStatus production.
+	ExitShowTableStatus(c *ShowTableStatusContext)
+
+	// ExitShowDatabases is called when exiting the showDatabases production.
+	ExitShowDatabases(c *ShowDatabasesContext)
+
+	// ExitShowTabletsFromTable is called when exiting the showTabletsFromTable production.
+	ExitShowTabletsFromTable(c *ShowTabletsFromTableContext)
 
 	// ExitSync is called when exiting the sync production.
 	ExitSync(c *SyncContext)
@@ -2335,32 +2356,17 @@ type DorisParserListener interface {
 	// ExitShowRowPolicy is called when exiting the showRowPolicy production.
 	ExitShowRowPolicy(c *ShowRowPolicyContext)
 
-	// ExitShowStoragePolicy is called when exiting the showStoragePolicy production.
-	ExitShowStoragePolicy(c *ShowStoragePolicyContext)
-
 	// ExitShowStorageVault is called when exiting the showStorageVault production.
 	ExitShowStorageVault(c *ShowStorageVaultContext)
 
 	// ExitShowOpenTables is called when exiting the showOpenTables production.
 	ExitShowOpenTables(c *ShowOpenTablesContext)
 
-	// ExitShowTableStatus is called when exiting the showTableStatus production.
-	ExitShowTableStatus(c *ShowTableStatusContext)
-
-	// ExitShowTables is called when exiting the showTables production.
-	ExitShowTables(c *ShowTablesContext)
-
-	// ExitShowViews is called when exiting the showViews production.
-	ExitShowViews(c *ShowViewsContext)
-
 	// ExitShowMaterializedView is called when exiting the showMaterializedView production.
 	ExitShowMaterializedView(c *ShowMaterializedViewContext)
 
 	// ExitShowCreateFunction is called when exiting the showCreateFunction production.
 	ExitShowCreateFunction(c *ShowCreateFunctionContext)
-
-	// ExitShowDatabases is called when exiting the showDatabases production.
-	ExitShowDatabases(c *ShowDatabasesContext)
 
 	// ExitShowColumns is called when exiting the showColumns production.
 	ExitShowColumns(c *ShowColumnsContext)
@@ -2377,32 +2383,14 @@ type DorisParserListener interface {
 	// ExitShowAlterTable is called when exiting the showAlterTable production.
 	ExitShowAlterTable(c *ShowAlterTableContext)
 
-	// ExitShowData is called when exiting the showData production.
-	ExitShowData(c *ShowDataContext)
-
 	// ExitShowPartitions is called when exiting the showPartitions production.
 	ExitShowPartitions(c *ShowPartitionsContext)
-
-	// ExitShowTabletId is called when exiting the showTabletId production.
-	ExitShowTabletId(c *ShowTabletIdContext)
-
-	// ExitShowTabletsFromTable is called when exiting the showTabletsFromTable production.
-	ExitShowTabletsFromTable(c *ShowTabletsFromTableContext)
-
-	// ExitShowBackup is called when exiting the showBackup production.
-	ExitShowBackup(c *ShowBackupContext)
-
-	// ExitShowRestore is called when exiting the showRestore production.
-	ExitShowRestore(c *ShowRestoreContext)
 
 	// ExitShowResources is called when exiting the showResources production.
 	ExitShowResources(c *ShowResourcesContext)
 
 	// ExitShowWorkloadGroups is called when exiting the showWorkloadGroups production.
 	ExitShowWorkloadGroups(c *ShowWorkloadGroupsContext)
-
-	// ExitShowSnapshot is called when exiting the showSnapshot production.
-	ExitShowSnapshot(c *ShowSnapshotContext)
 
 	// ExitShowFunctions is called when exiting the showFunctions production.
 	ExitShowFunctions(c *ShowFunctionsContext)
@@ -2665,20 +2653,23 @@ type DorisParserListener interface {
 	// ExitGrantRole is called when exiting the grantRole production.
 	ExitGrantRole(c *GrantRoleContext)
 
+	// ExitRevokeTablePrivilege is called when exiting the revokeTablePrivilege production.
+	ExitRevokeTablePrivilege(c *RevokeTablePrivilegeContext)
+
+	// ExitRevokeResourcePrivilege is called when exiting the revokeResourcePrivilege production.
+	ExitRevokeResourcePrivilege(c *RevokeResourcePrivilegeContext)
+
+	// ExitRevokeRole is called when exiting the revokeRole production.
+	ExitRevokeRole(c *RevokeRoleContext)
+
 	// ExitPrivilege is called when exiting the privilege production.
 	ExitPrivilege(c *PrivilegeContext)
 
 	// ExitPrivilegeList is called when exiting the privilegeList production.
 	ExitPrivilegeList(c *PrivilegeListContext)
 
-	// ExitAlterSystem is called when exiting the alterSystem production.
-	ExitAlterSystem(c *AlterSystemContext)
-
 	// ExitAlterDatabaseProperties is called when exiting the alterDatabaseProperties production.
 	ExitAlterDatabaseProperties(c *AlterDatabasePropertiesContext)
-
-	// ExitAlterCatalogProperties is called when exiting the alterCatalogProperties production.
-	ExitAlterCatalogProperties(c *AlterCatalogPropertiesContext)
 
 	// ExitAlterResource is called when exiting the alterResource production.
 	ExitAlterResource(c *AlterResourceContext)
@@ -2694,6 +2685,33 @@ type DorisParserListener interface {
 
 	// ExitAlterUser is called when exiting the alterUser production.
 	ExitAlterUser(c *AlterUserContext)
+
+	// ExitAddBackendClause is called when exiting the addBackendClause production.
+	ExitAddBackendClause(c *AddBackendClauseContext)
+
+	// ExitDropBackendClause is called when exiting the dropBackendClause production.
+	ExitDropBackendClause(c *DropBackendClauseContext)
+
+	// ExitDecommissionBackendClause is called when exiting the decommissionBackendClause production.
+	ExitDecommissionBackendClause(c *DecommissionBackendClauseContext)
+
+	// ExitAddObserverClause is called when exiting the addObserverClause production.
+	ExitAddObserverClause(c *AddObserverClauseContext)
+
+	// ExitDropObserverClause is called when exiting the dropObserverClause production.
+	ExitDropObserverClause(c *DropObserverClauseContext)
+
+	// ExitAddFollowerClause is called when exiting the addFollowerClause production.
+	ExitAddFollowerClause(c *AddFollowerClauseContext)
+
+	// ExitDropFollowerClause is called when exiting the dropFollowerClause production.
+	ExitDropFollowerClause(c *DropFollowerClauseContext)
+
+	// ExitAddBrokerClause is called when exiting the addBrokerClause production.
+	ExitAddBrokerClause(c *AddBrokerClauseContext)
+
+	// ExitDropBrokerClause is called when exiting the dropBrokerClause production.
+	ExitDropBrokerClause(c *DropBrokerClauseContext)
 
 	// ExitDropAllBrokerClause is called when exiting the dropAllBrokerClause production.
 	ExitDropAllBrokerClause(c *DropAllBrokerClauseContext)
@@ -2806,6 +2824,9 @@ type DorisParserListener interface {
 	// ExitShowQueuedAnalyzeJobs is called when exiting the showQueuedAnalyzeJobs production.
 	ExitShowQueuedAnalyzeJobs(c *ShowQueuedAnalyzeJobsContext)
 
+	// ExitShowColumnHistogramStats is called when exiting the showColumnHistogramStats production.
+	ExitShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
+
 	// ExitAnalyzeDatabase is called when exiting the analyzeDatabase production.
 	ExitAnalyzeDatabase(c *AnalyzeDatabaseContext)
 
@@ -2818,6 +2839,9 @@ type DorisParserListener interface {
 	// ExitAlterColumnStats is called when exiting the alterColumnStats production.
 	ExitAlterColumnStats(c *AlterColumnStatsContext)
 
+	// ExitShowIndexStats is called when exiting the showIndexStats production.
+	ExitShowIndexStats(c *ShowIndexStatsContext)
+
 	// ExitDropStats is called when exiting the dropStats production.
 	ExitDropStats(c *DropStatsContext)
 
@@ -2827,23 +2851,17 @@ type DorisParserListener interface {
 	// ExitDropExpiredStats is called when exiting the dropExpiredStats production.
 	ExitDropExpiredStats(c *DropExpiredStatsContext)
 
+	// ExitShowTableStats is called when exiting the showTableStats production.
+	ExitShowTableStats(c *ShowTableStatsContext)
+
 	// ExitDropAanalyzeJob is called when exiting the dropAanalyzeJob production.
 	ExitDropAanalyzeJob(c *DropAanalyzeJobContext)
 
 	// ExitKillAnalyzeJob is called when exiting the killAnalyzeJob production.
 	ExitKillAnalyzeJob(c *KillAnalyzeJobContext)
 
-	// ExitShowTableStats is called when exiting the showTableStats production.
-	ExitShowTableStats(c *ShowTableStatsContext)
-
-	// ExitShowIndexStats is called when exiting the showIndexStats production.
-	ExitShowIndexStats(c *ShowIndexStatsContext)
-
 	// ExitShowColumnStats is called when exiting the showColumnStats production.
 	ExitShowColumnStats(c *ShowColumnStatsContext)
-
-	// ExitShowColumnHistogramStats is called when exiting the showColumnHistogramStats production.
-	ExitShowColumnHistogramStats(c *ShowColumnHistogramStatsContext)
 
 	// ExitShowAnalyzeTask is called when exiting the showAnalyzeTask production.
 	ExitShowAnalyzeTask(c *ShowAnalyzeTaskContext)
