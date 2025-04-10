@@ -28,14 +28,6 @@ var (
 	// Tested on v2.0.x and v2.1.x. Not sure if it also works on others Doris version.
 	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
 
-	// Doris will escape those characters in the audit log SQLs, so we need to unescape them.
-	// TODO: May incorrectly unescaped SQLs that originally contain those characters.
-	unescapeReplacer = strings.NewReplacer(
-		"\\n", "\n",
-		"\\t", "\t",
-		"\\r", "\r",
-	)
-
 	// filterStmtRe filters out some statements from the audit log.
 	filterStmtRe = regexp.MustCompile("(?i)^(EXPLAIN|SHOW|USE)")
 )

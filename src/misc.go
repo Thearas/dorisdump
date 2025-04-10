@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	"github.com/gogs/chardet"
 	"github.com/manifoldco/promptui"
 	"github.com/samber/lo"
-	"github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 	"golang.org/x/exp/rand"
 	"golang.org/x/sync/errgroup"
@@ -57,26 +55,6 @@ func ParallelGroup(parallel int) *errgroup.Group {
 	return &g
 }
 
-func GetLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		logrus.Debugln("local ip not found, get net interface failed")
-		return ""
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				ip := ipnet.IP.String()
-				logrus.Debugln("found local ip:", ip)
-				return ip
-			}
-		}
-	}
-	logrus.Debugln("local ip not found")
-	return ""
-}
-
 func Confirm(msg string) bool {
 	prompt := promptui.Prompt{
 		Label:     msg,
@@ -105,12 +83,6 @@ func Choose(msg string, items []string) (string, error) {
 	}
 	_, result, err := prompt.Run()
 	return result, err
-}
-
-func RandStr(length int) string {
-	b := make([]byte, length+2)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("%x", b)[2 : length+2]
 }
 
 func hashstr(h *blake3.Hasher, s string) [32]byte {
