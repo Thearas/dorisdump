@@ -45,7 +45,6 @@ dorisdump replay --host <host> --port <port> --user root --password '******' -f 
 dorisdump replay -f output/sql/q0.sql \
     --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \
     --users 'readonly,root' --dbs 'db1,db2' \   # filter sql by users and databases
-    --count 100 \                               # max replay sql count
     --speed 0.5 \                               # increase(< 1.0) or decrease(> 1.0) the time between two serial sqls proportionally, default 1
     --result-dir output/replay
 

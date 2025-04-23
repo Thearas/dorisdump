@@ -165,7 +165,6 @@ func readOriginalDumpSQLs(clientCount int) (map[string][]*src.ReplaySql, error) 
 			make(map[string]struct{}),
 			0, 0,
 			clientCount,
-			-1,
 		)
 		if err != nil {
 			return nil, err

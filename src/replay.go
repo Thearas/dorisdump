@@ -394,7 +394,6 @@ func DecodeReplaySqls(
 	dbs, users map[string]struct{},
 	from, to int64, // ms
 	clientCount int,
-	maxSqlCount int,
 ) (map[string][]*ReplaySql, int64, int, error) {
 	if !s.Scan() {
 		logrus.Warningln("Failed to scan reply sql file, maybe empty?")
@@ -468,9 +467,6 @@ func DecodeReplaySqls(
 		}
 		if !meta.matchTime(from, to) {
 			continue
-		}
-		if maxSqlCount > 0 && count >= maxSqlCount {
-			break
 		}
 
 		// logs may out of order

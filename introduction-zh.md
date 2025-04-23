@@ -134,7 +134,6 @@ dorisdump replay -f output/q0.sql
 - `--result-dir` 回放结果目录，默认 `output/replay`
 - `--users` 只回放这些用户发起的 SQL，默认回放全部用户的
 - `--from` 和 `--to` 回放时间范围内的 SQL
-- `--count` 回放 SQL 数量，默认回放全部
 - `--max-hash-rows` 回放时记录的最大 hash 结果行数，用于对比两次回放结果是否一致，默认不 hash
 - `--max-conn-idle-time` 客户端连接的最大空闲时间，同一客户端的相邻 SQL 的间隔时长超出此值时，连接会被回收，默认 `10s`
 

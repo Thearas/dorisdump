@@ -30,7 +30,6 @@ func TestDecodeReplaySqls(t *testing.T) {
 		from        int64
 		to          int64
 		clientCount int
-		maxCount    int
 	}
 	tests := []struct {
 		name    string
@@ -68,7 +67,7 @@ func TestDecodeReplaySqls(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			replayFile.Seek(0, 0)
-			got, got1, _, err := DecodeReplaySqls(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.clientCount, tt.args.maxCount)
+			got, got1, _, err := DecodeReplaySqls(tt.args.s, tt.args.dbs, tt.args.users, tt.args.from, tt.args.to, tt.args.clientCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeReplaySqls() error = %v, wantErr %v", err, tt.wantErr)
 				return

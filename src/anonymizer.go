@@ -183,6 +183,7 @@ func minifyHash(dict map[string]string, s string) string {
 
 		clear(dict)
 		dict["@@last"] = "a"
+		dict[s] = "a"
 		return "a"
 	}
 

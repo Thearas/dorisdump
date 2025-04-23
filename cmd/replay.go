@@ -39,7 +39,6 @@ type Replay struct {
 	Users_          []string
 	From_, To_      string
 	ClientCount     int
-	Count           int
 	Speed           float32
 	MaxHashRows     int
 	MaxConnIdleTime time.Duration
@@ -87,7 +86,6 @@ func init() {
 	pFlags.StringVar(&ReplayConfig.From_, "from", "", "Replay queries from this time, like '2006-01-02 15:04:05'")
 	pFlags.StringVar(&ReplayConfig.To_, "to", "", "Replay queries to this time, like '2006-01-02 16:04:05'")
 	pFlags.IntVar(&ReplayConfig.ClientCount, "client-count", 0, "Set replay client count")
-	pFlags.IntVar(&ReplayConfig.Count, "count", -1, "Max SQL count to replay, < 0 means unlimited")
 	pFlags.Float32Var(&ReplayConfig.Speed, "speed", 1.0, "Replay speed, like 0.5, 2, 4, ...")
 	pFlags.IntVar(&ReplayConfig.MaxHashRows, "max-hash-rows", 0, "Number of query return rows to hash, useful when diff replay result")
 	pFlags.DurationVar(&ReplayConfig.MaxConnIdleTime, "max-conn-idle-time", 10*time.Second, "Max idle duration of a replay client connection, <= 0 means unlimited")
@@ -139,12 +137,11 @@ func replay(ctx context.Context) error {
 	buf := bufio.NewScanner(f)
 	buf.Buffer(make([]byte, 0, 10*1024*1024), 10*1024*1024)
 
-	logrus.Debugf("replay file %s with filter, db: %v, user: %v, from: %s, to: %s, count: %d\n",
+	logrus.Debugf("replay file %s with filter, db: %v, user: %v, from: %s, to: %s\n",
 		ReplayConfig.ReplayFile,
 		ReplayConfig.DBs,
 		ReplayConfig.Users,
 		ReplayConfig.From_, ReplayConfig.To_,
-		ReplayConfig.Count,
 	)
 
 	// TODO: better to use connection -> sqls, but no connection id in audit log yet
@@ -155,7 +152,6 @@ func replay(ctx context.Context) error {
 		ReplayConfig.From,
 		ReplayConfig.To,
 		ReplayConfig.ClientCount,
-		ReplayConfig.Count,
 	)
 	if err != nil {
 		return err
