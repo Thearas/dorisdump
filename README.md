@@ -6,7 +6,8 @@ Main features:
 2. **Replay** dump queries with speed control
 3. **Anonymize** database, table and column names in SQLs
 
-See [Introduction & FAQ](./introduction-zh.md) for more details.
+> [!IMPORTANT]
+> **See [Introduction & FAQ](./introduction-zh.md) for more details.**
 
 [![demo](https://asciinema.org/a/706093.svg)](https://asciinema.org/a/706093)
 
@@ -65,7 +66,7 @@ You may want to pass parameters by config file or environment, see `dorisdump --
 
 ### Anonymize
 
-> Note: This feature is experimental, **case-insensitive, which means `table1` and `TABLE1` will have the same result.**
+> This feature is experimental, **case-insensitive, which means `table1` and `TABLE1` will have the same result.**
 
 Two ways:
 
@@ -81,7 +82,8 @@ Two ways:
     dorisdump dump <some flags...> --anonymize
     ```
 
-Keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (put it at current directory, or specify by `--anonymize-minihash-dict`).
+> [!NOTE]
+> Keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (put it at current directory, or specify by `--anonymize-minihash-dict`).
 
 ## Build
 

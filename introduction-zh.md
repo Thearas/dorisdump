@@ -12,7 +12,8 @@
   - [命令行提示与自动补全](#命令行提示与自动补全)
   - [环境变量和配置文件](#环境变量和配置文件)
   - [监看导出/回放过程](#监看导出回放过程)
-  - [分批回放](#分批回放)
+  - [多 FE 回放](#多-fe-回放)
+  - [大量分批回放](#大量分批回放)
   - [找出回放时长超过 1s 的 SQL](#找出回放时长超过-1s-的-sql)
   - [自动化](#自动化)
 - [脱敏](#脱敏)
@@ -193,7 +194,21 @@ dorisdump replay -f output/q0.sql
 
 ---
 
-### 分批回放
+### 多 FE 回放
+
+每个 FE 的 audit log 是分离的，导出时要分别导出，回放时也要分别、同时回放，比如 2 FE 集群：
+
+```sh
+# 分别导出 fe1 和 fe2 的审计日志
+dorisdump dump --dump-query --audit-logs fe1.audlt.log -O fe1
+dorisdump dump --dump-query --audit-logs fe2.audlt.log -O fe2
+
+# 同时回放 fe1 和 fe2 的审计日志
+nohup dorisdump replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
+nohup dorisdump replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
+```
+
+### 大量分批回放
 
 回放的 SQL 量太大时，比如回放一个月 31 天的日志，最好以小时为单位分批回放，在导出时用 `--from` 和 `--to` 分批（或导出后手动分批），示例：
 
