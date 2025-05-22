@@ -28,7 +28,7 @@
 
 `dorisdump dump --help`
 
-分为两部分，「导出表」和「导出查询」。这两部分可以合入一条 `dorisdump` 命令。
+分为两部分，「导出表和视图」和「导出查询」。二者可以合入一条 `dorisdump` 命令。
 
 ### 导出表和视图
 
@@ -47,7 +47,6 @@ output
     ├── db1.stats.yaml
     ├── db2.t2.table.sql
     └── db2.stats.yaml
-
 ```
 
 ### 导出查询
@@ -58,9 +57,9 @@ output
 
 ```sh
 # 从审计日志表导出，表名一般是 __internal_schema.audit_log
-dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00'
+dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
 
-# 从审计日志文件导出，'*' 代表匹配多个文件（注意一定要用引号括起来）
+# 从审计日志文件导出，'*' 代表匹配多个文件（注意要用单引号括起来）
 dorisdump dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
 
 # 默认导出到 output/sql 下：
@@ -70,10 +69,10 @@ output
     └── q1.sql
 ```
 
-注意：
-
-- 从日志文件导出时，`q0.sql` 对应第一个日志文件、`q1.sql` 对应第二个、以此类推，但从日志表导出时，只会写入到 `q0.sql`
-- 多次执行导出命令，结果会追加到前一次导出的 SQL 文件中，除非指定 `--clean`，删除之前的 `output/ddl` 和 `output/sql` 目录
+> [!NOTE]
+>
+> - 从日志文件导出时，`q0.sql` 对应第一个日志文件、`q1.sql` 对应第二个、以此类推；但从日志表导出时，只会写入到 `q0.sql`
+> - 导出结果会追加到前一次导出的 SQL 文件中，除非指定 `--clean`，删除之前的 `output/ddl` 和 `output/sql` 目录
 
 ### 其他导出参数
 
@@ -98,13 +97,12 @@ output
 # 导出
 dorisdump dump --dump-query --audit-logs fe.audit.log
 
-# 回放，工具会自动推荐并发数，我们确认就行
+# 回放，结果默认放在 `output/replay` 目录下，每个文件代表一个客户端，文件中每行代表一条 SQL 的结果
 dorisdump replay -f output/q0.sql
 ```
 
-结果默认放在 `output/replay` 目录下，每个文件代表一个客户端，文件中每行代表一条 SQL 的结果。
-
-> 注意：执行多次回放命令，结果会追加到前一次的结果中，除非指定 `--clean`，删除之前的 `output/replay` 目录
+> [!NOTE]
+> 执行多次回放命令，结果会追加到前一次的结果中，除非指定 `--clean`，删除之前的 `output/replay` 目录
 
 ---
 
@@ -122,10 +120,10 @@ dorisdump replay -f output/q0.sql
 由以下参数控制：
 
 - `--speed` 控制回放速度，作用于上面提到的「间隔时长」，比如 `--speed 0.5` 代表放慢一倍，而 `--speed 2` 代表加快一倍。原理是按比例增加或减少同一客户端的相邻 SQL 的间隔时长，注意如果 SQL 本身的执行时间过长，则 `--speed` 效果不佳
+- `--client-count int` 重新设置客户端数目，并且所有 SQL 都将被均衡地分散到各个客户端并行跑，**设置此值无法预料回放效果！**。默认跟日志里的客户端数一样，以达到跟线上相同的效果
 
-- `--client-count int` 重新设置客户端数目，并且所有 SQL 都将被均衡地分散到各个客户端并行跑，**！！！设置此值无法预料回放效果！！！**。默认跟日志里的客户端数一样，以达到跟线上相同的效果
-
-示例：如果只想以 50 并发无间隔回放，且每条 SQL 都独立无依赖，可以设置 `--speed 999999 --client-count 50`。
+> [!TIP]
+> 如果只想以 50 并发无间隔回放，且每条 SQL 都独立无依赖，可以设置 `--speed 999999 --client-count 50`。
 
 ---
 
@@ -136,15 +134,15 @@ dorisdump replay -f output/q0.sql
 - `--users` 只回放这些用户发起的 SQL，默认回放全部用户的
 - `--from` 和 `--to` 回放时间范围内的 SQL
 - `--max-hash-rows` 回放时记录的最大 hash 结果行数，用于对比两次回放结果是否一致，默认不 hash
-- `--max-conn-idle-time` 客户端连接的最大空闲时间，同一客户端的相邻 SQL 的间隔时长超出此值时，连接会被回收，默认 `10s`
+- `--max-conn-idle-time` 客户端连接的最大空闲时间，同一客户端的相邻 SQL 的间隔时长超出此值时，连接会被回收，默认 `5s`
 
 ## 对比回放结果
 
 `dorisdump diff --help`
 
-按照场景的不同有两种方式：
+有两种方式：
 
-1. 对比两次回放结果，比如升降级场景：
+1. 对比两次回放结果：
 
     ```sh
     dorisdump diff output/replay1 output/replay2
@@ -207,6 +205,8 @@ dorisdump dump --dump-query --audit-logs fe2.audlt.log -O fe2
 nohup dorisdump replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
 nohup dorisdump replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
 ```
+
+---
 
 ### 大量分批回放
 
@@ -336,7 +336,7 @@ columns:
 
 1. 因为审计日志中没有 `connection id`，所以工具以客户端（`ip:port`）而不是连接为单位进行回放，但一个客户端可能由多个串行的连接组成，这样工具不知道何时断开连接，从而导致连接不能及时释放
 
-    回放连接默认 10s 无活动自动释放，但有时还是会出现连接过多和 session 变量丢失的情况，可以调整 `--max-conn-idle-time`
+    默认回放连接 5s 无活动自动释放，但有时还是会出现连接过多和 session 变量丢失的情况，可以调整 `--max-conn-idle-time`
 2. `--speed` 设置过大，过多的 SQL 被挤压到一小段时间执行，减小 `--speed` 值即可解决，参考[自定义速度和并发](#自定义速度和并发)
 
 另外有一个通解：调大用户最大连接数 [`max_user_connections`](https://doris.apache.org/docs/admin-manual/config/user-property#max_user_connections)。

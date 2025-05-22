@@ -342,6 +342,7 @@ func (s *SimpleAuditLogScanner) unescapeStmt(stmt string) string {
 		w           = strings.Builder{}
 		ignoreUntil = ""
 	)
+	w.Grow(len(stmt))
 	for i := 0; i < len(stmt); i++ {
 		curr := stmt[i]
 
