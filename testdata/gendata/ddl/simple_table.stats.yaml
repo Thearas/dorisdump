@@ -1,0 +1,24 @@
+name: "my_table"
+row_count: 1000
+columns:
+  - name: "id"
+    ndv: 1000
+    null_count: 0
+    min: "1"
+    max: "1000"
+  - name: "name"
+    ndv: 950
+    null_count: 5
+    min: "Alpha"
+    max: "Zulu"
+  - name: "email"
+    ndv: 980
+    null_count: 0
+  - name: "created_at"
+    min: "2020-01-01 00:00:00"
+    max: "2023-12-31 23:59:59"
+  - name: "amount"
+    ndv: 500
+    null_count: 10
+    min: "0.50"
+    max: "999.99"

@@ -1,0 +1,23 @@
+db: mydb
+tables:
+  - name: test_constraints
+    row_count: 100
+    columns:
+      - name: id
+        ndv: 100
+        min: "1000"
+        max: "1050"
+      - name: product_code # Length 5 will be derived from DDL
+        ndv: 10
+      - name: price # Precision 8, Scale 2 from DDL
+        min: "10.00"
+        max: "99.99"
+      - name: quantity
+        min: "1"
+        max: "5"
+      - name: last_order_date
+        min: "2024-01-01"
+        max: "2024-03-31"
+      - name: measurement # Precision 10, Scale 3 from DDL
+        min: "0.100"
+        max: "0.500"
