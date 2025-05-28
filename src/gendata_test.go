@@ -517,6 +517,183 @@ tables:
 			expectErrorInGeneration: false,                    
 			validationFn: func(t *testing.T, csvFilePath string, expectedHeader []string, expectedRows int, columnDefs map[string]ColumnInfo) {
 				if _, err := os.Stat(csvFilePath); !os.IsNotExist(err) {
+					// If file exists, it should be empty or header only if expectedRows is 0 or expectedHeader is empty (e.g. DDL with no columns)
+					if expectedRows == 0 || len(expectedHeader) == 0 {
+						file, _ := os.Open(csvFilePath)
+						defer file.Close()
+						reader := csv.NewReader(file)
+						_, headerErr := reader.Read() 
+						_, dataErr := reader.Read()   
+						if headerErr != io.EOF && dataErr != io.EOF { 
+							t.Errorf("Expected CSV file %s to be empty or header-only for DDL with no columns, but it has content.", csvFilePath)
+						}
+					} else {
+						// This case should ideally not be hit if generateTableData correctly skips file creation for no columns.
+						// If it is hit, it implies a CSV was created unexpectedly.
+						t.Errorf("CSV file %s exists, but was not expected for a DDL with no columns that should generate data.", csvFilePath)
+					}
+				}
+				// If file does not exist, it's also acceptable as generateTableData might skip creating it.
+			},
+		},
+		{
+			name:        "Heuristic data generation for VARCHAR/CHAR",
+			ddlFileName: "heuristic_test.table.sql",
+			ddlContent: `CREATE TABLE my_heur.heuristic_table (
+				user_email VARCHAR(100),
+				contact_phone_number VARCHAR(50),
+				home_city VARCHAR(50),
+				user_country VARCHAR(50),
+				postal_code CHAR(10),
+				website_url VARCHAR(255),
+				reference_uuid UUID, -- Assuming UUID is treated as VARCHAR(36) or TEXT by parser if not native
+				                         -- Current parser treats unknown types like TEXT or STRING
+				street_address VARCHAR(100),
+				company_name VARCHAR(100),
+				job_title VARCHAR(100),
+				first_name VARCHAR(50),
+				last_name VARCHAR(50),
+				full_name VARCHAR(100),
+				item_title VARCHAR(200),
+				comment_text VARCHAR(250),
+				short_note CHAR(30) 
+			);`,
+			statsFileName:           "", // No stats, relying on DDL and heuristics
+			statsContent:            "",
+			numRows:                 3,
+			expectedCsvBaseName:     "my_heur.heuristic_table",
+			columnDefsForValidation: map[string]ColumnInfo{
+				"user_email":           {Name: "user_email", BaseType: "VARCHAR", Length: 100, FullType: "VARCHAR(100)"},
+				"contact_phone_number": {Name: "contact_phone_number", BaseType: "VARCHAR", Length: 50, FullType: "VARCHAR(50)"},
+				"home_city":            {Name: "home_city", BaseType: "VARCHAR", Length: 50, FullType: "VARCHAR(50)"},
+				"user_country":         {Name: "user_country", BaseType: "VARCHAR", Length: 50, FullType: "VARCHAR(50)"},
+				"postal_code":          {Name: "postal_code", BaseType: "CHAR", Length: 10, FullType: "CHAR(10)"},
+				"website_url":          {Name: "website_url", BaseType: "VARCHAR", Length: 255, FullType: "VARCHAR(255)"},
+				"reference_uuid":       {Name: "reference_uuid", BaseType: "UUID", FullType: "UUID"}, // Parser needs to handle UUID; if not, it's TEXT/STRING
+				"street_address":       {Name: "street_address", BaseType: "VARCHAR", Length: 100, FullType: "VARCHAR(100)"},
+				"company_name":         {Name: "company_name", BaseType: "VARCHAR", Length: 100, FullType: "VARCHAR(100)"},
+				"job_title":            {Name: "job_title", BaseType: "VARCHAR", Length: 100, FullType: "VARCHAR(100)"},
+				"first_name":           {Name: "first_name", BaseType: "VARCHAR", Length: 50, FullType: "VARCHAR(50)"},
+				"last_name":            {Name: "last_name", BaseType: "VARCHAR", Length: 50, FullType: "VARCHAR(50)"},
+				"full_name":            {Name: "full_name", BaseType: "VARCHAR", Length: 100, FullType: "VARCHAR(100)"},
+				"item_title":           {Name: "item_title", BaseType: "VARCHAR", Length: 200, FullType: "VARCHAR(200)"},
+				"comment_text":         {Name: "comment_text", BaseType: "VARCHAR", Length: 250, FullType: "VARCHAR(250)"},
+				"short_note":           {Name: "short_note", BaseType: "CHAR", Length: 30, FullType: "CHAR(30)"},
+			},
+			expectErrorInGeneration: false,
+			validationFn: func(t *testing.T, csvFilePath string, expectedHeader []string, expectedRows int, columnDefs map[string]ColumnInfo) {
+				defaultValidation(t, csvFilePath, expectedHeader, expectedRows, columnDefs) // Basic checks
+
+				file, _ := os.Open(csvFilePath)
+				defer file.Close()
+				reader := csv.NewReader(file)
+				headerRec, _ := reader.Read()
+				
+				colIndices := make(map[string]int)
+				for i, hName := range headerRec {
+					colIndices[hName] = i
+				}
+
+				for r := 0; r < expectedRows; r++ {
+					record, err := reader.Read()
+					if err != nil { t.Fatalf("Error reading row %d for heuristic validation: %v", r+1, err) }
+
+					// Email
+					if idx, ok := colIndices["user_email"]; ok {
+						if !strings.Contains(record[idx], "@") || !strings.Contains(record[idx], ".") {
+							t.Errorf("Row %d: user_email '%s' does not look like an email", r+1, record[idx])
+						}
+						if len(record[idx]) > columnDefs["user_email"].Length {
+							t.Errorf("Row %d: user_email '%s' exceeds length %d", r+1, record[idx], columnDefs["user_email"].Length)
+						}
+					}
+					// Phone (basic check for digits, common chars)
+					if idx, ok := colIndices["contact_phone_number"]; ok {
+						if !strings.ContainsAny(record[idx], "0123456789") {
+							t.Errorf("Row %d: contact_phone_number '%s' does not look like a phone number", r+1, record[idx])
+						}
+						if len(record[idx]) > columnDefs["contact_phone_number"].Length {
+							t.Errorf("Row %d: contact_phone_number '%s' exceeds length %d", r+1, record[idx], columnDefs["contact_phone_number"].Length)
+						}
+					}
+					// URL
+					if idx, ok := colIndices["website_url"]; ok {
+						if !strings.HasPrefix(record[idx], "http://") && !strings.HasPrefix(record[idx], "https://") {
+							t.Errorf("Row %d: website_url '%s' does not look like a URL", r+1, record[idx])
+						}
+						if len(record[idx]) > columnDefs["website_url"].Length {
+							t.Errorf("Row %d: website_url '%s' exceeds length %d", r+1, record[idx], columnDefs["website_url"].Length)
+						}
+					}
+					// UUID (basic check for hyphens and length, assuming std format)
+					// Note: If DDL type "UUID" is parsed as BaseType "UUID", this check is good.
+					// If it's parsed as VARCHAR, the length check is the main thing.
+					if idx, ok := colIndices["reference_uuid"]; ok {
+						if columnDefs["reference_uuid"].BaseType == "UUID" || columnDefs["reference_uuid"].FullType == "UUID" { // Check if it was parsed as UUID
+							if len(record[idx]) != 36 || strings.Count(record[idx], "-") != 4 {
+								t.Errorf("Row %d: reference_uuid '%s' does not look like a UUID", r+1, record[idx])
+							}
+						} else if colInfo, ok := columnDefs["reference_uuid"]; ok && colInfo.Length > 0 && len(record[idx]) > colInfo.Length {
+							// If it's a VARCHAR/CHAR representation of UUID, check length from DDL
+							t.Errorf("Row %d: reference_uuid '%s' exceeds length %d", r+1, record[idx], colInfo.Length)
+						}
+					}
+					// CHAR length check
+					if idx, ok := colIndices["postal_code"]; ok {
+						// CHAR types should be padded to their length if the generated value is shorter.
+						// gofakeit might not do this padding; the application code doesn't explicitly pad either.
+						// So, we check if len <= DDL_Length.
+						if len(record[idx]) > columnDefs["postal_code"].Length {
+							 t.Errorf("Row %d: postal_code '%s' exceeds length %d", r+1, record[idx], columnDefs["postal_code"].Length)
+						}
+					}
+					if idx, ok := colIndices["short_note"]; ok {
+						if len(record[idx]) > columnDefs["short_note"].Length {
+							 t.Errorf("Row %d: short_note '%s' exceeds length %d", r+1, record[idx], columnDefs["short_note"].Length)
+						}
+					}
+
+					// Check that text fields are not overly short for "comment_text"
+					if idx, ok := colIndices["comment_text"]; ok {
+						if len(record[idx]) < 5 && columnDefs["comment_text"].Length > 10 { // Arbitrary check
+							t.Logf("Row %d: comment_text '%s' seems short for a comment field.", r+1, record[idx])
+						}
+					}
+				}
+			},
+		},
+		{
+			name:        "Generation with no stats file",
+			ddlFileName: "my_other_db.nostats_table.sql", 
+			ddlContent: `CREATE TABLE my_other_db.nostats_table (
+				product_code CHAR(8),
+				price DECIMAL(8,2),
+				quantity INT
+			);`,
+			statsFileName:           "", 
+			statsContent:            "",
+			numRows:                 5,
+			expectedCsvBaseName:     "my_other_db.nostats_table", 
+			columnDefsForValidation: map[string]ColumnInfo{
+				"product_code": {Name: "product_code", BaseType: "CHAR", Length: 8, FullType: "CHAR(8)"},
+				"price":        {Name: "price", BaseType: "DECIMAL", Precision: 8, Scale: 2, FullType: "DECIMAL(8,2)"},
+				"quantity":     {Name: "quantity", BaseType: "INT", FullType: "INT"},
+			},
+			expectErrorInGeneration: false,
+			validationFn:            defaultValidation,
+		},
+		{
+			name:        "DDL with no columns",
+			ddlFileName: "nocolumns.sql",
+			ddlContent:  `CREATE TABLE my_db.nocolumns_table ();`,
+			statsFileName:           "",
+			statsContent:            "",
+			numRows:                 10,
+			expectedCsvBaseName:     "my_db.nocolumns_table", 
+			columnDefsForValidation: map[string]ColumnInfo{},      
+			expectErrorInGeneration: false,                    
+			validationFn: func(t *testing.T, csvFilePath string, expectedHeader []string, expectedRows int, columnDefs map[string]ColumnInfo) {
+				if _, err := os.Stat(csvFilePath); !os.IsNotExist(err) {
 					file, _ := os.Open(csvFilePath)
 					defer file.Close()
 					reader := csv.NewReader(file)

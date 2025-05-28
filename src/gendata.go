@@ -323,20 +323,79 @@ func generateTableData(csvFilePath string, columnDefs map[string]ColumnInfo, tab
 
 			switch {
 			case colType == "VARCHAR", colType == "CHAR":
+				lowerColName := strings.ToLower(colInfo.Name)
 				length := colInfo.Length
-				if length <= 0 { length = 10 }
-				if length > 500 { length = 500 } // Cap length
-				val = gofakeit.LetterN(uint(length))
-				
-				if colName == "id" || strings.HasSuffix(strings.ToLower(colName), "_id") { // More general ID check
-					if length >= 36 { val = gofakeit.UUID() }
-				} else if strings.Contains(strings.ToLower(colName), "name") && length > 5 { val = gofakeit.Name() }
-				// Other heuristics...
+				if length <= 0 { length = 10 } // Default length if not specified or invalid for LetterN
+
+				// Heuristic-based generation
+				generatedByCategory := true
+				switch {
+				case strings.Contains(lowerColName, "email"):
+					val = gofakeit.Email()
+				case strings.Contains(lowerColName, "phone") || strings.Contains(lowerColName, "mobile"):
+					val = gofakeit.PhoneFormatted()
+				case strings.Contains(lowerColName, "city"):
+					val = gofakeit.City()
+				case strings.Contains(lowerColName, "country"):
+					val = gofakeit.Country()
+				case strings.Contains(lowerColName, "zip") || strings.Contains(lowerColName, "postal"):
+					val = gofakeit.Zip()
+				case strings.Contains(lowerColName, "url"):
+					val = gofakeit.URL()
+				case strings.Contains(lowerColName, "uuid") || (colName == "id" && length >=36) : // Also check for typical ID column name
+					val = gofakeit.UUID()
+				case strings.Contains(lowerColName, "street"): // Must be before general "address"
+					val = gofakeit.Street() // Corrected function name
+				case strings.Contains(lowerColName, "address"):
+					val = gofakeit.Address().Address
+				case strings.Contains(lowerColName, "company") || strings.Contains(lowerColName, "organization"):
+					val = gofakeit.Company()
+				case strings.Contains(lowerColName, "job") || strings.Contains(lowerColName, "occupation"):
+					val = gofakeit.JobTitle()
+				case strings.Contains(lowerColName, "first") && strings.Contains(lowerColName, "name"):
+					val = gofakeit.FirstName()
+				case strings.Contains(lowerColName, "last") && strings.Contains(lowerColName, "name"):
+					val = gofakeit.LastName()
+				case strings.Contains(lowerColName, "full") && strings.Contains(lowerColName, "name"):
+					val = gofakeit.Name()
+				case strings.Contains(lowerColName, "name"): // General name, if no "first/last/full"
+					val = gofakeit.Name()
+				case strings.Contains(lowerColName, "title") && !strings.Contains(lowerColName, "job"): // Avoid job title
+					val = gofakeit.BookTitle() 
+				case strings.Contains(lowerColName, "subject"):
+					val = gofakeit.Sentence(gofakeit.Number(3, 7)) // 3 to 7 words
+				// Description/Comment like fields for VARCHAR/CHAR should be shorter than TEXT
+				case strings.Contains(lowerColName, "desc") || strings.Contains(lowerColName, "comment") || 
+				     strings.Contains(lowerColName, "note") || strings.Contains(lowerColName, "detail"):
+					val = gofakeit.Sentence(gofakeit.Number(5, 15)) // 5 to 15 words
+				default:
+					generatedByCategory = false
+					// Fallback to random letters if no specific heuristic matches
+					// Cap length for LetterN to avoid excessive strings if DDL length is very large
+					letterNLength := length
+					if letterNLength > 500 { letterNLength = 500 } 
+					val = gofakeit.LetterN(uint(letterNLength))
+				}
+
+				// Truncate if necessary, only for VARCHAR/CHAR where length is defined
+				if colInfo.Length > 0 && len(val) > colInfo.Length {
+					// For UUIDs or specific formats, truncation might break them.
+					// However, DDL length constraint is king.
+					// For UUID, if length is < 36, this will truncate it.
+					if generatedByCategory && (strings.Contains(lowerColName, "uuid") || strings.Contains(lowerColName, "phone")) {
+						// Maybe warn if a formatted string is being truncated due to DDL length
+						logrus.Warnf("Formatted value for column '%s' might be truncated due to DDL length %d. Value: '%s'", colName, colInfo.Length, val)
+					}
+					val = val[:colInfo.Length]
+				}
 
 			case colType == "TEXT", colType == "BLOB", colType == "CLOB", colType == "STRING":
-				val = gofakeit.Sentence(gofakeit.Number(5,15))
-				if strings.Contains(strings.ToLower(colName), "description") {
-					val = gofakeit.Paragraph(1,2,5,". ")
+				lowerColName := strings.ToLower(colInfo.Name)
+				if strings.Contains(lowerColName, "desc") || strings.Contains(lowerColName, "comment") || 
+				   strings.Contains(lowerColName, "note") || strings.Contains(lowerColName, "detail") || 
+				   strings.Contains(lowerColName, "text") || strings.Contains(lowerColName, "message") ||
+				   strings.Contains(lowerColName, "content") {
+					val = gofakeit.Paragraph(gofakeit.Number(1,3), gofakeit.Number(2,5), gofakeit.Number(10,20), ". ")
 				} else if colName == "id" || strings.HasSuffix(strings.ToLower(colName), "_id") {
 					val = gofakeit.UUID()
 				}
@@ -462,6 +521,8 @@ func generateTableData(csvFilePath string, columnDefs map[string]ColumnInfo, tab
 
 			case colType == "BOOLEAN", colType == "BOOL":
 				val = strconv.FormatBool(gofakeit.Bool())
+			case colType == "UUID": // Added case for UUID type
+				val = gofakeit.UUID()
 			default:
 				logrus.Warnf("Unsupported SQL BaseType '%s' for column '%s' in %s. Generating a random word.", colType, colName, csvFilePath)
 				val = gofakeit.Word()
