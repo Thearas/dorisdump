@@ -59,6 +59,8 @@ var replayCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
+	SilenceUsage:               true,
+	SuggestionsMinimumDistance: 6,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := completeReplayConfig(); err != nil {
 			return err

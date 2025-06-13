@@ -61,6 +61,7 @@ type Dump struct {
 	OnlySelect         bool
 	Strict             bool
 	From, To           string
+	Analyze            bool
 
 	Clean bool
 }
@@ -83,6 +84,8 @@ or environment variables with prefix 'DORIS_', e.g.
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
+	SilenceUsage:               true,
+	SuggestionsMinimumDistance: 6,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
@@ -154,6 +157,7 @@ func init() {
 	pFlags.StringSliceVar(&DumpConfig.AuditLogPaths, "audit-logs", nil, "Scan query from audit log files, either local path or 'ssh://xxx'")
 	pFlags.StringVar(&DumpConfig.AuditLogTable, "audit-log-table", "", "Scan query from audit log table, like 'audit_db.audit_tbl'")
 	pFlags.StringVar(&DumpConfig.AuditLogEncoding, "audit-log-encoding", "auto", "Audit log encoding, like utf8, gbk, ...")
+	pFlags.BoolVar(&DumpConfig.Analyze, "analyze", false, "Run 'ANALYZE TABLE' before dump stats, only take effect when '--dump-stats=true'")
 	pFlags.StringVar(&DumpConfig.SSHAddress, "ssh-address", "", "SSH address for downloading audit log, default is 'root@{db_host}:22'")
 	pFlags.StringVar(&DumpConfig.SSHPassword, "ssh-password", "", "SSH password for '--ssh-address'")
 	pFlags.StringVar(&DumpConfig.SSHPrivateKey, "ssh-private-key", "~/.ssh/id_rsa", "File path of SSH private key for '--ssh-address'")
@@ -165,15 +169,15 @@ func init() {
 
 func completeDumpConfig() error {
 	if !DumpConfig.DumpSchema && !DumpConfig.DumpQuery {
-		return errors.New("Expected at least one of --dump-schema or --dump-query")
+		return errors.New("expected at least one of --dump-schema or --dump-query")
 	}
 
 	DumpConfig.OutputDDLDir = filepath.Join(GlobalConfig.OutputDir, "ddl")
 	DumpConfig.OutputQueryDir = filepath.Join(GlobalConfig.OutputDir, "sql")
-	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DataDir, "auditlog")
+	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DorisDumpDataDir, "auditlog")
 
 	if DumpConfig.AuditLogTable != "" && !strings.Contains(DumpConfig.AuditLogTable, ".") {
-		return errors.New("Need to specific database in '--audit-log-table', like 'audit_db.audit_tbl'")
+		return errors.New("need to specific database in '--audit-log-table', like 'audit_db.audit_tbl'")
 	}
 
 	if DumpConfig.QueryMinDuration_ > 0 {
@@ -194,7 +198,7 @@ func completeDumpConfig() error {
 	GlobalConfig.DBs, GlobalConfig.Tables = lo.Uniq(GlobalConfig.DBs), lo.Uniq(GlobalConfig.Tables)
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
 	if DumpConfig.DumpSchema && len(dbs) == 0 {
-		return errors.New("Expected at least one database, please use --dbs flag")
+		return errors.New("expected at least one database, please use --dbs flag")
 	} else if len(dbs) == 1 {
 		// prepend default database if only one database specified
 		prefix := dbs[0] + "."
@@ -206,7 +210,7 @@ func completeDumpConfig() error {
 	} else {
 		for _, t := range tables {
 			if !strings.Contains(t, ".") {
-				return errors.New("Expected database in table name when multiple databases specified, e.g. --tables db1.table1,db2.table2")
+				return errors.New("expected database in table name when multiple databases specified, e.g. --tables db1.table1,db2.table2")
 			}
 		}
 	}
@@ -252,7 +256,7 @@ func dumpSchemas(ctx context.Context) ([]*src.DBSchema, error) {
 				return nil
 			}
 			tbls := lo.Map(createTables, func(s *src.Schema, _ int) string { return s.Name })
-			stats, err := src.GetTablesStats(ctx, conn, db, tbls...)
+			stats, err := src.GetTablesStats(ctx, conn, DumpConfig.Analyze, db, tbls...)
 			if err != nil {
 				return err
 			}
@@ -371,7 +375,7 @@ func dumpQueries(ctx context.Context) (int, error) {
 
 func dumpQueriesFromTable(ctx context.Context, opts src.AuditLogScanOpts) (int, error) {
 	if opts.From == "" || opts.To == "" {
-		return 0, errors.New("Must specific both '--from' and '--to' when dumping from audit log table")
+		return 0, errors.New("must specific both '--from' and '--to' when dumping from audit log table")
 	}
 
 	dbTable := strings.SplitN(DumpConfig.AuditLogTable, ".", 2)
@@ -401,7 +405,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, e
 	if len(auditLogs) == 0 {
 		sshUrl, err := chooseRemoteAuditLog(ctx)
 		if err != nil {
-			return 0, fmt.Errorf("Please specific audit log files by '--audit-logs' or table by '--audit-log-table', error: %v", err)
+			return 0, fmt.Errorf("please specific audit log files by '--audit-logs' or table by '--audit-log-table', error: %v", err)
 		}
 		auditLogs = []string{sshUrl}
 	}
@@ -427,7 +431,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, e
 		localPath = strings.TrimPrefix(auditLog, "file://")
 		localPaths, err := filepath.Glob(localPath)
 		if err != nil {
-			return 0, fmt.Errorf("Invalid audit log path: %s, error: %v", localPath, err)
+			return 0, fmt.Errorf("invalid audit log path: %s, error: %v", localPath, err)
 		}
 
 		auditLogFiles = append(auditLogFiles, localPaths...)
@@ -556,7 +560,7 @@ func chooseRemoteAuditLog(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("SSH list remote audit log failed: %v", err)
 	}
 	if len(auditLogs) == 0 {
-		return "", errors.New("No audit log found on remote server")
+		return "", errors.New("no audit log found on remote server")
 	}
 
 	choosed, err := src.Choose("Choose audit log on remote server to dump", auditLogs)

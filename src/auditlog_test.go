@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dlclark/regexp2"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -118,10 +117,6 @@ func TestExtractQueriesFromAuditLogs(t *testing.T) {
 func TestSimpleAuditLogScanner_unescapeStmt(t *testing.T) {
 	type fields struct {
 		AuditLogScanOpts AuditLogScanOpts
-		sqls             []string
-		distinctQueryIds map[string]struct{}
-		distinctQueryTs  string
-		re               *regexp2.Regexp
 	}
 	type args struct {
 		stmt string

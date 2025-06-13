@@ -3,8 +3,10 @@ module github.com/Thearas/dorisdump
 go 1.24.1
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
 	github.com/fatih/color v1.17.0
 	github.com/flier/gohs v1.2.2
@@ -20,6 +22,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
+	github.com/xyproto/randomstring v1.2.0
 	github.com/zeebo/blake3 v0.2.4
 	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948

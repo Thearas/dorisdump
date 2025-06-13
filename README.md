@@ -3,8 +3,9 @@
 Main features:
 
 1. **Dump** schema, column stats and query from Doris
-2. **Replay and load test** dump query
-3. **Anonymize** database, table and column name in SQL
+2. **Generate and import fake data** for dump table
+3. **Replay and load test** dump query
+4. **Anonymize** database, table and column name in SQL
 
 > [!IMPORTANT]
 > **See [Introduction & FAQ](./introduction-zh.md) for more details.**
@@ -25,23 +26,49 @@ By default, only `SELECT` statments will be dumped. Use `--only-select=false` to
 # Dump
 dorisdump dump --help
 
-# Dump schemas of database db1 and db2
+# dump schemas of database db1 and db2
 dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
 
-# Also dump queries of db1 from audit logs
+# also dump queries of db1 from audit logs
 dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs 'fe.audit.log,fe.audit.log.20240802-1'
 
-# Dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
+# dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
 dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:45:25' --to '2024-11-14 18:45:26'
+
+
+# Generate data (Totally offline!)
+dorisdump gendata --help
+
+# gen data from any create-table SQL
+dorisdump gendata --ddl create.sql
+
+# gen data for db1 and db2, it auto finds dump schemas under output dir
+dorisdump gendata --dbs db1,db2
+
+# gen data for t1 and t2 in db1
+dorisdump gendata --dbs db1 --table t1,t2
+
+
+# Import data (Require curl command)
+dorisdump import --help
+
+# import data from any CSV file
+dorisdump import --dbs db1 --tables t1 --data data.csv
+
+# import data for db1, it auto finds generated data under output dir
+dorisdump import --dbs db1,db2
+
+# import data for t1 and t2 in db1
+dorisdump gendata --dbs db1 --table t1,t2
 
 
 # Replay
 dorisdump replay --help
 
-# Replay queries from dump sql file
+# replay queries from dump sql file
 dorisdump replay --host <host> --port <port> --user root --password '******' -f output/sql/q0.sql
 
-# Replay with args
+# replay with args
 dorisdump replay -f output/sql/q0.sql \
     --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \
     --users 'readonly,root' --dbs 'db1,db2' \   # filter sql by users and databases
@@ -53,10 +80,10 @@ dorisdump replay -f output/sql/q0.sql \
 # Diff replay result
 dorisdump diff --help
 
-# Print diff of replay result which is slower more than 200ms than original
+# diff replay result which is slower more than 200ms than original
 dorisdump diff --min-duration-diff 200ms --original-sqls 'output/sql/*.sql' output/replay
 
-# Print diff of two replay result directories
+# diff of two replay result directories
 dorisdump diff replay1/ replay2/
 ```
 

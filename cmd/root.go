@@ -38,15 +38,16 @@ var (
 )
 
 type Global struct {
-	ConfigFile string
-	LogLevel   string
-	DataDir    string
-	OutputDir  string
-	DryRun     bool
-	Parallel   int
+	ConfigFile       string
+	LogLevel         string
+	DorisDumpDataDir string
+	OutputDir        string
+	DryRun           bool
+	Parallel         int
 
 	DBHost     string
 	DBPort     uint16
+	HTTPPort   uint16
 	DBUser     string
 	DBPassword string
 	DBs        []string
@@ -98,13 +99,14 @@ func init() {
 	pFlags := rootCmd.PersistentFlags()
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
-	pFlags.StringVar(&GlobalConfig.DataDir, "data-dir", "./.dorisdump/", "Directory for storing data")
+	pFlags.StringVar(&GlobalConfig.DorisDumpDataDir, "dorisdump-data-dir", "./.dorisdump/", "Directory for storing dorisdump self data")
 	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", parallel, "Parallel dump worker")
 
 	pFlags.StringVarP(&GlobalConfig.DBHost, "host", "H", "127.0.0.1", "DB Host")
 	pFlags.Uint16VarP(&GlobalConfig.DBPort, "port", "P", 9030, "DB Port")
+	pFlags.Uint16Var(&GlobalConfig.HTTPPort, "http-port", 8030, "FE HTTP Port")
 	pFlags.StringVarP(&GlobalConfig.DBUser, "user", "U", "root", "DB User")
 	pFlags.StringVar(&GlobalConfig.DBPassword, "password", "", "DB password")
 	pFlags.StringSliceVarP(&GlobalConfig.DBs, "dbs", "D", []string{}, "DBs to work on")
