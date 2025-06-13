@@ -109,6 +109,6 @@ PROPERTIES (
 	assert.NoError(t, w.Flush())
 
 	resultCSV := strings.Split(b.String(), "\n")
-	assert.Len(t, resultCSV, 50)
+	assert.Len(t, resultCSV, 1+50) // first line is columns info
 	assert.True(t, strings.HasPrefix(resultCSV[0], "columns:"))
 }
