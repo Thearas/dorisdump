@@ -37,14 +37,17 @@ func StreamLoad(ctx context.Context, host, httpPort, user, password, db, table, 
 	f.Close()
 
 	// use curl to perform stream load
-	curl := fmt.Sprintf(`curl -sS --location-trusted -u '%s:%s' -H 'Expect:100-continue' -H 'Proxy-Connection:Close' -H 'format:csv' -H 'column_separator:%s' -H 'skip_lines:%d' -XPUT 'http://%s:%s/api/%s/%s/_stream_load'`, user, password, string(ColumnSeparator), skipLines, host, httpPort, db, table)
+	userpass := fmt.Sprintf("%s:%s", user, password)
+	curl := fmt.Sprintf(`curl -sS --location-trusted -u '%s' -H 'Expect:100-continue' -H 'Proxy-Connection:Close' -H 'format:csv' -H 'column_separator:%s' -H 'skip_lines:%d' -XPUT 'http://%s:%s/api/%s/%s/_stream_load'`, userpass, string(ColumnSeparator), skipLines, host, httpPort, db, table)
 	if columns != "" {
 		curl += fmt.Sprintf(" -H '%s'", columns)
 	}
 	curl += fmt.Sprintf(" -T '%s'", file)
 
+	sanitizedCurl := strings.Replace(curl, userpass, fmt.Sprintf("%s:****", user), 1)
 	logrus.Infof("stream-loading %s.%s (%s)\n", db, table, fileProgress)
-	logrus.Debugln(curl)
+	logrus.Debugln(sanitizedCurl)
+
 	if dryrun {
 		return nil
 	}
