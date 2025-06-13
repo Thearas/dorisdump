@@ -46,6 +46,7 @@ var diffCmd = &cobra.Command{
 	Short: "Diff a replay result with another or the original dump sql",
 	Example: `dorisdump diff replay1/ replay2/
 dorisdump diff --original-sqls dump.sql replay1/`,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if noColor {
 			if err := os.Setenv("NO_COLOR", "true"); err != nil {
@@ -142,13 +143,9 @@ func diffDumpSQL(replay string) error {
 }
 
 func readOriginalDumpSQLs(clientCount int) (map[string][]*src.ReplaySql, error) {
-	sqls := []string{}
-	for _, s := range originalDumpSQLs {
-		localPaths, err := filepath.Glob(s)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid original sql path: %s, error: %v", s, err)
-		}
-		sqls = append(sqls, localPaths...)
+	sqls, err := src.FileGlob(originalDumpSQLs)
+	if err != nil {
+		return nil, err
 	}
 
 	client2sqls := make(map[string][]*src.ReplaySql, 10240)
@@ -297,7 +294,6 @@ func (r *diffReader) get(queryId string) *src.ReplayResult {
 
 type diff2 struct {
 	r1, r2 *src.ReplayResult
-	diff   string
 }
 
 func (d *diff2) result() string {

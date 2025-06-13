@@ -17,8 +17,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -49,23 +47,16 @@ var anonymizeCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
+	SuggestionsMinimumDistance: 6,
 	RunE: func(_ *cobra.Command, _ []string) (err error) {
-		var input []byte
-
-		switch AnonymizeConfig.File {
-		case "-":
-			// read from stdin
-			input, err = io.ReadAll(os.Stdin)
-		default:
-			input, err = os.ReadFile(AnonymizeConfig.File)
-		}
+		input, err := src.ReadFileOrStdin(AnonymizeConfig.File)
 		if err != nil {
 			return err
 		}
 
 		src.SetupAnonymizer(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath, AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
 
-		sql := src.AnonymizeSql(AnonymizeConfig.Method, "", string(input))
+		sql := src.AnonymizeSql(AnonymizeConfig.Method, "", input)
 		fmt.Println(sql)
 
 		// store anonymize hash dict

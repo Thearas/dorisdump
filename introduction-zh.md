@@ -34,7 +34,7 @@
 
 `dorisdump dump --dump-schema`
 
-需要连上 Doris 数据库，导出表和视图的 `CREATE` 语句，默认也会导出表的统计信息。
+从 Doris 数据库导出表和视图的 `CREATE` 语句。默认会同时导出表的统计信息，如果统计信息与实际相差较大，推荐指定 `--analyze`。见 [导出的统计信息与实际不符](#导出的统计信息与实际不符)。
 
 ```sh
 # 导出 db1 和 db2 的所有表和视图
@@ -76,6 +76,7 @@ output
 
 ### 其他导出参数
 
+- `--analyze` 导出表前自动跑 `ANALYZE TABLE <table> WITH SYNC`，使统计信息更准确
 - `--parallel` 控制导出并发量，调大导出更快，调小占用资源更少，默认 `min(机器核数, 10)`
 - `--dump-stats` 导出表时也导出统计信息，导出在 `output/ddl/db.stats.yaml` 文件，默认开启
 - `--only-select` 是否从只导出 `SELECT` 语句，默认开启
@@ -280,7 +281,7 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 
 ### 怎么把工具给客户，对生产环境有没有影响
 
-客户不能科学上网的话，把[最新二进制](https://github.com/Thearas/dorisdump/releases)下载下来直接给，Linux 版是无依赖的，放机器上就能跑，工具对集群不会有任何写入操作。
+客户不能科学上网的话，把[最新二进制](https://github.com/Thearas/dorisdump/releases)下载下来直接给，Linux 版是无依赖的，放机器上就能跑，默认情况下工具不会对集群有任何写入操作。
 
 导出时担心消耗资源的话，可以设置 `--parallel=1`，内存消耗最多几十兆，一般执行时间在秒级。
 
@@ -326,7 +327,7 @@ columns:
     method: SAMPLE # <-- here
 ```
 
-推荐先执行 `ANALYZE DATABASE WITH SYNC` 或 `ANALYZE TABLE WITH SYNC`，然后再导出。
+推荐导出时指定 `--analyze`，或先手动执行 `ANALYZE DATABASE WITH SYNC`/`ANALYZE TABLE WITH SYNC`，然后再导出。
 
 ---
 

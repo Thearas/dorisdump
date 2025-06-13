@@ -47,7 +47,7 @@ func NewParser(sqlId string, sqls string, listeners ...antlr.ParseTreeListener) 
 		p.SetErrorHandler(NewErrHandler())
 	}
 
-	return &Parser{DorisParser: p, errListener: errListener}
+	return &Parser{DorisParser: p, ErrListener: errListener}
 }
 
 type errHandler struct {
@@ -59,20 +59,24 @@ func (h *errHandler) ReportMatch(p antlr.Parser) {
 
 	// Do not modify ENGINE name.
 	if p.GetCurrentToken().GetTokenType() == DorisParserENGINE {
-		p.(*antlr.BaseParser).GetParseListeners()[0].(*listener).ignoreCurrentIdentifier = true
+		for _, l := range p.GetParseListeners() {
+			if _, ok := l.(*listener); ok {
+				l.(*listener).ignoreCurrentIdentifier = true
+			}
+		}
 	}
 }
 
 type errListener struct {
 	*antlr.ConsoleErrorListener
 	sqlId   string
-	lastErr error
+	LastErr error
 }
 
 func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, _ antlr.RecognitionException) {
 	// remove string after 'expecting', it's too annoying
 	msg = strings.Split(msg, "expecting")[0]
-	l.lastErr = errors.New(msg)
+	l.LastErr = errors.New(msg)
 	logrus.Errorf("sql %s parse error at line %d:%d %s\n", l.sqlId, line, column, msg)
 }
 
@@ -219,13 +223,13 @@ func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
 
 type Parser struct {
 	*DorisParser
-	errListener *errListener
+	ErrListener *errListener
 }
 
 func (p *Parser) Parse() (IMultiStatementsContext, error) {
 	// parser and modify
 	ms := p.MultiStatements()
-	return ms, p.errListener.lastErr
+	return ms, p.ErrListener.LastErr
 }
 
 func (p *Parser) ToSQL() (string, error) {

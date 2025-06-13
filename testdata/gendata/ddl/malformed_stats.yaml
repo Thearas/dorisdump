@@ -1,9 +1,0 @@
-name: my_table
-row_count: 100
-columns:
-  - name: id
-    ndv: 100
-  - name: name
-    ndv: 90
--- this line is intentionally malformed, missing indentation for a map item
-value: "test"

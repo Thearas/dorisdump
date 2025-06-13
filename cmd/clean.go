@@ -42,7 +42,7 @@ func init() {
 }
 
 func cleanAllFiles(force bool) error {
-	if err := cleanFile(GlobalConfig.DataDir, force); err != nil {
+	if err := cleanFile(GlobalConfig.DorisDumpDataDir, force); err != nil {
 		return err
 	}
 	if err := cleanFile(GlobalConfig.OutputDir, force); err != nil {

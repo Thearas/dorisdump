@@ -1,0 +1,46 @@
+######
+# Run: 
+#   1. dorisdump gendata --dbs test_db --ddl fixture --rows 100 --genconf fixture/gendata.yaml -Ldebug
+#   2. dorisdump gendata --dbs test    --ddl fixture --rows 100 --genconf fixture/gendata.yaml -Ldebug
+######
+
+# default null frequency
+null_frequency: 0.05
+
+# default type generate rule
+type:
+  json:
+    # default structure of all json (MAP or ARRAY is OK too!)
+    structure: 'struct<foo:bigint>'
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+
+tables:
+  - name: employees
+    row_count: 100 # optional, default 1000
+    columns:
+      - name: department_id
+        null_frequency: 1 # 100% NULL
+      - name: salary
+        min: "15000.00"
+        max: "16000.00"
+      - name: hire_date
+        min: "1997-01-15"
+        max: "1997-01-15"
+  - name: all_type_nullable
+    # row_count: 100
+    columns:
+      - name: dt_month
+        length: 3
+      - name: t_null_string
+        length:
+          min: 20
+          max: 30
+      - name: datetime1
+        min: "1997-01-15"
+        max: "1997-01-15"
+

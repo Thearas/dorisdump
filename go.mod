@@ -3,8 +3,10 @@ module github.com/Thearas/dorisdump
 go 1.24.1
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
 	github.com/fatih/color v1.17.0
 	github.com/flier/gohs v1.2.2
@@ -20,6 +22,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
+	github.com/xyproto/randomstring v1.2.0
 	github.com/zeebo/blake3 v0.2.4
 	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
@@ -29,15 +32,12 @@ require (
 )
 
 require (
-	github.com/brianvoe/gofakeit/v6 v6.22.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
-	github.com/codingconcepts/dg v0.0.0-20240717081624-e0a02910aab9 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
-	github.com/lucasjones/reggen v0.0.0-20200904144131-37ba4fa293bb // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

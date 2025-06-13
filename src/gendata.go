@@ -1,574 +1,715 @@
-/*
-Copyright © 2025 Thearas thearas850@gmail.com
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package src
 
 import (
-	"encoding/csv"
+	"bufio"
+	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv" // Ensured strconv is imported once
+	"maps"
+	"math"
+	"math/rand/v2"
 	"strings"
-	// "time" // Removed as it's unused
+	"time"
 
-	"time" // Added for date parsing
-
-	"github.com/brianvoe/gofakeit/v6" 
+	"dario.cat/mergo"
+	"github.com/brianvoe/gofakeit/v6"
+	"github.com/goccy/go-json"
+	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"github.com/spf13/cast"
+
+	"github.com/Thearas/dorisdump/src/parser"
 )
 
-// ColumnInfo holds detailed information about a parsed DDL column.
-type ColumnInfo struct {
-	Name      string
-	BaseType  string // e.g., VARCHAR, DECIMAL, INT
-	Length    int    // For VARCHAR(N), CHAR(N)
-	Precision int    // For DECIMAL(P,S) -> P
-	Scale     int    // For DECIMAL(P,S) -> S
-	FullType  string // The originally parsed full type string
+const (
+	ColumnSeparator    = '☆'
+	DefaultGenRowCount = 1000
+	MaxGenRowCount     = 100_000
+)
+
+var (
+	TypeAlias = map[string]string{
+		"INTEGER":    "INT",
+		"TEXT":       "STRING",
+		"BOOL":       "BOOLEAN",
+		"DECIMALV2":  "DECIMAL",
+		"DECIMALV3":  "DECIMAL",
+		"DATEV1":     "DATE",
+		"DATEV2":     "DATE",
+		"DATETIMEV1": "DATETIME",
+		"DATETIMEV2": "DATETIME",
+		"TIMESTAMP":  "DATETIME",
+	}
+)
+
+func NewTableGen(createTableStmt string, stats *TableStats) (*TableGen, error) {
+	// parse create-table statement
+	sqlId := "create-table"
+	if stats != nil {
+		sqlId = stats.Name
+	}
+	p := parser.NewParser(sqlId, createTableStmt)
+	c, ok := p.SupportedCreateStatement().(*parser.CreateTableContext)
+	if !ok {
+		logrus.Fatalln("SQL parser error")
+	} else if p.ErrListener.LastErr != nil {
+		return nil, p.ErrListener.LastErr
+	}
+
+	// get table stats
+	table := strings.ReplaceAll(strings.ReplaceAll(c.GetName().GetText(), "`", ""), " ", "")
+	colStats := make(map[string]*ColumnStats)
+	if stats != nil {
+		colStats = lo.SliceToMap(stats.Columns, func(s *ColumnStats) (string, *ColumnStats) {
+			s.Count = stats.RowCount
+			return s.Name, s
+		})
+		logrus.Debugf("using stats for table '%s'\n", table)
+	} else {
+		logrus.Debugf("stats not found for table '%s'\n", table)
+	}
+
+	// get custom table gen rule
+	rows, customColumnRule := getCustomTableGenRule(table)
+
+	// construct every columns
+	columns := make([]string, 0, len(c.ColumnDefs().GetCols()))
+	colGens := make([]Gen, 0, len(c.ColumnDefs().GetCols()))
+	hasBitmap := false
+	for _, col := range c.ColumnDefs().GetCols() {
+		colName := strings.Trim(col.GetColName().GetText(), "`")
+		visitor := &TypeVisitor{Colpath: fmt.Sprintf("%s.%s", table, colName)}
+		colType_ := col.GetType_()
+		colBaseType := visitor.GetBastType(colType_)
+
+		// build column gen rule
+		genRule := newColGenRule(col, colName, colBaseType, colStats, customColumnRule)
+		visitor.GenRule = genRule
+
+		if colBaseType == "BITMAP" {
+			hasBitmap = true
+			columns = append(columns, fmt.Sprintf("raw_%s,`%s`=bitmap_from_array(cast(raw_%s as ARRAY<BIGINT(20)>))", colName, colName, colName))
+		} else {
+			columns = append(columns, "`"+colName+"`")
+		}
+		colGens = append(colGens, visitor.GetTypeGen(colType_))
+	}
+
+	tg := &TableGen{rows: rows, colGens: colGens}
+	if hasBitmap {
+		tg.streamloadColumns = "columns:" + strings.Join(columns, ",")
+	}
+
+	return tg, nil
 }
 
-// Config mirrors the cmd.GendataConfig struct to avoid circular dependencies.
-type Config struct {
-	InputDDLDir  string
-	OutputCsvDir string
-	NumRows      int
+func newColGenRule(col parser.IColumnDefContext, colName, colType string, colStats map[string]*ColumnStats, customColumnRule map[string]GenRule) GenRule {
+	genRule := GenRule{}
+
+	// 1. Merge rules in stats
+	if colstats, ok := colStats[colName]; ok {
+		var nullFreq float32
+		if colstats.Count > 0 {
+			nullFreq = float32(colstats.NullCount) / float32(colstats.Count)
+		}
+		if nullFreq >= 0 && nullFreq < 1 {
+			genRule["null_frequency"] = nullFreq
+		}
+
+		if IsStringType(colType) {
+			avgLen := colstats.AvgSizeByte
+			genRule["length"] = avgLen
+
+			// HACK: +-5 on string avg size as length
+			if avgLen > 5 && colType != "CHAR" {
+				genRule["length"] = GenRule{
+					"min": avgLen - 5,
+					"max": avgLen + 5,
+				}
+			}
+		} else {
+			if colstats.Min != "" {
+				genRule["min"] = colstats.Min
+			}
+			if colstats.Max != "" {
+				genRule["max"] = colstats.Max
+			}
+		}
+	}
+
+	// 2. Merge rules in global custom rules
+	customRule, ok := customColumnRule[colName]
+	if !ok || len(customRule) == 0 {
+		return genRule
+	}
+	if err := mergo.Merge(&genRule, customRule, mergo.WithOverride); err != nil {
+		logrus.Fatalln(err)
+	}
+
+	notnull := col.NOT() != nil && col.GetNullable() != nil
+	if notnull {
+		genRule["null_frequency"] = 0
+	}
+
+	return genRule
 }
 
-// GenerateData is the main function for the data generation logic.
-// It takes Config to understand where to read DDLs from, where to write CSVs,
-// and how many rows to generate.
-func GenerateData(config Config) error {
-	logrus.Infof("Starting data generation with config: %+v", config)
+type TableGen struct {
+	streamloadColumns string
+	rows              int
+	colGens           []Gen
+}
 
-	ddlPattern := filepath.Join(config.InputDDLDir, "*.sql")
-	ddlFiles, err := filepath.Glob(ddlPattern)
-	if err != nil {
-		logrus.Errorf("Error listing DDL files using pattern '%s': %v", ddlPattern, err)
+// Gen generates multiple CSV line into writer.
+func (tg *TableGen) GenCSV(w *bufio.Writer, rows int) error {
+	if tg.streamloadColumns != "" {
+		if _, err := w.WriteString(tg.streamloadColumns); err != nil {
+			return err
+		}
+		w.WriteByte('\n')
+	}
+	if rows <= 0 {
+		rows = tg.rows
+	}
+	if rows == 0 {
+		rows = DefaultGenRowCount
+	}
+	if err := CheckGenRowCount(rows); err != nil {
 		return err
 	}
 
-	if len(ddlFiles) == 0 {
-		logrus.Warnf("No DDL files found in '%s'", config.InputDDLDir)
-		return nil
-	}
-
-	logrus.Infof("Found %d DDL files to process.", len(ddlFiles))
-
-	for _, ddlFilePath := range ddlFiles {
-		baseName := strings.TrimSuffix(filepath.Base(ddlFilePath), filepath.Ext(ddlFilePath))
-		parts := strings.Split(baseName, ".")
-		if len(parts) < 2 {
-			logrus.Warnf("Skipping DDL file with unexpected name format: %s", ddlFilePath)
-			continue
-		}
-		tableNamePrefix := baseName // Default for names like <db>.<table>.sql
-		if len(parts) > 2 && (parts[len(parts)-1] == "table" || parts[len(parts)-1] == "view" || parts[len(parts)-1] == "materialized_view") {
-			tableNamePrefix = strings.Join(parts[:len(parts)-1], ".") // <db>.<table>
-		}
-		
-		statsFileName := tableNamePrefix + ".stats.yaml"
-		statsFilePath := filepath.Join(config.InputDDLDir, statsFileName)
-
-		csvFileName := tableNamePrefix + ".csv"
-		csvFilePath := filepath.Join(config.OutputCsvDir, csvFileName)
-
-		logrus.Infof("Processing DDL: %s", ddlFilePath)
-		logrus.Infof("  Stats file: %s", statsFilePath)
-		logrus.Infof("  Output CSV: %s", csvFilePath)
-
-		columns, err := parseDDL(ddlFilePath)
-		if err != nil {
-			logrus.Errorf("Error parsing DDL file %s: %v. Skipping table.", ddlFilePath, err)
-			continue
-		}
-		if len(columns) == 0 {
-			logrus.Warnf("No columns parsed from DDL %s. Skipping table.", ddlFilePath)
-			continue
-		}
-		
-		// Derive dbName and tableName from tableNamePrefix for parseStats
-		var dbName, actualTableName string
-		partsDbTable := strings.SplitN(tableNamePrefix, ".", 2)
-		if len(partsDbTable) == 2 {
-			dbName = partsDbTable[0]
-			actualTableName = partsDbTable[1]
-		} else {
-			actualTableName = tableNamePrefix
-			logrus.Warnf("Could not derive database name from DDL path '%s' for stats lookup. Using empty dbName for stats lookup.", ddlFilePath)
-		}
-
-		tableStats, err := parseStats(statsFilePath, dbName, actualTableName) // Corrected call
-		if err != nil {
-			// parseStats now returns error for file issues or YAML unmarshal issues.
-			// It returns (nil, nil) if file not found, empty, or table/db not matched (these are logged as warnings by parseStats).
-			logrus.Errorf("Error encountered while trying to parse stats file %s: %v. Proceeding without stats.", statsFilePath, err)
-			// tableStats will be nil if an error occurred or if no specific stats were found, which is handled by generateTableData
-		}
-
-		err = generateTableData(csvFilePath, columns, tableStats, config.NumRows)
-		if err != nil {
-			logrus.Errorf("Error generating data for table from DDL %s: %v. Skipping table.", ddlFilePath, err)
-			continue
+	for l := range rows {
+		tg.genOne(w)
+		if l != rows-1 {
+			if err := w.WriteByte('\n'); err != nil {
+				return err
+			}
 		}
 	}
-
-	logrus.Info("Data generation process completed.")
 	return nil
 }
 
-func parseDDL(ddlFilePath string) (map[string]ColumnInfo, error) { 
-	logrus.Debugf("Parsing DDL file: %s", ddlFilePath)
-	content, err := os.ReadFile(ddlFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read DDL file %s: %w", ddlFilePath, err)
+// GenOne generates one CSV line into writer.
+func (tg *TableGen) genOne(w *bufio.Writer) {
+	for i, g := range tg.colGens {
+		val := g.Gen()
+		if val == nil {
+			w.WriteString(`\N`)
+		} else if v, ok := val.(json.RawMessage); ok {
+			w.Write(v)
+		} else {
+			w.WriteString(fmt.Sprint(val))
+		}
+		if i != len(tg.colGens)-1 {
+			w.WriteRune(ColumnSeparator)
+		}
+	}
+}
+
+type GenRule = map[string]any
+
+type TypeVisitor struct {
+	Colpath string  // the path of the column, e.g. "db.table.col"
+	GenRule GenRule // rules of generator
+}
+
+func NewTypeVisitor(colpath string, genRule GenRule) *TypeVisitor {
+	if genRule == nil {
+		genRule = GenRule{}
+	}
+	return &TypeVisitor{
+		Colpath: colpath,
+		GenRule: genRule,
+	}
+}
+
+func (v *TypeVisitor) MergeDefaultRule(baseType string) *TypeVisitor {
+	defaultGenRule, ok := DefaultTypeGenRules[baseType]
+	if !ok {
+		if ty_, ok := TypeAlias[baseType]; ok {
+			baseType = ty_
+		}
+		defaultGenRule, ok = DefaultTypeGenRules[baseType]
+		if !ok {
+			return v
+		}
+	}
+	if len(defaultGenRule) == 0 {
+		return v
 	}
 
-	columns := make(map[string]ColumnInfo) 
-	colDefinitionRegex := regexp.MustCompile(
-		"`?([a-zA-Z0-9_]+)`?" + 
-			"\\s+" +
-			"([a-zA-Z]+(?:\\s*\\(\\s*\\d+\\s*(?:,\\s*\\d+\\s*)?\\))?(?:\\s+UNSIGNED|\\s+ZEROFILL)?)",
+	if err := mergo.Merge(&v.GenRule, defaultGenRule); err != nil {
+		logrus.Fatalf("Unable to merge default gen rule for type '%s' in column '%s', err: %v\n", baseType, v.Colpath, err)
+	}
+
+	return v
+}
+
+func (v *TypeVisitor) HasGenRule() bool {
+	return len(v.GenRule) > 0
+}
+
+func (v *TypeVisitor) GetRule(name string, defaultValue ...any) any {
+	if !v.HasGenRule() {
+		return nil
+	}
+	if r, ok := v.GenRule[name]; ok {
+		return r
+	}
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+	return nil
+}
+
+func (v *TypeVisitor) GetMinMax() (min, max any) {
+	return v.GetRule("min"), v.GetRule("max")
+}
+
+func (v *TypeVisitor) GetLength() (min, max int) {
+	l := v.GetRule("length")
+	if l == nil {
+		logrus.Fatalf("length not found for column '%s'\n", v.Colpath)
+	}
+
+	switch l := l.(type) {
+	case int, float32, float64:
+		length := cast.ToInt(l)
+		min, max = length, length
+	case GenRule:
+		min, max = cast.ToInt(l["min"]), cast.ToInt(l["max"])
+	}
+	if max < min {
+		logrus.Debugf("length max(%d) < min(%d), set max to min for column '%s'\n", max, min, v.Colpath)
+		min = max
+	}
+	return
+}
+
+func (v *TypeVisitor) ChildGenRule(name string) GenRule {
+	r := v.GetRule(name)
+	if r == nil {
+		return nil
+	}
+	return r.(GenRule)
+}
+
+func (v *TypeVisitor) GetChildGenRule(name string, childType parser.IDataTypeContext) Gen {
+	return NewTypeVisitor(v.Colpath+"."+name, v.ChildGenRule(name)).GetTypeGen(childType)
+}
+
+func (v *TypeVisitor) GetNullFrequency() float32 {
+	nullFrequency, err := cast.ToFloat32E(v.GetRule("null_frequency", GLOBAL_NULL_FREQUENCY))
+	if err != nil || nullFrequency < 0 || nullFrequency > 1 {
+		logrus.Fatalf("Invalid null frequency '%v' for column '%s': %v\n", v.GetRule("null_frequency"), v.Colpath, err)
+	}
+	return nullFrequency
+}
+
+func (v *TypeVisitor) GetBastType(type_ parser.IDataTypeContext) (t string) {
+	switch ty := type_.(type) {
+	case *parser.ComplexDataTypeContext:
+		t = ty.GetComplex_().GetText()
+	case *parser.PrimitiveDataTypeContext:
+		t = ty.PrimitiveColType().GetType_().GetText()
+	default:
+		logrus.Fatalf("Unsupported column type '%s' for column '%s'\n", type_.GetText(), v.Colpath)
+	}
+	return strings.ToUpper(t)
+}
+
+func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
+	baseType := v.GetBastType(type_)
+	v.MergeDefaultRule(baseType) // Merge global (aka. default) generate rules first.
+	if logrus.GetLevel() > logrus.DebugLevel {
+		logrus.Tracef("gen rule of '%s': %s\n", v.Colpath, string(MustJsonMarshal(v.GenRule)))
+	}
+
+	var (
+		nullFrequency = v.GetNullFrequency()
+		g             Gen
 	)
 
-	typeWithLengthRegex := regexp.MustCompile(`([a-zA-Z]+)\s*\((\d+)\)`)                 
-	typeWithPrecisionScaleRegex := regexp.MustCompile(`([a-zA-Z]+)\s*\((\d+)\s*,\s*(\d+)\)`) 
-
-	createTableRegex := regexp.MustCompile(`(?is)CREATE(?:\s+TEMPORARY)?\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s*` + "`?" + `[^` + "`" + `.\s]+` + "`?" + `\.` + "`?" + `[^` + "`" + `.\s]+` + "`?" + `\s*\((.*)\)`)
-	matches := createTableRegex.FindSubmatch(content)
-	if len(matches) < 2 {
-		createTableRegex = regexp.MustCompile(`(?is)CREATE(?:\s+TEMPORARY)?\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s*` + "`?" + `[^` + "`" + `.\s]+` + "`?" + `\s*\((.*)\)`)
-		matches = createTableRegex.FindSubmatch(content)
-		if len(matches) < 2 {
-			logrus.Warnf("Could not find CREATE TABLE statement or column definitions in %s", ddlFilePath)
-			return columns, nil
-		}
-	}
-	columnDefsBlock := string(matches[1])
-
-	blockCommentRegex := regexp.MustCompile(`/\*(?s:.*?)\*/`)
-	columnDefsBlock = blockCommentRegex.ReplaceAllString(columnDefsBlock, "")
-	lineCommentRegex := regexp.MustCompile(`--.*?(\n|$)`)
-	columnDefsBlock = lineCommentRegex.ReplaceAllString(columnDefsBlock, "\n")
-
-	defs := strings.Split(columnDefsBlock, "\n")
-
-	for _, line := range defs {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(strings.ToUpper(line), "PRIMARY KEY") ||
-			strings.HasPrefix(strings.ToUpper(line), "KEY") || strings.HasPrefix(strings.ToUpper(line), "INDEX") ||
-			strings.HasPrefix(strings.ToUpper(line), "CONSTRAINT") || strings.HasPrefix(strings.ToUpper(line), "UNIQUE KEY") ||
-			strings.HasPrefix(line, ")") {
-			continue
-		}
-
-		match := colDefinitionRegex.FindStringSubmatch(line)
-		if len(match) < 3 {
-			logrus.Debugf("Line did not match column definition regex: %s", line)
-			continue 
-		}
-
-		colName := match[1]
-		fullTypeStr := strings.ToUpper(match[2]) 
-
-		colInfo := ColumnInfo{
-			Name:      colName,
-			FullType:  fullTypeStr,
-			Length:    0, 
-			Precision: 0, 
-			Scale:     0, 
-		}
-
-		if psMatch := typeWithPrecisionScaleRegex.FindStringSubmatch(fullTypeStr); len(psMatch) == 4 {
-			colInfo.BaseType = psMatch[1]
-			colInfo.Precision, _ = strconv.Atoi(psMatch[2])
-			colInfo.Scale, _ = strconv.Atoi(psMatch[3])
-		} else if lMatch := typeWithLengthRegex.FindStringSubmatch(fullTypeStr); len(lMatch) == 3 {
-			baseTypeName := lMatch[1]
-			numVal, _ := strconv.Atoi(lMatch[2])
-			if baseTypeName == "DECIMAL" || baseTypeName == "NUMERIC" || baseTypeName == "FLOAT" || baseTypeName == "DOUBLE" { 
-				colInfo.BaseType = baseTypeName
-				colInfo.Precision = numVal
-				colInfo.Scale = 0 
-			} else { 
-				colInfo.BaseType = baseTypeName
-				colInfo.Length = numVal
+	switch ty := type_.(type) {
+	case *parser.ComplexDataTypeContext:
+		switch baseType {
+		case "ARRAY":
+			// Handle array type
+			g_ := &ArrayGen{}
+			g_.LenMin, g_.LenMax = v.GetLength()
+			g_.SetElementGen(v.GetChildGenRule("element", ty.DataType(0)))
+			g = g_
+		case "MAP":
+			// Handle map type
+			kv := ty.AllDataType()
+			if len(kv) != 2 {
+				logrus.Fatalf("Invalid map type: '%s' for column '%s', expected 2 types for key and value\n", ty.GetText(), v.Colpath)
 			}
-		} else {
-			typeParts := strings.Fields(fullTypeStr) 
-			if len(typeParts) > 0 {
-				colInfo.BaseType = typeParts[0]
+
+			// Handle key-value pair in map
+			g_ := &MapGen{}
+			g_.LenMin, g_.LenMax = v.GetLength()
+			g_.SetKeyGen(v.GetChildGenRule("key", kv[0]))
+			g_.SetValueGen(v.GetChildGenRule("value", kv[1]))
+			g = g_
+		case "STRUCT":
+			// Handle struct type
+			g_ := &StructGen{}
+
+			// Handle each field in the struct
+			fields_ := v.GetRule("fields")
+			if fields_ == nil {
+				fields_ = v.GetRule("field")
+			}
+			fieldRules, ok := fields_.([]GenRule) // Ensure fields is a slice of maps
+			if !ok {
+				if fields_ != nil {
+					logrus.Fatalf("Invalid struct fields type '%T' for column '%s'\n", fields_, v.Colpath)
+				}
+				fieldRules = []GenRule{}
+			}
+			i := 0
+			fields := lo.SliceToMap(fieldRules, func(field GenRule) (string, GenRule) {
+				fieldName, ok := field["name"].(string)
+				if !ok {
+					logrus.Fatalf("Struct field #%d has no name in column '%s'\n", i, v.Colpath)
+				}
+				i++
+				return fieldName, field
+			})
+			for _, field := range ty.ComplexColTypeList().AllComplexColType() {
+				fieldName := strings.Trim(field.Identifier().GetText(), "`")
+				fieldType := field.DataType()
+				fieldGenRule, ok := fields[fieldName]
+				if !ok {
+					fieldGenRule = nil
+				}
+				fieldVisitor := NewTypeVisitor(v.Colpath+"."+fieldName, fieldGenRule)
+				g_.AddChild(fieldName, fieldVisitor.GetTypeGen(fieldType))
+			}
+			g = g_
+		default:
+			logrus.Fatalf("Unsupported complex type: '%s' for column '%s'\n", ty.GetComplex_().GetText(), v.Colpath)
+		}
+	case *parser.PrimitiveDataTypeContext:
+		min_, max_ := v.GetMinMax()
+		switch baseType {
+		case "BITMAP":
+			// Generate a random bitmap array with a length between lenMin and lenMax
+			lenMin, lenMax := v.GetLength()
+			min, max := CastMinMax[int64](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any {
+				return json.RawMessage(MustJsonMarshal(lo.RepeatBy(gofakeit.IntRange(lenMin, lenMax), func(_ int) int64 {
+					return rand.Int64N(max-min+1) + min
+				})))
+			})
+		case "JSON", "JSONB", "VARIANT":
+			var genRule GenRule
+			structure, ok := v.GetRule("structure").(string)
+			structure = strings.TrimSpace(structure)
+			if ok && structure != "" {
+				genRule = maps.Clone(v.GenRule)
+				delete(genRule, "structure")
 			} else {
-				colInfo.BaseType = fullTypeStr 
+				logrus.Fatalf("JSON/JSONB/VARIANT must have gen rule 'structure at column '%s'\n", v.Colpath)
 			}
-		}
-		
-		columns[colName] = colInfo
-		logrus.Debugf("Parsed column: Name=%s, BaseType=%s, Length=%d, Precision=%d, Scale=%d, FullType=%s",
-			colInfo.Name, colInfo.BaseType, colInfo.Length, colInfo.Precision, colInfo.Scale, colInfo.FullType)
-	}
 
-	if len(columns) == 0 {
-		logrus.Warnf("No columns parsed from DDL: %s. Check DDL structure and parsing regexes.", ddlFilePath)
-	} else {
-		logrus.Infof("Parsed %d columns from %s", len(columns), ddlFilePath)
+			p := parser.NewParser(v.Colpath, structure)
+			dataType := p.DataType()
+			if err := p.ErrListener.LastErr; err != nil {
+				logrus.Fatalf("Invalid JSON structure '%s' for column '%s': %v\n", structure, v.Colpath, err)
+			}
+			visitor := NewTypeVisitor(v.Colpath, genRule)
+			g = visitor.GetTypeGen(dataType)
+		case "BOOL", "BOOLEAN":
+			enum := []int{0, 1}
+			g = NewFuncGen(func() any { return gofakeit.RandomInt(enum) }) // BOOLEAN is typically 0 or 1
+		case "TINYINT":
+			min, max := CastMinMax[int8](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(min, max)
+		case "SMALLINT":
+			min, max := CastMinMax[int16](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(min, max)
+		case "INT", "INTEGER":
+			min, max := CastMinMax[int32](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(min, max)
+		case "BIGINT", "LARGEINT": // TODO: Need larger INT?
+			min, max := CastMinMax[int64](min_, max_, baseType, v.Colpath)
+			range_ := max - min + 1
+			g = NewFuncGen(func() int64 { return rand.Int64N(range_) + min })
+		case "FLOAT":
+			min, max := CastMinMax[float32](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.Float32Range(min, max) })
+		case "DOUBLE":
+			min, max := CastMinMax[float64](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.Float64Range(min, max) })
+		case "DECIMAL", "DECIMALV2", "DECIMALV3": // TODO: Need larger DECIMAL?
+			var precision, scale int = 999, 999
+			if v.GetRule("precision") != nil {
+				precision = cast.ToInt(v.GetRule("precision"))
+			}
+			if v.GetRule("scale") != nil {
+				scale = cast.ToInt(v.GetRule("scale"))
+			}
+
+			intVals := ty.AllINTEGER_VALUE()
+			p := cast.ToInt(intVals[0].GetText())
+			if p > 38 {
+				p = 38
+			}
+			if precision > p {
+				precision = p
+				// logrus.Debugf("Precision '%d' is larger than the defined precision '%d' for column '%s', using %d instead\n", precision, p, v.Colpath, p)
+			}
+			if len(intVals) > 1 {
+				s := cast.ToInt(intVals[1].GetText())
+				if s < 0 || s > precision {
+					// logrus.Debugf("Scale '%d' is invalid for precision '%d' in column '%s', using 0 instead\n", s, precision, v.Colpath)
+					s = 0
+				} else if scale > s {
+					// logrus.Debugf("Scale '%d' is larger than the defined scale '%d' for column '%s', using %d instead\n", scale, s, v.Colpath, s)
+					scale = s
+				}
+			}
+
+			var min, max int64
+			if min_ == nil {
+				min = -int64(math.Pow10(int(precision))) + 1 // Default min value
+			} else {
+				min = cast.ToInt64(min_)
+			}
+			if max_ == nil {
+				max = int64(math.Pow10(int(precision))) - 1 // Default max value
+			} else {
+				max = cast.ToInt64(max_)
+			}
+
+			// TODO: Support larger precision
+			intLen := precision - scale
+			if intLen > MAX_DECIMAL_INT_LEN {
+				intLen = MAX_DECIMAL_INT_LEN
+			}
+
+			g = NewFuncGen(func() any {
+				var res [2]int64
+				if intLen == 0 {
+					res[0] = 0
+				} else if min < 0 && rand.Float32() < 0.5 {
+					delta := -float64(min)
+					n := int64(math.Min(delta, math.Pow10(intLen)-1))
+					res[0] = -rand.Int64N(n)
+				} else {
+					delta := float64(max) - math.Max(0, float64(min)) + 1
+					lowerBound := int64(math.Max(0, float64(min)))
+					n := int64(math.Min(delta, math.Pow10(intLen)-1))
+					res[0] = lowerBound + rand.Int64N(n)
+				}
+
+				n := int64(math.Pow10(scale))
+				if n <= 0 {
+					res[1] = 0
+				} else {
+					res[1] = rand.Int64N(n)
+				}
+
+				return json.RawMessage(fmt.Sprintf("%d.%0*d", res[0], scale, res[1])) // Format as decimal string
+			})
+		case "DATE", "DATEV1", "DATEV2":
+			min, max := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.DateRange(min, max).Format("2006-01-02") })
+		case "DATETIME", "DATETIMEV1", "DATETIMEV2", "TIMESTAMP":
+			min, max := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.DateRange(min, max).Format("2006-01-02 15:04:05") })
+		case "TEXT", "STRING":
+			lenMin, lenMax := v.GetLength()
+			lenMin = lo.Max([]int{1, lenMin})
+			lenMax = lo.Max([]int{1, lenMax})
+			g = NewFuncGen(func() any { return RandomStr(lenMin, lenMax) })
+		case "VARCHAR":
+			var (
+				length         int
+				lenMin, lenMax = v.GetLength()
+			)
+			lenMin = lo.Max([]int{1, lenMin})
+			lenMax = lo.Max([]int{1, lenMax})
+			length_ := ty.INTEGER_VALUE(0)
+			if length_ != nil {
+				length = lo.Max([]int{1, cast.ToInt(length_.GetText())})
+			} else {
+				length = lenMax
+			}
+			if length < lenMax {
+				lenMax = length
+			}
+			if lenMin > lenMax {
+				lenMin = 1
+			}
+			g = NewFuncGen(func() any { return RandomStr(lenMin, lenMax) })
+		case "CHAR":
+			length_ := ty.INTEGER_VALUE(0)
+			if length_ == nil {
+				logrus.Fatalf("CHAR type must have a length in column '%s'\n", v.Colpath)
+			}
+			length := lo.Max([]int{1, cast.ToInt(length_.GetText())})
+			if length > 255 {
+				length = 255
+			}
+			g = NewFuncGen(func() any { return RandomStr(length, length) })
+		case "IPV4":
+			g = NewFuncGen(func() any { return gofakeit.IPv4Address() })
+		case "IPV6":
+			g = NewFuncGen(func() any { return gofakeit.IPv6Address() })
+		default: // TODO: HLL, AGG_STATE, QUANTILE_STATE
+			logrus.Fatalf("Unsupported column type '%s' for column '%s'\n", type_.GetText(), v.Colpath)
+		}
 	}
-	return columns, nil
+	if nullFrequency > 0 && nullFrequency <= 1 && baseType != "BITMAP" {
+		return NewFuncGen(func() any {
+			if rand.Float32() < nullFrequency {
+				return nil
+			}
+			return g.Gen()
+		})
+	}
+	return g
 }
 
-// parseStats parses a .stats.yaml file, expecting a DBSchema structure,
-// and returns the TableStats for the specified dbName and tableName.
-func parseStats(statsFilePath, dbName, tableName string) (*TableStats, error) {
-	logrus.Debugf("Parsing stats file: %s for db: %s, table: %s", statsFilePath, dbName, tableName)
-	
-	content, err := os.ReadFile(statsFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logrus.Warnf("Stats file not found: %s. Proceeding without stats.", statsFilePath)
-			return nil, nil // Not an error to proceed, but no stats available.
-		}
-		return nil, fmt.Errorf("failed to read stats file %s: %w", statsFilePath, err)
-	}
-
-	if len(content) == 0 {
-		logrus.Warnf("Stats file %s is empty. Proceeding without stats.", statsFilePath)
-		return nil, nil // Treat as no stats available
-	}
-	
-	var dbSchema DBSchema // Assuming DBSchema is defined in the same package (src)
-	err = yaml.Unmarshal(content, &dbSchema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal stats YAML from %s into DBSchema: %w", statsFilePath, err)
-	}
-
-	// Optional: Validate dbName if dbSchema.Name is populated and expected to match.
-	// The current DBSchema yaml tag for Name is "db".
-	if dbSchema.Name != "" && dbSchema.Name != dbName {
-		logrus.Warnf("DB name in stats file ('%s') does not match expected DB name ('%s') for file %s. Stats might not be relevant.", dbSchema.Name, dbName, statsFilePath)
-		// Depending on strictness, could return an error here or just proceed to find table.
-	}
-
-	for _, ts := range dbSchema.Stats { // DBSchema.Stats is []*TableStats
-		if ts.Name == tableName {
-			logrus.Infof("Successfully found and parsed stats for table %s.%s from %s", dbName, tableName, statsFilePath)
-			return ts, nil
-		}
-	}
-
-	logrus.Warnf("Table '%s' not found in stats file %s (DB schema '%s'). Proceeding without table-specific stats.", tableName, statsFilePath, dbSchema.Name)
-	return nil, nil // Table not found, but not necessarily an error to proceed without its stats.
+type Gen interface {
+	Gen() any
 }
 
+type StructGen struct {
+	Fields []*StructFieldGen
+}
 
-func generateTableData(csvFilePath string, columnDefs map[string]ColumnInfo, tableStats *TableStats, numRows int) error { 
-	logrus.Debugf("Generating data for CSV: %s. Columns: %+v, NumRows: %d", csvFilePath, columnDefs, numRows)
-	if tableStats != nil {
-		logrus.Debugf("With Stats: %+v", tableStats)
+func (g *StructGen) AddChild(name string, child Gen) {
+	g.Fields = append(g.Fields, &StructFieldGen{Name: name, Value: child})
+}
+
+func (g *StructGen) Gen() any {
+	field2Data := lo.SliceToMap(g.Fields, func(field *StructFieldGen) (string, any) {
+		return field.Name, field.Gen()
+	})
+
+	return json.RawMessage(MustJsonMarshal(field2Data))
+}
+
+type StructFieldGen struct {
+	Name  string
+	Value Gen
+}
+
+func (g *StructFieldGen) Gen() any {
+	return g.Value.Gen()
+}
+
+type ArrayGen struct {
+	Element        Gen
+	LenMin, LenMax int
+}
+
+func (g *ArrayGen) Gen() any {
+	len := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
+
+	elementData := lo.RepeatBy(len, func(_ int) any {
+		return g.Element.Gen()
+	})
+
+	return json.RawMessage(MustJsonMarshal(elementData))
+}
+
+func (g *ArrayGen) SetElementGen(elem Gen) {
+	g.Element = elem
+}
+
+type MapGen struct {
+	Key, Value     Gen
+	LenMin, LenMax int
+}
+
+func (g *MapGen) Gen() any {
+	len := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
+
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i := 0; i < len; i++ {
+		key := g.Key.Gen()
+		value := g.Value.Gen()
+		b.Write(MustJsonMarshal(key))
+		b.WriteByte(':')
+		b.Write(MustJsonMarshal(value))
+		if i < len-1 {
+			b.WriteByte(',')
+		}
 	}
+	b.WriteByte('}')
+	return json.RawMessage(b.Bytes())
+}
 
+func (g *MapGen) SetKeyGen(k Gen) {
+	g.Key = k
+}
 
-	if len(columnDefs) == 0 {
-		logrus.Warnf("No column definitions found for %s, skipping CSV generation.", csvFilePath)
-		return nil
-	}
+func (g *MapGen) SetValueGen(v Gen) {
+	g.Value = v
+}
 
-	file, err := os.Create(csvFilePath)
+type fgen[T any] struct {
+	f func() T
+}
+
+func NewIntGen[T int8 | int16 | int | int32](min, max T) Gen {
+	return NewFuncGen(func() int { return gofakeit.IntRange(int(min), int(max)) })
+}
+
+func NewFuncGen[T any](f func() T) Gen {
+	return &fgen[T]{f: f}
+}
+
+func (g *fgen[T]) Gen() any {
+	return g.f()
+}
+
+func CastMinMax[R int8 | int16 | int | int32 | int64 | float32 | float64 | time.Time](min_, max_ any, baseType, colpath string, errmsg ...string) (R, R) {
+	min, max, err := Cast2[R](min_, max_)
 	if err != nil {
-		return fmt.Errorf("failed to create CSV file %s: %w", csvFilePath, err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	columnOrder := make([]string, 0, len(columnDefs))
-	for colName := range columnDefs { 
-		columnOrder = append(columnOrder, colName)
-	}
-
-	if err := writer.Write(columnOrder); err != nil {
-		return fmt.Errorf("failed to write CSV header to %s: %w", csvFilePath, err)
-	}
-	
-	for r := 0; r < numRows; r++ {
-		record := make([]string, len(columnOrder))
-		for i, colName := range columnOrder {
-			colInfo := columnDefs[colName] 
-			colType := strings.ToUpper(colInfo.BaseType) 
-			var val string
-
-			var currentColumnStats *ColumnStats
-			if tableStats != nil {
-				for _, cs := range tableStats.Columns {
-					if cs.Name == colName {
-						currentColumnStats = cs
-						break
-					}
-				}
-			}
-
-			switch {
-			case colType == "VARCHAR", colType == "CHAR":
-				lowerColName := strings.ToLower(colInfo.Name)
-				length := colInfo.Length
-				if length <= 0 { length = 10 } // Default length if not specified or invalid for LetterN
-
-				// Heuristic-based generation
-				generatedByCategory := true
-				switch {
-				case strings.Contains(lowerColName, "email"):
-					val = gofakeit.Email()
-				case strings.Contains(lowerColName, "phone") || strings.Contains(lowerColName, "mobile"):
-					val = gofakeit.PhoneFormatted()
-				case strings.Contains(lowerColName, "city"):
-					val = gofakeit.City()
-				case strings.Contains(lowerColName, "country"):
-					val = gofakeit.Country()
-				case strings.Contains(lowerColName, "zip") || strings.Contains(lowerColName, "postal"):
-					val = gofakeit.Zip()
-				case strings.Contains(lowerColName, "url"):
-					val = gofakeit.URL()
-				case strings.Contains(lowerColName, "uuid") || (colName == "id" && length >=36) : // Also check for typical ID column name
-					val = gofakeit.UUID()
-				case strings.Contains(lowerColName, "street"): // Must be before general "address"
-					val = gofakeit.Street() // Corrected function name
-				case strings.Contains(lowerColName, "address"):
-					val = gofakeit.Address().Address
-				case strings.Contains(lowerColName, "company") || strings.Contains(lowerColName, "organization"):
-					val = gofakeit.Company()
-				case strings.Contains(lowerColName, "job") || strings.Contains(lowerColName, "occupation"):
-					val = gofakeit.JobTitle()
-				case strings.Contains(lowerColName, "first") && strings.Contains(lowerColName, "name"):
-					val = gofakeit.FirstName()
-				case strings.Contains(lowerColName, "last") && strings.Contains(lowerColName, "name"):
-					val = gofakeit.LastName()
-				case strings.Contains(lowerColName, "full") && strings.Contains(lowerColName, "name"):
-					val = gofakeit.Name()
-				case strings.Contains(lowerColName, "name"): // General name, if no "first/last/full"
-					val = gofakeit.Name()
-				case strings.Contains(lowerColName, "title") && !strings.Contains(lowerColName, "job"): // Avoid job title
-					val = gofakeit.BookTitle() 
-				case strings.Contains(lowerColName, "subject"):
-					val = gofakeit.Sentence(gofakeit.Number(3, 7)) // 3 to 7 words
-				// Description/Comment like fields for VARCHAR/CHAR should be shorter than TEXT
-				case strings.Contains(lowerColName, "desc") || strings.Contains(lowerColName, "comment") || 
-				     strings.Contains(lowerColName, "note") || strings.Contains(lowerColName, "detail"):
-					val = gofakeit.Sentence(gofakeit.Number(5, 15)) // 5 to 15 words
-				default:
-					generatedByCategory = false
-					// Fallback to random letters if no specific heuristic matches
-					// Cap length for LetterN to avoid excessive strings if DDL length is very large
-					letterNLength := length
-					if letterNLength > 500 { letterNLength = 500 } 
-					val = gofakeit.LetterN(uint(letterNLength))
-				}
-
-				// Truncate if necessary, only for VARCHAR/CHAR where length is defined
-				if colInfo.Length > 0 && len(val) > colInfo.Length {
-					// For UUIDs or specific formats, truncation might break them.
-					// However, DDL length constraint is king.
-					// For UUID, if length is < 36, this will truncate it.
-					if generatedByCategory && (strings.Contains(lowerColName, "uuid") || strings.Contains(lowerColName, "phone")) {
-						// Maybe warn if a formatted string is being truncated due to DDL length
-						logrus.Warnf("Formatted value for column '%s' might be truncated due to DDL length %d. Value: '%s'", colName, colInfo.Length, val)
-					}
-					val = val[:colInfo.Length]
-				}
-
-			case colType == "TEXT", colType == "BLOB", colType == "CLOB", colType == "STRING":
-				lowerColName := strings.ToLower(colInfo.Name)
-				if strings.Contains(lowerColName, "desc") || strings.Contains(lowerColName, "comment") || 
-				   strings.Contains(lowerColName, "note") || strings.Contains(lowerColName, "detail") || 
-				   strings.Contains(lowerColName, "text") || strings.Contains(lowerColName, "message") ||
-				   strings.Contains(lowerColName, "content") {
-					val = gofakeit.Paragraph(gofakeit.Number(1,3), gofakeit.Number(2,5), gofakeit.Number(10,20), ". ")
-				} else if colName == "id" || strings.HasSuffix(strings.ToLower(colName), "_id") {
-					val = gofakeit.UUID()
-				}
-
-			case colType == "INT", colType == "BIGINT", colType == "SMALLINT", colType == "TINYINT":
-				minStatVal, maxStatVal := 0, 1000000 // Default range
-				useStatRange := false
-				if currentColumnStats != nil && currentColumnStats.Min != "" && currentColumnStats.Max != "" {
-					parsedMin, errMin := strconv.Atoi(currentColumnStats.Min)
-					parsedMax, errMax := strconv.Atoi(currentColumnStats.Max)
-					if errMin == nil && errMax == nil && parsedMin <= parsedMax {
-						minStatVal, maxStatVal = parsedMin, parsedMax
-						useStatRange = true
-					} else {
-						logrus.Warnf("Invalid Min/Max ('%s', '%s') for INT column '%s'. Using default range.", currentColumnStats.Min, currentColumnStats.Max, colName)
-					}
-				}
-				
-				if useStatRange {
-					val = fmt.Sprintf("%d", gofakeit.Number(minStatVal, maxStatVal))
-				} else { // Fallback or heuristic based generation
-					if colName == "id" || strings.HasSuffix(strings.ToLower(colName), "_id") {
-						val = fmt.Sprintf("%d", gofakeit.Number(1, 100000))
-					} else if strings.Contains(strings.ToLower(colName), "age") {
-						val = fmt.Sprintf("%d", gofakeit.Number(1, 100))
-					} else if strings.Contains(strings.ToLower(colName), "year") {
-						val = fmt.Sprintf("%d", gofakeit.Year())
-					} else {
-						val = fmt.Sprintf("%d", gofakeit.Number(minStatVal, maxStatVal)) // Use default range
-					}
-				}
-
-			case colType == "DECIMAL", colType == "NUMERIC", colType == "FLOAT", colType == "DOUBLE":
-				minFStatVal, maxFStatVal := 0.0, 100000.0 // Default range
-				useFloatStatRange := false
-				if currentColumnStats != nil && currentColumnStats.Min != "" && currentColumnStats.Max != "" {
-					parsedMin, errMin := strconv.ParseFloat(currentColumnStats.Min, 64)
-					parsedMax, errMax := strconv.ParseFloat(currentColumnStats.Max, 64)
-					if errMin == nil && errMax == nil && parsedMin <= parsedMax {
-						minFStatVal, maxFStatVal = parsedMin, parsedMax
-						useFloatStatRange = true
-					} else {
-						logrus.Warnf("Invalid Min/Max ('%s', '%s') for NUMERIC/FLOAT column '%s'. Using default range.", currentColumnStats.Min, currentColumnStats.Max, colName)
-					}
-				}
-
-				numToFormat := gofakeit.Float64Range(minFStatVal, maxFStatVal)
-				if !useFloatStatRange { // If not using stats, calculate max based on precision
-					maxCalculated := 100000.0
-					if colInfo.Precision > 0 && colInfo.Precision > colInfo.Scale {
-						power := float64(colInfo.Precision - colInfo.Scale)
-						maxCalculated = 1.0
-						for i := 0; i < int(power); i++ { maxCalculated *= 10 }
-						if maxCalculated > 1e12 { maxCalculated = 1e12 }
-					} else if colInfo.Precision > 0 && colInfo.Scale == 0 {
-						maxCalculated = 1.0
-						for i := 0; i < colInfo.Precision; i++ { maxCalculated *= 10 }
-						if maxCalculated > 1e12 { maxCalculated = 1e12 }
-					}
-					// If stats were not used, regenerate number within calculated range if smaller
-					if maxCalculated < maxFStatVal { // Check if precision-based max is more restrictive
-						numToFormat = gofakeit.Float64Range(minFStatVal, maxCalculated) // minFStatVal is likely 0 if no stats
-					}
-				}
-				
-				format := "%f"
-				if colType == "DECIMAL" || colType == "NUMERIC" {
-					format = fmt.Sprintf("%%.%df", colInfo.Scale)
-				} else if colInfo.Scale > 0 { // For FLOAT/DOUBLE if scale was parsed (e.g. from FLOAT(P,S))
-					format = fmt.Sprintf("%%.%df", colInfo.Scale)
-				}
-				val = fmt.Sprintf(format, numToFormat)
-
-				if strings.Contains(strings.ToLower(colName), "price") || strings.Contains(strings.ToLower(colName), "amount") {
-					priceFormat := "%.2f"
-					if colInfo.Scale > 0 && (colType == "DECIMAL" || colType == "NUMERIC") {
-						priceFormat = fmt.Sprintf("%%.%df", colInfo.Scale)
-					}
-					val = fmt.Sprintf(priceFormat, gofakeit.Price(minFStatVal, maxFStatVal))
-				}
-				
-			case colType == "DATE":
-				minTime, maxTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), time.Now()
-				useDateStatRange := false // Corrected: remove underscore to match previous declaration if it was a typo, or ensure consistency.
-				                        // The previous build error implies these specific variable names were "declared and not used".
-										// Let's assume the declaration was `useDateStatRange` and `useDateTimeStatRange` (no underscore).
-				if currentColumnStats != nil && currentColumnStats.Min != "" && currentColumnStats.Max != "" {
-					parsedMin, errMin := parseDateFlexible(currentColumnStats.Min)
-					parsedMax, errMax := parseDateFlexible(currentColumnStats.Max)
-					if errMin == nil && errMax == nil && (parsedMin.Before(parsedMax) || parsedMin.Equal(parsedMax)) {
-						minTime, maxTime = parsedMin, parsedMax
-						useDateStatRange = true
-					} else {
-						logrus.Warnf("Invalid Min/Max ('%s', '%s') for DATE column '%s'. Using default range.", currentColumnStats.Min, currentColumnStats.Max, colName)
-					}
-				}
-				if useDateStatRange { 
-					val = gofakeit.DateRange(minTime, maxTime).Format("2006-01-02")
-				} else {
-					val = gofakeit.Date().Format("2006-01-02")
-				}
-
-
-			case colType == "DATETIME", colType == "TIMESTAMP":
-				minTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
-				maxTime := time.Now()
-				useDateTimeStatRange := false // Corrected: remove underscore
-				if currentColumnStats != nil && currentColumnStats.Min != "" && currentColumnStats.Max != "" {
-					parsedMin, errMin := parseDateTimeFlexible(currentColumnStats.Min)
-					parsedMax, errMax := parseDateTimeFlexible(currentColumnStats.Max)
-					if errMin == nil && errMax == nil && (parsedMin.Before(parsedMax) || parsedMin.Equal(parsedMax)) {
-						minTime, maxTime = parsedMin, parsedMax
-						useDateTimeStatRange = true
-					} else {
-						logrus.Warnf("Invalid Min/Max ('%s', '%s') for DATETIME/TIMESTAMP column '%s'. Using default range.", currentColumnStats.Min, currentColumnStats.Max, colName)
-					}
-				}
-				if useDateTimeStatRange { 
-					val = gofakeit.DateRange(minTime, maxTime).Format("2006-01-02 15:04:05")
-				} else {
-					val = gofakeit.Date().Format("2006-01-02 15:04:05")
-				}
-
-			case colType == "BOOLEAN", colType == "BOOL":
-				val = strconv.FormatBool(gofakeit.Bool())
-			case colType == "UUID": // Added case for UUID type
-				val = gofakeit.UUID()
-			default:
-				logrus.Warnf("Unsupported SQL BaseType '%s' for column '%s' in %s. Generating a random word.", colType, colName, csvFilePath)
-				val = gofakeit.Word()
-			}
-			record[i] = val
+		msg := fmt.Sprintf("Invalid min/max %s '%v/%v' for column '%s': %v, expect %T", baseType, min_, max_, colpath, err, min)
+		if len(errmsg) > 0 {
+			msg += ", " + errmsg[0]
 		}
-		if err := writer.Write(record); err != nil {
-			return fmt.Errorf("failed to write data row to CSV %s: %w", csvFilePath, err)
-		}
+		logrus.Fatalln(msg)
 	}
-	
-	logrus.Infof("Successfully generated %d rows into %s", numRows, csvFilePath)
+
+	minBigger := false
+	switch any(min).(type) {
+	case int8:
+		minBigger = any(max).(int8) < any(min).(int8)
+	case int16:
+		minBigger = any(max).(int16) < any(min).(int16)
+	case int:
+		minBigger = any(max).(int) < any(min).(int)
+	case int32:
+		minBigger = any(max).(int32) < any(min).(int32)
+	case int64:
+		minBigger = any(max).(int64) < any(min).(int64)
+	case float32:
+		minBigger = any(max).(float32) < any(min).(float32)
+	case float64:
+		minBigger = any(max).(float64) < any(min).(float64)
+	case time.Time:
+		minBigger = any(max).(time.Time).Before(any(min).(time.Time))
+	}
+	if minBigger {
+		logrus.Warnf("Column '%s' max(%v) < min(%v), set max to min\n", colpath, max, min)
+		max = min
+	}
+	return min, max
+}
+
+func CheckGenRowCount(rows int) error {
+	if rows < 0 {
+		return fmt.Errorf("--rows/row_count must be a positive integer, got %d", rows)
+	} else if rows > MaxGenRowCount {
+		return fmt.Errorf("--rows/row_count must be smaller than 100_000, got %d", rows)
+	}
 	return nil
-}
-
-// Gendata is a placeholder function for the gendata command's logic.
-// This function might be removed or refactored if GenerateData is called directly
-// from the cmd package.
-func Gendata() {
-	fmt.Println("src.Gendata called (placeholder) - this might be deprecated")
-}
-
-// parseDateFlexible tries to parse a date string using common layouts.
-func parseDateFlexible(dateStr string) (time.Time, error) {
-	layouts := []string{"2006-01-02", "2006/01/02", "2006-1-2", "2006/1/2"} // Add more if needed
-	for _, layout := range layouts {
-		t, err := time.Parse(layout, dateStr)
-		if err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("could not parse date: %s with any known layouts", dateStr)
-}
-
-// parseDateTimeFlexible tries to parse a datetime string using common layouts.
-func parseDateTimeFlexible(dateTimeStr string) (time.Time, error) {
-	layouts := []string{
-		"2006-01-02 15:04:05", "2006-01-02T15:04:05", "2006/01/02 15:04:05",
-		"2006-01-02 15:04", "2006-01-02T15:04",
-		"2006-01-02", // Also allow just date for datetime types if time is omitted
-	}
-	for _, layout := range layouts {
-		t, err := time.Parse(layout, dateTimeStr)
-		if err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("could not parse datetime: %s with any known layouts", dateTimeStr)
 }

@@ -1,0 +1,253 @@
+db: test
+tables:
+    - name: all_type_nullable
+      row_count: 5
+      columns:
+        - name: t_boolean_true
+          ndv: 2
+          null_count: 0
+          data_size: 5
+          avg_size_byte: 1
+          min: "FALSE"
+          max: "TRUE"
+          method: FULL
+        - name: t_null_decimal_precision_18
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-9939384076.38002145"
+          max: "9833382040.06565294"
+          method: FULL
+        - name: t_null_decimal_precision_38
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-8651731472684581768.1691744767450163"
+          max: "-2091192466690782103.3044663751923254"
+          method: FULL
+        - name: t_null_decimal_precision_8
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-5060.2174"
+          max: "5780.0281"
+          method: FULL
+        - name: t_string
+          ndv: 5
+          null_count: 0
+          data_size: 30
+          avg_size_byte: 6
+          min: gioo
+          max: ve
+          method: FULL
+        - name: date1
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "2022-01-28"
+          max: "2025-05-10"
+          method: FULL
+        - name: t_decimal_precision_17
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-880327755.73014927"
+          max: "-51425361.62351588"
+          method: FULL
+        - name: t_decimal_precision_38
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-7804553279841345278.6167463686997645"
+          max: "9119285621347768021.9335436899403616"
+          method: FULL
+        - name: t_empty_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 32
+          avg_size_byte: 6
+          min: efaminog
+          max: oar
+          method: FULL
+        - name: t_null_decimal_precision_17
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-760301698.80964654"
+          max: "826464628.92119347"
+          method: FULL
+        - name: t_decimal_precision_18
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-8547384058.04765621"
+          max: "6498916753.87319452"
+          method: FULL
+        - name: t_double
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-571877127.5455029"
+          max: "2054765894.9373324"
+          method: FULL
+        - name: t_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: bonibaduve
+          max: ugebi
+          method: FULL
+        - name: t_null_decimal_precision_4
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-79.47"
+          max: "76.11"
+          method: FULL
+        - name: company_code
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-1336160711408061501.9"
+          max: "4112709727168943974.1"
+          method: FULL
+        - name: t_char
+          ndv: 5
+          null_count: 0
+          data_size: 50
+          avg_size_byte: 10
+          min: erivalorab
+          max: uvimofitab
+          method: FULL
+        - name: t_decimal_precision_4
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-71.23"
+          max: "90.13"
+          method: FULL
+        - name: t_null_decimal_precision_2
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-7.2"
+          max: "8.3"
+          method: FULL
+        - name: t_null_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: fimadin
+          max: ra
+          method: FULL
+        - name: datetime1
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "2017-03-19 20:01:18"
+          max: "2022-05-07 10:18:11"
+          method: FULL
+        - name: dt_month
+          ndv: 5
+          null_count: 0
+          data_size: 18
+          avg_size_byte: 3
+          min: duk
+          max: ume
+          method: FULL
+        - name: t_bigint
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-1034738942"
+          max: "346671835"
+          method: FULL
+        - name: t_boolean_false
+          ndv: 2
+          null_count: 0
+          data_size: 5
+          avg_size_byte: 1
+          min: "FALSE"
+          max: "TRUE"
+          method: FULL
+        - name: t_empty_string
+          ndv: 5
+          null_count: 0
+          data_size: 28
+          avg_size_byte: 5
+          min: elitelo
+          max: uvok
+          method: FULL
+        - name: t_int
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-458637585"
+          max: "1718914612"
+          method: FULL
+        - name: t_null_string
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: fesumega
+          max: uvewoiuaou
+          method: FULL
+        - name: t_varchar_max_length
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: apuge
+          max: upo
+          method: FULL
+        - name: t_decimal_precision_2
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-6.6"
+          max: "8.3"
+          method: FULL
+        - name: t_decimal_precision_8
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-9854.9034"
+          max: "3662.0190"
+          method: FULL
+        - name: t_float
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-24238.533"
+          max: "25398.23"
+          method: FULL
+        - name: t_null_char
+          ndv: 5
+          null_count: 0
+          data_size: 50
+          avg_size_byte: 10
+          min: itaposalob
+          max: ufamularun
+          method: FULL

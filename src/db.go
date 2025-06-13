@@ -252,13 +252,17 @@ func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (
 	return dir, r.Err()
 }
 
-func GetTablesStats(ctx context.Context, conn *sqlx.DB, dbname string, tables ...string) ([]*TableStats, error) {
+func GetTablesStats(ctx context.Context, conn *sqlx.DB, analyze bool, dbname string, tables ...string) ([]*TableStats, error) {
 	if len(tables) == 0 {
 		return []*TableStats{}, nil
 	}
 
 	stats := make([]*TableStats, 0, len(tables))
 	for _, table := range tables {
+		if analyze {
+			analyzeTableSync(ctx, conn, dbname, table)
+		}
+
 		s, err := getTableStats(ctx, conn, dbname, table)
 		if err != nil {
 			logrus.Errorf("get table stats failed: db: %s, table: %s, err: %v\n", dbname, table, err)
@@ -273,10 +277,20 @@ func GetTablesStats(ctx context.Context, conn *sqlx.DB, dbname string, tables ..
 	return stats, nil
 }
 
+func analyzeTableSync(ctx context.Context, conn *sqlx.DB, dbname, table string) {
+	logrus.Debugf("analyzing table `%s`.`%s` with sync\n", dbname, table)
+
+	r, err := conn.QueryxContext(ctx, InternalSqlComment+fmt.Sprintf("ANALYZE TABLE `%s`.`%s` WITH SYNC", dbname, table))
+	if err != nil {
+		logrus.Errorf("Analyze table `%s`.`%s` failed, err: %v\n", dbname, table, err)
+	}
+	defer r.Close()
+}
+
 func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*TableStats, error) {
 	logrus.Debugln("get table stats:", table)
 
-	// show column stats of all table.
+	// show all column stats of table.
 	r, err := conn.QueryxContext(ctx, InternalSqlComment+fmt.Sprintf("SHOW COLUMN STATS `%s`.`%s`", dbname, table))
 	if err != nil {
 		return nil, err
