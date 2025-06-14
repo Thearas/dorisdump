@@ -75,6 +75,9 @@ func RunCreateSQL(ctx context.Context, conn *sqlx.DB, db string, sqlFile string,
 		stmt := p.GetTokenStream().GetTextFromInterval(interval)
 
 		logrus.Tracef("creating schema in db %s, sql: %s\n", db, stmt)
+		if dryrun {
+			return "", nil
+		}
 		c, err := conn.Connx(ctx)
 		if err != nil {
 			return "", err

@@ -8,6 +8,7 @@ require (
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
+	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.17.0
 	github.com/flier/gohs v1.2.2
 	github.com/go-sql-driver/mysql v1.7.1
@@ -34,7 +35,6 @@ require (
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

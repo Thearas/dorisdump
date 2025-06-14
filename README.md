@@ -42,8 +42,8 @@ dorisdump gendata --help
 # gen data for db1 and db2, it auto finds dump schemas under output dir
 dorisdump gendata --dbs db1,db2
 
-# gen data for t1 and t2 in db1
-dorisdump gendata --dbs db1 --table t1,t2
+# gen data for t1 and t2 in db1 with config
+dorisdump gendata --dbs db1 --table t1,t2 --genconf example/gendata.yaml
 
 # gen data from any create-table SQL
 dorisdump gendata --ddl create.sql
@@ -56,7 +56,7 @@ dorisdump create --help
 dorisdump create --dbs db1,db2
 
 # run any create table/view SQL in db1
-dorisdump gendata --ddl 'dir/*.sql' --db db1
+dorisdump create --ddl 'dir/*.sql' --db db1
 
 
 # Import data (Require curl command)
@@ -66,7 +66,7 @@ dorisdump import --help
 dorisdump import --dbs db1,db2
 
 # import data for t1 and t2 in db1
-dorisdump gendata --dbs db1 --table t1,t2
+dorisdump import --dbs db1 --table t1,t2
 
 # import data from any CSV file
 dorisdump import --tables db1.t1 --data data.csv

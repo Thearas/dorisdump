@@ -43,7 +43,8 @@ tables:
   - name: all_type_nullable
     # row_count: 100
     columns:
-      - name: dt_month
+      ### Basic ###
+      - name: dt_month # varchar(6)
         length: 2
       - name: t_null_decimal_precision_38
         precision: 10
@@ -59,25 +60,78 @@ tables:
         min: "1997-01-15"
         max: "1997-01-15"
 
-      ### Complex type ###
 
-      # MAP map<varchar(255),varchar(255)>
-      - name: t_map_varchar
+      ### Custom generator ###
+
+      # inc generator
+      - name: t_string
+        gen:
+          # All custom generators can have an optional result format
+          # The grammer is same as golang's `fmt.Sprintf()`
+          format: "string-inc-%d"
+          # incrementing from 100 (default 0), step 2 (default 1)
+          inc:
+            start: 100
+            step: 2
+
+      # enum generator
+      - name: t_null_string
+        null_frequency: 0.5
+        gen:
+          format: "What's your name? My name is %s."
+          enum: [foo, bar, foobar]
+          weights: [20, 60, 20] # optional, the probabilities of being chosen
+
+      # range generator
+      - name: t_int
+        gen:
+          range: {min: 1997, max: 2097}
+
+      # template generator
+      - name: t_varchar2
+        null_frequency: 0.5
+        gen:
+          # yes, format also support template grammar
+          # TODO: see xxx for all template placeholders like '{{month}}'
+          format: "year: %d, month: {{month}}"
+          range: {min: 1997, max: 2097}
+
+      # Finally, the golang generator
+      - name: t_varchar
+        gen:
+          # Must have a function named `gen` in golang code
+          golang: |
+            import "fmt"
+
+            var i int
+            func gen() string {
+                i++
+                return fmt.Sprintf("Is odd: %v.", i%2 == 1)
+            }
+
+
+      ### Complex type ###
+      - name: t_map_varchar # map<varchar(255),varchar(255)>
         key:
-          length: {min: 1, max: 20}
+          gen:
+            format: "key-%d"
+            # default to start from 0
+            inc:
         value:
           length: {min: 20, max: 50}
 
-      # ARRAY array<text>
-      - name: t_array_string
+      - name: t_array_string # array<text>
         length: {min: 1, max: 10}
         element:
-          length: 10
+          # custom generatot for array element
+          gen:
+            values: [foo, bar, foobar]
 
-      # STRUCT struct<struct_field:array<text>>
-      - name: t_struct_nested
+      - name: t_struct_nested # struct<foo:text, struct_field:array<text>>
         fields:
-          - name: struct_field # nested complex type
+          - name: foo
+            length: 3
+          - name: struct_field
             length: 10
             element:
               null_frequency: 0
@@ -88,7 +142,7 @@ tables:
         structure: |
           struct<
             c1: varchar(3),
-            c2: struct<field: array<text>>,
+            c2: struct<array_field: array<text>>, -- nested complex type (yes, you can write comment here)
             c3: boolean
           >
         fields:
@@ -96,9 +150,9 @@ tables:
           - name: c1
             length: 1
             null_frequency: 0
-          - name: c2 # struct<struct_field: array<text>>>
+          - name: c2 # struct<array_field: array<text>>>
             fields:
-              - name: field # nested complex type
+              - name: array_field
                 length: 1
                 element:
                   null_frequency: 0

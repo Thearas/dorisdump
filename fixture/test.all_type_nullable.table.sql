@@ -20,7 +20,7 @@ CREATE TABLE `all_type_nullable` (
   `t_string` text NULL,
   `t_empty_varchar` varchar(255) NULL,
   `t_varchar` varchar(255) NULL,
-  `t_varchar_max_length` varchar(255) NULL,
+  `t_varchar2` varchar(255) NULL,
   `t_char` char(10) NULL,
   `t_int` int NULL,
   `t_bigint` bigint NULL,
