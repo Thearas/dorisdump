@@ -222,6 +222,24 @@ func ShowTables(ctx context.Context, conn *sqlx.DB, dbname string, tablenamePref
 	return
 }
 
+func ShowBackendCount(ctx context.Context, conn *sqlx.DB) (count int, err error) {
+	r, err := conn.QueryxContext(ctx, InternalSqlComment+"SHOW BACKENDS")
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+
+	for r.Next() {
+		_, err := r.SliceScan()
+		if err != nil {
+			return 0, err
+		}
+		count++
+	}
+
+	return count, r.Err()
+}
+
 func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (dir string, err error) {
 	r, err := conn.QueryxContext(ctx, InternalSqlComment+"show frontends DISKS")
 	if err != nil {

@@ -84,8 +84,7 @@ or environment variables with prefix 'DORIS_', e.g.
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
-	SilenceUsage:               true,
-	SuggestionsMinimumDistance: 6,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
@@ -623,4 +622,8 @@ func connectDB(db string) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("database name is required")
 	}
 	return src.NewDB(GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, db)
+}
+
+func connectDBWithoutDBName() (*sqlx.DB, error) {
+	return src.NewDB(GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, "information_schema")
 }

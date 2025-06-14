@@ -31,11 +31,6 @@ import (
 	"github.com/Thearas/dorisdump/src"
 )
 
-const (
-	DefaultGenDataDDLs = "output/ddl"
-	DefaultGenDataDir  = "output/gendata"
-)
-
 // GendataConfig holds the configuration values
 var GendataConfig = Gendata{}
 
@@ -63,11 +58,8 @@ Example:
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)
 	},
-	SilenceUsage:               true,
-	SuggestionsMinimumDistance: 6,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// ctx := cmd.Context()
-
 		if err := completeGendataConfig(); err != nil {
 			return err
 		}
@@ -76,7 +68,7 @@ Example:
 		}
 		GlobalConfig.Parallel = lo.Min([]int{GlobalConfig.Parallel, len(GendataConfig.genFromDDLs)})
 
-		logrus.Infof("Generate data for %d tables, parallel: %d\n", len(GendataConfig.genFromDDLs), GlobalConfig.Parallel)
+		logrus.Infof("Generate data for %d table(s), parallel: %d\n", len(GendataConfig.genFromDDLs), GlobalConfig.Parallel)
 
 		g := src.ParallelGroup(GlobalConfig.Parallel)
 		for _, ddlFile := range GendataConfig.genFromDDLs {
@@ -126,20 +118,18 @@ func init() {
 	gendataCmd.Flags().SortFlags = false
 
 	pFlags := gendataCmd.PersistentFlags()
-	pFlags.StringVarP(&GendataConfig.DDL, "ddl", "d", DefaultGenDataDDLs, "Directory or file containing DDL (.table.sql) and stats (.stats.yaml) files")
-	pFlags.StringVarP(&GendataConfig.OutputDataDir, "output-data-dir", "o", DefaultGenDataDir, "Directory where CSV files will be generated")
+	pFlags.StringVarP(&GendataConfig.DDL, "ddl", "d", "", "Directory or file containing DDL (.table.sql) and stats (.stats.yaml) files")
+	pFlags.StringVarP(&GendataConfig.OutputDataDir, "output-data-dir", "o", "", "Directory where CSV files will be generated")
 	pFlags.IntVarP(&GendataConfig.NumRows, "rows", "r", 0, fmt.Sprintf("Number of rows to generate per table (default %d)", src.DefaultGenRowCount))
 	pFlags.StringVarP(&GendataConfig.GenConf, "genconf", "c", "", "Generator config file")
 }
 
 // completeGendataConfig validates and completes the gendata configuration
 func completeGendataConfig() (err error) {
-	isDefaultDDLs := GendataConfig.DDL == DefaultGenDataDDLs
-	if isDefaultDDLs {
+	if GendataConfig.DDL == "" {
 		GendataConfig.DDL = filepath.Join(GlobalConfig.OutputDir, "ddl")
 	}
-	isDefaultGenDataOutputDir := GendataConfig.OutputDataDir == DefaultGenDataDir
-	if isDefaultGenDataOutputDir {
+	if GendataConfig.OutputDataDir == "" {
 		GendataConfig.OutputDataDir = filepath.Join(GlobalConfig.OutputDir, "gendata")
 	}
 
@@ -202,14 +192,12 @@ func findTableStats(ddlFileName string) (*src.TableStats, error) {
 	ddlFileDir := filepath.Dir(ddlFileName)
 	ddlFileName = filepath.Base(ddlFileName)
 
-	// table ddl file has 4 parts: {db}.{table}.table.sql
-	// db stats file has 2 parts: {db}.stats.yaml
-	isDumpTable := len(strings.Split(ddlFileName, ".")) == 4 && strings.HasSuffix(ddlFileName, ".table.sql")
+	db, table := dbtableFromFileName(ddlFileName)
+	isDumpTable := db != ""
 	if !isDumpTable {
 		return nil, nil
 	}
 
-	db := strings.SplitN(ddlFileName, ".", 2)[0]
 	dbStatsFile := filepath.Join(ddlFileDir, db+".stats.yaml")
 	b, err := os.ReadFile(dbStatsFile)
 	if err != nil {
@@ -225,7 +213,6 @@ func findTableStats(ddlFileName string) (*src.TableStats, error) {
 		return nil, err
 	}
 
-	table := strings.SplitN(ddlFileName, ".", 3)[1]
 	for _, tableStats := range dbstats.Stats {
 		if tableStats.Name != table || len(tableStats.Columns) == 0 || tableStats.RowCount <= 0 {
 			continue
@@ -252,4 +239,15 @@ func createOutputGenDataWriter(ddlFileName string) (*os.File, error) {
 		logrus.Fatalln("Can not open output data file:", file, ", err:", err)
 	}
 	return f, nil
+}
+
+// table ddl file has 4 parts: {db}.{table}.table.sql
+func dbtableFromFileName(file string) (string, string) {
+	parts := strings.Split(filepath.Base(file), ".")
+	isDumpTable := len(parts) == 4 && strings.HasSuffix(file, ".table.sql")
+	if !isDumpTable {
+		return "", ""
+	}
+
+	return parts[0], parts[1]
 }

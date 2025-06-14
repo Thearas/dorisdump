@@ -2,9 +2,9 @@
 
 Main features:
 
-1. **Dump** schema, column stats and query from Doris
-2. **Generate and import fake data** for dump table
-3. **Replay and load test** dump query
+1. **Dump** schema, column stats and query
+2. **Generate and import** data for table
+3. **Replay** dump query
 4. **Anonymize** database, table and column name in SQL
 
 > [!IMPORTANT]
@@ -39,27 +39,37 @@ dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:4
 # Generate data (Totally offline!)
 dorisdump gendata --help
 
-# gen data from any create-table SQL
-dorisdump gendata --ddl create.sql
-
 # gen data for db1 and db2, it auto finds dump schemas under output dir
 dorisdump gendata --dbs db1,db2
 
 # gen data for t1 and t2 in db1
 dorisdump gendata --dbs db1 --table t1,t2
 
+# gen data from any create-table SQL
+dorisdump gendata --ddl create.sql
+
+
+# Create tables and views
+dorisdump create --help
+
+# create all tables and views of db1 and db2, it auto finds dump schemas under output dir
+dorisdump create --dbs db1,db2
+
+# run any create table/view SQL in db1
+dorisdump gendata --ddl 'dir/*.sql' --db db1
+
 
 # Import data (Require curl command)
 dorisdump import --help
-
-# import data from any CSV file
-dorisdump import --dbs db1 --tables t1 --data data.csv
 
 # import data for db1, it auto finds generated data under output dir
 dorisdump import --dbs db1,db2
 
 # import data for t1 and t2 in db1
 dorisdump gendata --dbs db1 --table t1,t2
+
+# import data from any CSV file
+dorisdump import --tables db1.t1 --data data.csv
 
 
 # Replay
