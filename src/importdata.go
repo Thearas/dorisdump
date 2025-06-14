@@ -45,7 +45,7 @@ func StreamLoad(ctx context.Context, host, httpPort, user, password, db, table, 
 	curl += fmt.Sprintf(" -T '%s'", file)
 
 	sanitizedCurl := strings.Replace(curl, userpass, fmt.Sprintf("%s:****", user), 1)
-	logrus.Infof("stream-loading %s.%s (%s)\n", db, table, fileProgress)
+	logrus.Infof("Stream load %s.%s (%s)\n", db, table, fileProgress)
 	logrus.Debugln(sanitizedCurl)
 
 	if dryrun {
@@ -71,6 +71,12 @@ func StreamLoad(ctx context.Context, host, httpPort, user, password, db, table, 
 	}
 	if status, ok := result["Status"]; !ok || status.(string) != "Success" {
 		msg := result["Message"]
+		if msg == nil {
+			msg = result["msg"]
+		}
+		if msg == nil {
+			msg = result["data"]
+		}
 		details := result["ErrorURL"]
 		logrus.Errorf("Stream load failed for '%s.%s' at data file '%s', message: %v, details: %v\n", db, table, file, msg, details)
 		return err

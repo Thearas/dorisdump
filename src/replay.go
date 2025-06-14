@@ -303,7 +303,7 @@ func ReplaySqls(
 		if Confirm("Set parallel to client count") {
 			parallel = len(clientSqls)
 		} else {
-			return errors.New("Parallel must be equal to client count")
+			return errors.New("parallel must be equal to client count")
 		}
 	}
 

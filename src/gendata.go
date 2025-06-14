@@ -360,15 +360,19 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			if fields_ == nil {
 				fields_ = v.GetRule("field")
 			}
-			fieldRules, ok := fields_.([]GenRule) // Ensure fields is a slice of maps
+			fieldRules, ok := fields_.([]any) // Ensure fields is a slice of maps
 			if !ok {
 				if fields_ != nil {
 					logrus.Fatalf("Invalid struct fields type '%T' for column '%s'\n", fields_, v.Colpath)
 				}
-				fieldRules = []GenRule{}
+				fieldRules = lo.ToAnySlice([]GenRule{})
 			}
 			i := 0
-			fields := lo.SliceToMap(fieldRules, func(field GenRule) (string, GenRule) {
+			fields := lo.SliceToMap(fieldRules, func(field_ any) (string, GenRule) {
+				field, ok := field_.(GenRule)
+				if !ok {
+					logrus.Fatalf("Invalid struct field #%d in column '%s'\n", i, v.Colpath)
+				}
 				fieldName, ok := field["name"].(string)
 				if !ok {
 					logrus.Fatalf("Struct field #%d has no name in column '%s'\n", i, v.Colpath)

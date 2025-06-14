@@ -1,0 +1,106 @@
+######
+# Run: 
+#   1. dorisdump gendata --dbs test_db --ddl fixture --rows 100 --genconf example/gendata.yaml -Ldebug
+#   2. dorisdump gendata --dbs test    --ddl fixture --rows 100 --genconf example/gendata.yaml -Ldebug
+######
+
+# Default null frequency
+# null_frequency: 0
+
+# Default type generate rule
+type:
+  jsonb:
+    # default structure of all jsonb (use MAP or ARRAY is OK too!)
+    structure: 'struct<foo:bigint>'
+    # do not gen NULL for jsonb itself
+    null_frequency: 0
+    fields:
+      # range -1 to 1, 10% NULL
+      - name: foo
+        min: -1
+        max: 1
+        null_frequency: 0.1
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+
+tables:
+  - name: employees
+    row_count: 100 # optional, default 1000 (specify by --rows)
+    columns:
+      - name: department_id
+        null_frequency: 1 # 100% NULL
+      - name: salary
+        min: "15000.00"
+        max: "16000.00"
+      - name: hire_date
+        min: "1997-01-15"
+        max: "1997-01-15"
+
+  - name: all_type_nullable
+    # row_count: 100
+    columns:
+      - name: dt_month
+        length: 2
+      - name: t_null_decimal_precision_38
+        precision: 10
+        scale: 3
+        min: 100
+        max: 102 # max is 102.999
+      - name: t_null_string
+        length:
+          min: 20
+          max: 30
+        null_frequency: 0.1
+      - name: datetime1
+        min: "1997-01-15"
+        max: "1997-01-15"
+
+      ### Complex type ###
+
+      # MAP map<varchar(255),varchar(255)>
+      - name: t_map_varchar
+        key:
+          length: {min: 1, max: 20}
+        value:
+          length: {min: 20, max: 50}
+
+      # ARRAY array<text>
+      - name: t_array_string
+        length: {min: 1, max: 10}
+        element:
+          length: 10
+
+      # STRUCT struct<struct_field:array<text>>
+      - name: t_struct_nested
+        fields:
+          - name: struct_field # nested complex type
+            length: 10
+            element:
+              null_frequency: 0
+              length: 2
+
+      # JSON/JSONB/VARIANT
+      - name: json1
+        structure: |
+          struct<
+            c1: varchar(3),
+            c2: struct<field: array<text>>,
+            c3: boolean
+          >
+        fields:
+          # length 1, 0% NULL
+          - name: c1
+            length: 1
+            null_frequency: 0
+          - name: c2 # struct<struct_field: array<text>>>
+            fields:
+              - name: field # nested complex type
+                length: 1
+                element:
+                  null_frequency: 0
+                  length: 2
+

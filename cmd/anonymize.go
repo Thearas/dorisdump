@@ -47,7 +47,6 @@ var anonymizeCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
-	SuggestionsMinimumDistance: 6,
 	RunE: func(_ *cobra.Command, _ []string) (err error) {
 		input, err := src.ReadFileOrStdin(AnonymizeConfig.File)
 		if err != nil {

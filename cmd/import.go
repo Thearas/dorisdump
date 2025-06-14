@@ -54,8 +54,7 @@ Example:
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
-	SuggestionsMinimumDistance: 6,
-	SilenceUsage:               true,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -97,13 +96,12 @@ func init() {
 	importCmd.Flags().SortFlags = false
 
 	pFlags := importCmd.PersistentFlags()
-	pFlags.StringVarP(&ImportConfig.Data, "data", "d", DefaultGenDataDir, "Directory or file where CSV data files located")
+	pFlags.StringVarP(&ImportConfig.Data, "data", "d", "", "Directory or file where CSV data files located")
 
 }
 
 func completeImportConfig() (err error) {
-	isDefaultDatas := ImportConfig.Data == DefaultGenDataDir
-	if isDefaultDatas {
+	if ImportConfig.Data == "" {
 		ImportConfig.Data = filepath.Join(GlobalConfig.OutputDir, "gendata")
 	}
 

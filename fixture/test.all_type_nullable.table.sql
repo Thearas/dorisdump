@@ -2,7 +2,7 @@ CREATE TABLE `all_type_nullable` (
   `dt_month` varchar(6) NULL,
   `company_code` decimal(20,1) NULL,
   `json1` json NULL,
-  `jsonb1` json NULL,
+  `jsonb1` jsonb NULL,
   `variant1` variant NULL,
   `date1` date NULL,
   `datetime1` datetime NULL,

@@ -1,9 +1,14 @@
 # Introduction
 
+- [工作流](#工作流)
 - [导出](#导出)
   - [导出表和视图](#导出表和视图)
   - [导出查询](#导出查询)
   - [其他导出参数](#其他导出参数)
+- [创建表和视图](#创建表和视图)
+- [生成和导入数据](#生成和导入数据)
+  - [默认的生成规则](#默认的生成规则)
+  - [自定义生成规则](#自定义生成规则)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
   - [其他回放参数](#其他回放参数)
@@ -23,6 +28,13 @@
   - [导出的 SQL 有语法错误](#导出的-sql-有语法错误)
   - [导出的统计信息与实际不符](#导出的统计信息与实际不符)
   - [回放报错连接数超了](#回放报错连接数超了)
+
+## 工作流
+
+分为两种，每一步代表一条 `dorisdump` 指令：
+
+- 不需要造数据：`导出 -> 创建表和视图（可选）-> 回放 -> 对比回放结果`
+- 需要造数据：`导出 -> 创建表和视图（可选）-> 生成和导入数据 -> 回放 -> 对比回放结果`
 
 ## 导出
 
@@ -87,6 +99,97 @@ output
 - `--audit-log-encoding` 审计日志文件编码，默认自动检测
 - `--anonymize` 导出时脱敏，比如 `select * from table1` 变为 `select * from a`
 - `--anonymize-xxx` 其他脱敏参数，见 [脱敏](#脱敏)
+
+### 创建表和视图
+
+`dorisdump create --help`
+
+需要先[导出表和视图](#导出表和视图)到本地，然后去另一个 Doris 创建：
+
+```sh
+# 创建 db1 和 db2 的所有已导出的表和视图
+dorisdump create --dbs db1,db2
+
+# 创建已导出的 table1 和 table 表
+dorisdump create --dbs db1 --tables table1,table2
+
+# 在 db1 中跑任意 create table/view SQL
+dorisdump create --ddl 'dir/*.sql' --db db1
+```
+
+## 生成和导入数据
+
+`dorisdump gendata --help`/`dorisdump import --help`
+
+需要先[导出表和视图](#导出表和视图)到本地，再生成数据和导入：
+
+```sh
+# 给 db1 和 db2 的所有已导出的表生成数据
+dorisdump gendata --dbs db1,db2
+
+# 给已导出的 table1 生成数据
+dorisdump gendata --tables db1.table1 # 或 --dbs db1 --tables table1
+
+# 给任意一个 create-table SQL 文件生成数据
+# P.s. 也许不一定是 Doris，其他数据库比如 Hive 也行，但没试过 ;)
+dorisdump gendata --ddl my_create_table.sql
+
+
+# 给 db1 和 db2 的所有已生成数据的表导入数据
+dorisdump import --dbs db1,db2
+
+# 给已生成数据的 table1 导入数据
+dorisdump import --tables db1.table1 # 或 --dbs db1 --tables table1
+
+# 导入任意一个 CSV 数据文件到 table1
+dorisdump import --tables db1.table1 --data my_data.csv
+```
+
+实现上，工具会按照 `--dbs` 和 `--tables` 参数，在两阶段分别做这些事：
+
+1. 在生成阶段：
+
+    1. 扫描导出目录 `output/ddl/` 下、符合要求的 `<db>.<table>.table.sql` 文件。导出目录可以用 `--ddl` 指定
+    2. 结合对应的统计信息文件 `<db>.stats.yaml` 与自定义生成规则文件（由 `--genconf` 指定），算出最终的生成规则
+    3. 根据生成规则，生成 CSV 到数据生成目录 `output/gendata/<db>.<table>/`
+2. 在导入阶段：
+
+    1. 扫描数据生成目录 `output/gendata/` 下、符合要求的 `<db>.<table>/*` 数据文件。数据生成目录可以用 `--data` 指定
+    2. 用 `curl` 命令跑 StreamLoad 导入数据
+
+> [!TIP]
+>
+> - 每张表最多生成 100k 数据
+> - 导入时指定 `-Ldebug` 可以看到 `curl` 具体命令，方便复现和排查问题
+
+### 默认的生成规则
+
+默认不生成 `NULL` 数据，可以在[自定义生成规则](#自定义生成规则)中指定 `null_frequency` 更改。
+
+各类型的生成规则：
+
+| Type | Length | Min - Max | Structure |
+| --- | --- | --- | --- |
+| ARRAY | 1 - 3 |  |  |
+| MAP | 1 - 3 |  |  |
+| JSON/JSONB |  |  | STRUCT<col1:SMALLINT, col2:SMALLINT> |
+| VARIANT |  |  | STRUCT<col1:SMALLINT, col2:SMALLINT> |
+| BITMAP | 5 | element: 0 - MaxInt32 |  |
+| TEXT/STRING/VARCHAR | 1 - 10 |  |  |
+| TINYINT |  | MinInt8 - MaxInt8 |  |
+| SMALLINT |  | MinInt16 - MaxInt16 |  |
+| INT |  | MinInt32 - MaxInt32 |  |
+| BIGINT |  | MinInt32 - MaxInt32 |  |
+| LARGEINT |  | MinInt32 - MaxInt32 |  |
+| FLOAT |  | MinInt16 - MaxInt16 | |
+| DOUBLE |  | MinInt32 - MaxInt32 |  |
+| DECIMAL |  | MinInt32 - MaxInt32 |  |
+| DATE |  | 10 years ago - now |  |
+| DATETIME |  | 10 years ago - now |  |
+
+### 自定义生成规则
+
+生成数据时用 `--genconf gendata.yaml` 指定，示例见 [example/gendata.yaml](./example/gendata.yaml)。
 
 ## 回放
 
