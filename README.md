@@ -8,7 +8,7 @@ Main features:
 4. **Anonymize** database, table and column name in SQL
 
 > [!IMPORTANT]
-> **See [Introduction & FAQ](./introduction-zh.md) for more details.**
+> **See [Introduction & FAQ](./introduction.md) / [中文版](./introduction-zh.md) for more details.**
 
 [![demo](https://asciinema.org/a/706093.svg)](https://asciinema.org/a/706093)
 
@@ -76,7 +76,7 @@ dorisdump import --tables db1.t1 --data data.csv
 dorisdump replay --help
 
 # replay queries from dump sql file
-dorisdump replay --host <host> --port <port> --user root --password '******' -f output/sql/q0.sql
+dorisdump replay --host <host> --port <port> --user root --password '***' -f output/sql/q0.sql
 
 # replay with args
 dorisdump replay -f output/sql/q0.sql \
@@ -102,7 +102,7 @@ dorisdump diff replay1/ replay2/
 Generate CSV data from create-table SQLs. Totally offline!
 
 > [!Tip]
-> No only for Doris, other create-table statements with similar syntax are also supported (like Hive SQL). See [introduction](./introduction-zh.md#生成和导入数据) for more.
+> Not only for Doris, other create-table statements with similar syntax are also supported (like Hive SQL). See [introduction](./introduction.md#generate-and-import-data) for more.
 
 Example:
 

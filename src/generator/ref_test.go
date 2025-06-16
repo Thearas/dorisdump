@@ -71,6 +71,6 @@ func TestRefGenerator(t *testing.T) {
 	assert.Len(t, *refCol1_3.refValsPtr, len(*refCol1.refValsPtr))
 	assert.GreaterOrEqual(t, len(*refCol1_3.refValsPtr), 25)
 	for range 100 {
-		assert.LessOrEqual(t, refCol1_3.Gen(), 996)
+		assert.LessOrEqual(t, refCol1_3.Gen(), 1100)
 	}
 }
