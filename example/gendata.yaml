@@ -4,11 +4,20 @@
 #   2. dorisdump gendata --dbs test    --ddl fixture --rows 100 --genconf example/gendata.yaml -Ldebug
 ######
 
+
 # Default null frequency
 # null_frequency: 0
 
-# Default type generate rule
+
+# Default generate rule of types
 type:
+  # default bigint range is 0 - 100
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
   jsonb:
     # default structure of all jsonb (use MAP or ARRAY is OK too!)
     structure: 'struct<foo:bigint>'
@@ -20,13 +29,9 @@ type:
         min: -1
         max: 1
         null_frequency: 0.1
-  bigint:
-    min: 0
-    max: 100
-  date:
-    min: 1997-02-16
-    max: 2025-06-12
 
+
+# tables generate rule
 tables:
   - name: employees
     row_count: 100 # optional, default 1000 (specify by --rows)
@@ -34,8 +39,8 @@ tables:
       - name: department_id
         null_frequency: 1 # 100% NULL
       - name: salary
-        min: "15000.00"
-        max: "16000.00"
+        min: 15000.00
+        max: 16000.00
       - name: hire_date
         min: "1997-01-15"
         max: "1997-01-15"
@@ -43,18 +48,18 @@ tables:
   - name: all_type_nullable
     # row_count: 100
     columns:
-      ### Basic ###
-      - name: dt_month # varchar(6)
-        length: 2
       - name: t_null_decimal_precision_38
         precision: 10
         scale: 3
         min: 100
         max: 102 # max is 102.999
-      - name: t_null_string
+      - name: t_str
+        # All generators can have an optional result format
+        # The tag (surrounded by {{ and }}) grammer is same as golang's `fmt.Sprintf()`
+        format: 'substr length 1-5: {{%s}}'
         length:
-          min: 20
-          max: 30
+          min: 1
+          max: 5
         null_frequency: 0.1
       - name: datetime1
         min: "1997-01-15"
@@ -65,10 +70,8 @@ tables:
 
       # inc generator
       - name: t_string
+        format: "string-inc-{{%d}}"
         gen:
-          # All custom generators can have an optional result format
-          # The grammer is same as golang's `fmt.Sprintf()`
-          format: "string-inc-%d"
           # incrementing from 100 (default 0), step 2 (default 1)
           inc:
             start: 100
@@ -77,24 +80,26 @@ tables:
       # enum generator
       - name: t_null_string
         null_frequency: 0.5
+        format: "What's your name? My name is {{%s}}."
         gen:
-          format: "What's your name? My name is %s."
           enum: [foo, bar, foobar]
-          weights: [20, 60, 20] # optional, the probabilities of being chosen
+          weights: [0.2, 0.6, 0.2] # optional, the probabilities of being chosen
 
-      # range generator
-      - name: t_int
-        gen:
-          range: {min: 1997, max: 2097}
-
-      # template generator
+      # use other type's generator
       - name: t_varchar2
-        null_frequency: 0.5
+        # format also has some builtin tags like '{{month}}' below,
+        # see `src/generator/README.md` for all template tags
+        format: "year: {{%d}}, month: {{month}}"
         gen:
-          # yes, format also support template grammar
-          # TODO: see xxx for all template placeholders like '{{month}}'
-          format: "year: %d, month: {{month}}"
-          range: {min: 1997, max: 2097}
+          type: int
+          min: 1997
+          max: 2097
+      - name: dt_month # type is varchar but use tinyint to generate month
+        format: '{{year}}{{%02d}}'
+        gen:
+          type: tinyint
+          min: 1
+          max: 12
 
       # Finally, the golang generator
       - name: t_varchar
@@ -104,17 +109,18 @@ tables:
             import "fmt"
 
             var i int
-            func gen() string {
+            func gen() any {
                 i++
                 return fmt.Sprintf("Is odd: %v.", i%2 == 1)
             }
 
 
+
       ### Complex type ###
       - name: t_map_varchar # map<varchar(255),varchar(255)>
         key:
+          format: "key-{{%d}}"
           gen:
-            format: "key-%d"
             # default to start from 0
             inc:
         value:
@@ -125,7 +131,7 @@ tables:
         element:
           # custom generatot for array element
           gen:
-            values: [foo, bar, foobar]
+            enum: [foo, bar, foobar]
 
       - name: t_struct_nested # struct<foo:text, struct_field:array<text>>
         fields:
@@ -155,6 +161,7 @@ tables:
               - name: array_field
                 length: 1
                 element:
+                  format: "nested array element: {{%s}}"
                   null_frequency: 0
                   length: 2
 

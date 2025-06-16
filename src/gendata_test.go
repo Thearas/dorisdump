@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Thearas/dorisdump/src/generator"
 )
 
 func init() {
-	SetupDefaultGenRules("")
+	generator.Setup("")
 }
 
 func TestGendata(t *testing.T) {
@@ -32,7 +34,7 @@ func TestGendata(t *testing.T) {
     t_null_decimal_precision_17 decimal(17,8),
     t_null_decimal_precision_18 decimal(18,8),
     t_null_decimal_precision_38 decimal(38,16),
-    t_empty_string string,
+    t_str string,
     t_string string,
     t_empty_varchar varchar(255),
     t_varchar varchar(255),
@@ -83,7 +85,7 @@ func TestGendata(t *testing.T) {
     t_struct_nested struct<struct_field:array<string>>,
     t_struct_null struct<struct_field_null:string,struct_field_null2:string>,
     t_struct_non_nulls_after_nulls struct<struct_non_nulls_after_nulls1:int,struct_non_nulls_after_nulls2:string>,
-    t_nested_struct_non_nulls_after_nulls struct<struct_field1:int,struct_field2:string,strict_field3:struct<nested_struct_field1:int,nested_struct_field2:string>>,
+    t_nested_struct_non_nulls_after_nulls struct<struct_field1:int,struct_field2:string,struct_field3:struct<nested_struct_field1:int,nested_struct_field2:string>>,
     t_map_null_value map<string,string>,
     t_array_string_starting_with_nulls array<string>,
     t_array_string_with_nulls_in_between array<string>,

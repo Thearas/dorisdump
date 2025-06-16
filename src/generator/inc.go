@@ -1,0 +1,29 @@
+package generator
+
+import "github.com/spf13/cast"
+
+var _ Gen = &IncGen{}
+
+type IncGen struct {
+	Start int64 `yaml:"start,omitempty"`
+	Step  int64 `yaml:"step,omitempty"`
+}
+
+func (g *IncGen) Gen() any {
+	result := g.Start
+	g.Start = g.Start + g.Step
+	return result
+}
+
+func NewIncGenerator(_ string, r GenRule) (Gen, error) {
+	start := cast.ToInt64(r["start"])
+	step := cast.ToInt64(r["step"])
+	if step == 0 {
+		step = 1
+	}
+
+	return &IncGen{
+		Start: start,
+		Step:  step,
+	}, nil
+}

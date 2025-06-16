@@ -16,3 +16,4 @@ dorisdump-darwin-*
 dorisdump_hashdict.yaml
 *.csv
 *.old
+/*.sql

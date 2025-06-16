@@ -11,13 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brianvoe/gofakeit/v6"
 	"github.com/goccy/go-json"
 	"github.com/gogs/chardet"
 	"github.com/manifoldco/promptui"
 	"github.com/samber/lo"
-	"github.com/spf13/cast"
-	"github.com/xyproto/randomstring"
 	"github.com/zeebo/blake3"
 	"golang.org/x/exp/rand"
 	"golang.org/x/sync/errgroup"
@@ -138,7 +135,7 @@ func FileGlob(paths []string) ([]string, error) {
 		}
 		localPaths, err := filepath.Glob(s)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file path: %s, error: %v", s, err)
+			return nil, fmt.Errorf("invalid file path: %s, err: %v", s, err)
 		}
 
 		files = append(files, localPaths...)
@@ -206,52 +203,6 @@ func MustJsonMarshal(v any) []byte {
 		panic(err)
 	}
 	return data
-}
-
-func Cast2[R int8 | int16 | int | int32 | int64 | float32 | float64 | string | time.Time](v1, v2 any) (r1, r2 R, err error) {
-	r1, err = Cast[R](v1)
-	if err != nil {
-		return
-	}
-	r2, err = Cast[R](v2)
-	return
-}
-
-func Cast[R int8 | int16 | int | int32 | int64 | float32 | float64 | string | time.Time](v any) (r R, err error) {
-	var r_ any
-
-	switch any(r).(type) {
-	case int8:
-		r_, err = cast.ToInt8E(v)
-	case int16:
-		r_, err = cast.ToInt16E(v)
-	case int:
-		r_, err = cast.ToIntE(v)
-	case int32:
-		r_, err = cast.ToInt32E(v)
-	case int64:
-		r_, err = cast.ToInt64E(v)
-	case float32:
-		r_, err = cast.ToFloat32E(v)
-	case float64:
-		r_, err = cast.ToFloat64E(v)
-	case string:
-		r_, err = cast.ToInt16E(v)
-	case time.Time:
-		r_, err = cast.ToTimeE(v)
-	default:
-		return r, fmt.Errorf("unsupported cast type '%T' to '%T'", v, r)
-	}
-
-	return r_.(R), err
-}
-
-func RandomStr(lenMin, lenMax int) string {
-	length := gofakeit.IntRange(lenMin, lenMax)
-	if length < 20 {
-		return randomstring.HumanFriendlyString(length)
-	}
-	return randomstring.CookieFriendlyString(length)
 }
 
 func IsStringType(colType string) bool {

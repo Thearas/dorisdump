@@ -2,8 +2,8 @@
 
 Main features:
 
-1. **Dump** schema, column stats and query
-2. **Generate and import** data for table
+1. **Dump** schema and query
+2. **Generate and import** data for dump table
 3. **Replay** dump query
 4. **Anonymize** database, table and column name in SQL
 
@@ -97,9 +97,31 @@ dorisdump diff --min-duration-diff 200ms --original-sqls 'output/sql/*.sql' outp
 dorisdump diff replay1/ replay2/
 ```
 
-### Config
+### Generate Data
 
-You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
+Generate CSV data file for tables.
+
+> [!Tip]
+> No only for Doris, other create-table statements with similar syntax are also supported (like Hive SQL). See [introduction](./introduction-zh.md#生成和导入数据) for more.
+
+Example:
+
+```sh
+echo 'create table t1 (
+    a varchar(2),
+    b struct<foo:tinyint>,
+    c date
+)' > t1.sql
+
+dorisdump gendata --ddl t1.sql --rows 5
+
+cat output/gendata/t1/*
+sO☆{"foo":-66}☆2020-07-23
+lg☆{"foo":-121}☆2021-06-15
+4☆{"foo":-117}☆2015-06-17
+8h☆{"foo":-83}☆2024-09-06
+KW☆{"foo":7}☆2019-02-02
+```
 
 ### Anonymize
 
@@ -119,6 +141,10 @@ You may want to pass parameters by config file or environment, see `dorisdump --
 
 > [!NOTE]
 > Keep `./dorisdump_hashdict.yaml` if you want the result to be consistent (put it at current directory, or specify by `--anonymize-minihash-dict`).
+
+### Config
+
+You may want to pass parameters by config file or environment, see `dorisdump --help` and [example](./example/example.dorisdump.yaml).
 
 ## Build
 

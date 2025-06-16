@@ -29,6 +29,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dorisdump/src/generator"
 )
 
 // GendataConfig holds the configuration values
@@ -63,7 +64,8 @@ Example:
 		if err := completeGendataConfig(); err != nil {
 			return err
 		}
-		if err := src.SetupDefaultGenRules(GendataConfig.GenConf); err != nil {
+		// setup generator
+		if err := generator.Setup(GendataConfig.GenConf); err != nil {
 			return err
 		}
 		GlobalConfig.Parallel = lo.Min([]int{GlobalConfig.Parallel, len(GendataConfig.genFromDDLs)})
