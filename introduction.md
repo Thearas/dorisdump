@@ -1,10 +1,10 @@
 # Introduction
 
 - [Workflow](#workflow)
-- [Export](#export)
-  - [Export Tables and Views](#export-tables-and-views)
-  - [Export Queries](#export-queries)
-  - [Other Export Parameters](#other-export-parameters)
+- [Dump](#dump)
+  - [Dump Tables and Views](#dump-tables-and-views)
+  - [Dump Queries](#dump-queries)
+  - [Other Dump Parameters](#other-dump-parameters)
 - [Create Tables and Views](#create-tables-and-views)
 - [Generate and Import Data](#generate-and-import-data)
   - [Default Generation Rules](#default-generation-rules)
@@ -16,7 +16,7 @@
 - [Best Practices](#best-practices)
   - [Command-line Prompts and Autocompletion](#command-line-prompts-and-autocompletion)
   - [Environment Variables and Configuration Files](#environment-variables-and-configuration-files)
-  - [Monitoring Export/Replay Process](#monitoring-exportreplay-process)
+  - [Monitoring Dump/Replay Process](#monitoring-dumpreplay-process)
   - [Multi-FE Replay](#multi-fe-replay)
   - [Large-scale Batch Replay](#large-scale-batch-replay)
   - [Find SQLs with Replay Duration Exceeding 1s](#find-sqls-with-replay-duration-exceeding-1s)
@@ -24,35 +24,35 @@
 - [Anonymization](#anonymization)
 - [FAQ](#faq)
   - [How to provide the tool to customers, and is there any impact on the production environment?](#how-to-provide-the-tool-to-customers-and-is-there-any-impact-on-the-production-environment)
-  - [The number of exported SQLs is less than in the audit log](#the-number-of-exported-sqls-is-less-than-in-the-audit-log)
-  - [Exported SQL has syntax errors](#exported-sql-has-syntax-errors)
-  - [Exported statistics do not match the actual ones](#exported-statistics-do-not-match-the-actual-ones)
+  - [The number of dump SQLs is less than in the audit log](#the-number-of-dump-sqls-is-less-than-in-the-audit-log)
+  - [Dump SQL has syntax errors](#dump-sql-has-syntax-errors)
+  - [Dump statistics do not match the actual ones](#dump-statistics-do-not-match-the-actual-ones)
   - [Replay error: too many connections](#replay-error-too-many-connections)
 
 ## Workflow
 
 There are two types of workflows, with each step representing a `dorisdump` command:
 
-- No data generation needed: `Export -> Replay -> Compare Replay Results`
-- Data generation needed: `Export -> Create Tables and Views (Optional) -> Generate and Import Data -> Replay -> Compare Replay Results`
+- No data generation needed: `Dump -> Replay -> Compare Replay Results`
+- Data generation needed: `Dump -> Create Tables and Views (Optional) -> Generate and Import Data -> Replay -> Compare Replay Results`
 
-## Export
+## Dump
 
 `dorisdump dump --help`
 
-This is divided into two parts: "Export Tables and Views" and "Export Queries". Both can be combined into a single `dorisdump` command.
+This is divided into two parts: "Dump Tables and Views" and "Dump Queries". Both can be combined into a single `dorisdump` command.
 
-### Export Tables and Views
+### Dump Tables and Views
 
 `dorisdump dump --dump-schema`
 
-Exports `CREATE` statements for tables and views from a Doris database. By default, it also exports table statistics. If the statistics differ significantly from the actual data, specifying `--analyze` is recommended. See [Exported statistics do not match the actual ones](#exported-statistics-do-not-match-the-actual-ones).
+Dumps `CREATE` statements for tables and views from a Doris database. By default, it also dumps table statistics. If the statistics differ significantly from the actual data, specifying `--analyze` is recommended. See [Dump statistics do not match the actual ones](#dump-statistics-do-not-match-the-actual-ones).
 
 ```sh
-# Export all tables and views from db1 and db2
+# Dump all tables and views from db1 and db2
 dorisdump dump --dump-schema --host xxx --port xxx --user xxx --password xxx --dbs db1,db2
 
-# Default export to output/ddl:
+# Default dump to output/ddl:
 output
 └── ddl
     ├── db1.t1.table.sql
@@ -61,20 +61,20 @@ output
     └── db2.stats.yaml
 ```
 
-### Export Queries
+### Dump Queries
 
 `dorisdump dump --dump-query`
 
-Queries can be exported from an audit log table or file. By default, only `SELECT` statements are exported. You can add `--only-select=false` to export other statements as well.
+Queries can be dump from an audit log table or file. By default, only `SELECT` statements are dump. You can add `--only-select=false` to dump other statements as well.
 
 ```sh
-# Export from an audit log table, table name is usually __internal_schema.audit_log
+# Dump from an audit log table, table name is usually __internal_schema.audit_log
 dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
 
-# Export from audit log files, '*' matches multiple files (note the single quotes)
+# Dump from audit log files, '*' matches multiple files (note the single quotes)
 dorisdump dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
 
-# Default export to output/sql:
+# Default dump to output/sql:
 output
 └── sql
     ├── q0.sql
@@ -83,53 +83,54 @@ output
 
 > [!NOTE]
 >
-> - When exporting from log files, `q0.sql` corresponds to the first log file, `q1.sql` to the second, and so on. However, when exporting from a log table, all queries are written to `q0.sql`.
-> - Export results are appended to previously exported SQL files unless `--clean` is specified, which deletes the previous `output/ddl` and `output/sql` directories.
+> - When dumping from log files, `q0.sql` corresponds to the first log file, `q1.sql` to the second, and so on. However, when dumping from a log table, all queries are written to `q0.sql`.
+> - Dump results are appended to previously dump SQL files unless `--clean` is specified, which deletes the previous `output/ddl` and `output/sql` directories.
 
-### Other Export Parameters
+### Other Dump Parameters
 
-- `--analyze`: Automatically runs `ANALYZE TABLE <table> WITH SYNC` before exporting a table to make statistics more accurate. Default is off.
-- `--parallel`: Controls the export concurrency. Increasing it speeds up the export; decreasing it uses fewer resources. Default is `min(machine_cores, 10)`.
-- `--dump-stats`: Also exports table statistics when exporting tables. Statistics are exported to `output/ddl/db.stats.yaml`. Default is on.
-- `--only-select`: Whether to export only `SELECT` statements. Default is on.
-- `--from` and `--to`: Export SQL within a specified time range.
-- `--query-min-duration`: Minimum execution duration for exported SQL.
-- `--query-states`: States of the SQL to be exported, can be `ok`, `eof`, and `err`.
-- `-s, --strict`: Validates SQL syntax correctness when exporting from audit logs.
+- `--analyze`: Automatically runs `ANALYZE TABLE <table> WITH SYNC` before dumping a table to make statistics more accurate. Default is off.
+- `--parallel`: Controls the dump concurrency. Increasing it speeds up the dump; decreasing it uses fewer resources. Default is `min(machine_cores, 10)`.
+- `--dump-stats`: Also dumps table statistics when dumping tables. Statistics are dump to `output/ddl/db.stats.yaml`. Default is on.
+- `--only-select`: Whether to dump only `SELECT` statements. Default is on.
+- `--from` and `--to`: Dump SQL within a specified time range.
+- `--query-min-duration`: Minimum execution duration for dump SQL.
+- `--query-states`: States of the SQL to be dump, can be `ok`, `eof`, and `err`.
+- `-s, --strict`: Validates SQL syntax correctness when dumping from audit logs.
 - `--audit-log-encoding`: Audit log file encoding. Default is auto-detect.
-- `--anonymize`: Anonymizes data during export, e.g., `select * from table1` becomes `select * from a`.
+- `--anonymize`: Anonymizes data during dump, e.g., `select * from table1` becomes `select * from a`.
 - `--anonymize-xxx`: Other anonymization parameters, see [Anonymization](#anonymization).
 
 ## Create Tables and Views
 
 `dorisdump create --help`
 
-You need to first [Export Tables and Views](#export-tables-and-views) locally, then create them in another Doris instance:
+You need to first [Dump Tables and Views](#dump-tables-and-views) locally, then create them in another Doris instance:
 
 ```sh
-# Create all exported tables and views for db1 and db2
+# Create all dump tables and views for db1 and db2
 dorisdump create --dbs db1,db2
 
-# Create exported table1 and table2
+# Create dump table1 and table2
 dorisdump create --dbs db1 --tables table1,table2
 
 # Run any create table/view SQL in db1
 dorisdump create --ddl 'dir/*.sql' --db db1
 ```
+
 ## Generate and Import Data
 
 `dorisdump gendata --help`/`dorisdump import --help`
 
-You need to first [Export Tables and Views](#export-tables-and-views) locally, then generate and import data:
+You need to first [Dump Tables and Views](#dump-tables-and-views) locally, then generate and import data:
 
 ```sh
-# Generate data for all exported tables in db1 and db2
+# Generate data for all dump tables in db1 and db2
 dorisdump gendata --dbs db1,db2
 
-# Generate data for exported table1
+# Generate data for dump table1
 dorisdump gendata --tables db1.table1 # or --dbs db1 --tables table1
 
-# Data can also be generated for any create table SQL without prior export
+# Data can also be generated for any create table SQL without prior dump
 # P.S. It might not necessarily be Doris; other databases like Hive might also work, but it hasn't been tested ;)
 dorisdump gendata --ddl my_create_table.sql
 
@@ -148,7 +149,7 @@ In implementation, the tool performs these actions in two stages based on the `-
 
 1. In the generation stage:
 
-    1. Scans the export directory `output/ddl/` for matching `<db>.<table>.table.sql` files. The export directory can be specified with `--ddl`.
+    1. Scans the dump directory `output/ddl/` for matching `<db>.<table>.table.sql` files. The dump directory can be specified with `--ddl`.
     2. Combines the corresponding statistics file `<db>.stats.yaml` with the custom generation rules file (specified by `--genconf`) to determine the final generation rules.
     3. Generates CSV files into the data generation directory `output/gendata/<db>.<table>/` according to the generation rules.
 2. In the import stage:
@@ -194,10 +195,10 @@ Specify with `--genconf gendata.yaml` during data generation. See [example/genda
 
 `dorisdump replay --help`
 
-You need to first [Export Queries](#export-queries), then replay based on the exported SQL files.
+You need to first [Dump Queries](#dump-queries), then replay based on the dump SQL files.
 
 ```sh
-# Export
+# Dump
 dorisdump dump --dump-query --audit-logs fe.audit.log
 
 # Replay, results are placed in the `output/replay` directory by default. Each file represents a client, and each line in the file represents the result of a SQL query.
@@ -251,7 +252,7 @@ There are two ways:
     dorisdump diff output/replay1 output/replay2
     ```
 
-2. Compare exported SQL with its replay result:
+2. Compare dump SQL with its replay result:
 
     ```sh
     dorisdump diff --min-duration-diff 2s --original-sqls 'output/sql/*.sql' output/replay
@@ -287,7 +288,7 @@ Parameter priority from high to low:
 
 ---
 
-### Monitoring Export/Replay Process
+### Monitoring Dump/Replay Process
 
 `--log-level debug/trace`
 
@@ -297,10 +298,10 @@ Parameter priority from high to low:
 
 ### Multi-FE Replay
 
-Each FE's audit log is separate. When exporting, they must be exported separately. When replaying, they must also be replayed separately and simultaneously. For example, for a 2 FE cluster:
+Each FE's audit log is separate. When dumping, they must be dump separately. When replaying, they must also be replayed separately and simultaneously. For example, for a 2 FE cluster:
 
 ```sh
-# Export audit logs for fe1 and fe2 separately
+# Dump audit logs for fe1 and fe2 separately
 dorisdump dump --dump-query --audit-logs fe1.audlt.log -O fe1
 dorisdump dump --dump-query --audit-logs fe2.audlt.log -O fe2
 
@@ -313,11 +314,11 @@ nohup dorisdump replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
 
 ### Large-scale Batch Replay
 
-When the volume of SQL to be replayed is too large, for example, replaying logs for a whole month (31 days), it's best to replay in hourly batches. Use `--from` and `--to` during export to batch (or batch manually after export). Example:
+When the volume of SQL to be replayed is too large, for example, replaying logs for a whole month (31 days), it's best to replay in hourly batches. Use `--from` and `--to` during dump to batch (or batch manually after dump). Example:
 
 ```sh
-export YEAR_MONTH="2025-03" # <-- Change this line
-export DORIS_YES=1
+dump YEAR_MONTH="2025-03" # <-- Change this line
+dump DORIS_YES=1
 
 for day in {1..31} ; do
   day=$(printf "%02d" $day)
@@ -329,7 +330,7 @@ for day in {1..31} ; do
 
       echo "dumping and replaying at $day-$hour"
 
-      # Export
+      # Dump
       dorisdump dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
 
       # Replay, clear previous replay results, 50 clients concurrently, run continuously
@@ -359,7 +360,7 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 
 ### Automation
 
-For example, when writing scripts to export/replay multiple files, it's inconvenient to manually input `y` for confirmation. You can set the environment variable `DORIS_YES=1` or `DORIS_YES=0` to automatically confirm or deny.
+For example, when writing scripts to dump/replay multiple files, it's inconvenient to manually input `y` for confirmation. You can set the environment variable `DORIS_YES=1` or `DORIS_YES=0` to automatically confirm or deny.
 
 ---
 
@@ -385,15 +386,15 @@ Anonymization uses the Go version of Doris Antlr4 Parser, which is currently cas
 
 If customers cannot access the internet, download the [latest binary](https://github.com/Thearas/dorisdump/releases) and provide it directly. The Linux version has no dependencies and can run directly on the machine. By default, the tool will not perform any write operations on the cluster.
 
-If you are concerned about resource consumption during export, you can set `--parallel=1`. Memory consumption will be at most tens of megabytes, and execution time is generally in seconds.
+If you are concerned about resource consumption during dump, you can set `--parallel=1`. Memory consumption will be at most tens of megabytes, and execution time is generally in seconds.
 
 When replaying, please execute in batches and ensure sufficient resources.
 
 ---
 
-### The number of exported SQLs is less than in the audit log
+### The number of dump SQLs is less than in the audit log
 
-First, check the [Export Queries](#export-queries) parameters to see if any SQLs were filtered out.
+First, check the [Dump Queries](#dump-queries) parameters to see if any SQLs were filtered out.
 
 Then, enable `--log-level=debug` to see if any of the following situations occurred:
 
@@ -402,20 +403,20 @@ Then, enable `--log-level=debug` to see if any of the following situations occur
 
 ---
 
-### Exported SQL has syntax errors
+### Dump SQL has syntax errors
 
-It is recommended to add the `-s, --strict` parameter during export to validate SQL syntax correctness. Then, check the `query_id` output by the tool and find it in the audit log. It could be one of the following two situations:
+It is recommended to add the `-s, --strict` parameter during dump to validate SQL syntax correctness. Then, check the `query_id` output by the tool and find it in the audit log. It could be one of the following two situations:
 
 1. The tool unescapes `\r`, `\n`, and `\t` in log SQL. However, if the original SQL itself contains these characters, it may cause syntax errors.
 2. There is an issue with the audit log itself.
 
-Generally, errors are infrequent. You can manually modify the exported SQL.
+Generally, errors are infrequent. You can manually modify the dump SQL.
 
 ---
 
-### Exported statistics do not match the actual ones
+### Dump statistics do not match the actual ones
 
-Check the `method` field of columns in the exported `stats.yaml`. If it is `SAMPLE` (i.e., sampling), then there might be a significant deviation from the actual values.
+Check the `method` field of columns in the dump `stats.yaml`. If it is `SAMPLE` (i.e., sampling), then there might be a significant deviation from the actual values.
 
 ```yaml
 columns:
@@ -429,7 +430,7 @@ columns:
     method: SAMPLE # <-- here
 ```
 
-It is recommended to specify `--analyze` during export, or first manually execute `ANALYZE DATABASE WITH SYNC`/`ANALYZE TABLE WITH SYNC`, and then export.
+It is recommended to specify `--analyze` during dump, or first manually execute `ANALYZE DATABASE WITH SYNC`/`ANALYZE TABLE WITH SYNC`, and then dump.
 
 ---
 
