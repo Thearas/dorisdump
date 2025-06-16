@@ -20,11 +20,11 @@ const (
 	MaxGenRowCount     = 1_000_000
 )
 
-func NewTableGen(createTableStmt string, stats *TableStats) (*TableGen, error) {
+func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen, error) {
 	// parse create-table statement
-	sqlId := "create-table"
+	sqlId := ddlfile
 	if stats != nil {
-		sqlId = stats.Name
+		sqlId += "#" + stats.Name
 	}
 	p := parser.NewParser(sqlId, createTableStmt)
 	c, ok := p.SupportedCreateStatement().(*parser.CreateTableContext)
@@ -49,10 +49,16 @@ func NewTableGen(createTableStmt string, stats *TableStats) (*TableGen, error) {
 
 	// get custom table gen rule
 	rows, customColumnRule := gen.GetCustomTableGenRule(table)
+	colCount := len(c.ColumnDefs().GetCols())
+	tg := &TableGen{
+		Name:    table,
+		Columns: make([]string, 0, colCount),
+		DDLFile: ddlfile,
+		rows:    rows,
+		colGens: make([]gen.Gen, 0, colCount),
+	}
 
-	// construct every streamLoadCols
-	streamLoadCols := make([]string, 0, len(c.ColumnDefs().GetCols()))
-	colGens := make([]gen.Gen, 0, len(c.ColumnDefs().GetCols()))
+	streamLoadCols := make([]string, 0, len(tg.Columns)) // construct for streamload header `curl -H 'columns: xxx'`
 	hasBitmap := false
 	for _, col := range c.ColumnDefs().GetCols() {
 		colName := strings.Trim(col.GetColName().GetText(), "`")
@@ -71,10 +77,11 @@ func NewTableGen(createTableStmt string, stats *TableStats) (*TableGen, error) {
 		visitor.GenRule = newColGenRule(col, colName, colBaseType, colStats, customColumnRule)
 
 		// build column generator
-		colGens = append(colGens, visitor.GetTypeGen(colType_))
+		tg.colGens = append(tg.colGens, visitor.GetTypeGen(colType_))
+		tg.RecordRefTables(visitor.TableRefs...)
+		tg.Columns = append(tg.Columns, colName)
 	}
 
-	tg := &TableGen{rows: rows, colGens: colGens}
 	if hasBitmap {
 		tg.streamloadColumns = "columns:" + strings.Join(streamLoadCols, ",")
 	}
@@ -134,6 +141,11 @@ func newColGenRule(col parser.IColumnDefContext, colName, colType string, colSta
 }
 
 type TableGen struct {
+	Name       string
+	Columns    []string
+	DDLFile    string
+	RefToTable map[string]struct{} // ref generator to other tables
+
 	streamloadColumns string
 	rows              int
 	colGens           []gen.Gen
@@ -141,37 +153,66 @@ type TableGen struct {
 
 // Gen generates multiple CSV line into writer.
 func (tg *TableGen) GenCSV(w *bufio.Writer, rows int) error {
+	if rows == 0 {
+		rows = DefaultGenRowCount
+	}
+	if tg.rows == 0 {
+		tg.rows = rows
+	}
+	if err := CheckGenRowCount(rows); err != nil {
+		return err
+	}
+
+	logrus.Infof("Generating data for table %s\n", tg.Name)
+
 	if tg.streamloadColumns != "" {
 		if _, err := w.WriteString(tg.streamloadColumns); err != nil {
 			return err
 		}
 		w.WriteByte('\n')
 	}
-	if rows <= 0 {
-		rows = tg.rows
-	}
-	if rows == 0 {
-		rows = DefaultGenRowCount
-	}
-	if err := CheckGenRowCount(rows); err != nil {
-		return err
+
+	var colIdxRefGens map[int]*gen.RefGen
+	colRefGen := gen.GetTableRefGen(tg.Name)
+	if len(colRefGen) > 0 {
+		colIdxRefGens = make(map[int]*gen.RefGen, len(colRefGen))
+		for i, c := range tg.Columns {
+			if refgen, ok := colRefGen[c]; ok {
+				refgen.WithSourceTableRows(tg.rows)
+				colIdxRefGens[i] = refgen
+			}
+		}
+		logrus.Debugf("%d ref generator(s) point to %s\n", len(colIdxRefGens), tg.Name)
 	}
 
-	for l := range rows {
-		tg.genOne(w)
-		if l != rows-1 {
+	for l := range tg.rows {
+		tg.genOne(w, colIdxRefGens)
+		if l != tg.rows-1 {
 			if err := w.WriteByte('\n'); err != nil {
 				return err
 			}
 		}
 	}
+
+	logrus.Infof("Finish generating data for table %s\n", tg.Name)
 	return nil
 }
 
 // GenOne generates one CSV line into writer.
-func (tg *TableGen) genOne(w *bufio.Writer) {
+func (tg *TableGen) genOne(w *bufio.Writer, colIdxRefGens map[int]*gen.RefGen) {
 	for i, g := range tg.colGens {
 		val := g.Gen()
+
+		// add value to ref gen
+		if len(colIdxRefGens) > 0 {
+			if refgen := colIdxRefGens[i]; refgen != nil {
+				full := refgen.AddRefVals(val)
+				if full {
+					delete(colIdxRefGens, i)
+				}
+			}
+		}
+
 		if val == nil {
 			w.WriteString(`\N`)
 		} else if v, ok := val.(json.RawMessage); ok {
@@ -185,6 +226,23 @@ func (tg *TableGen) genOne(w *bufio.Writer) {
 			w.WriteRune(ColumnSeparator)
 		}
 	}
+}
+
+func (tg *TableGen) RecordRefTables(ts ...string) {
+	if tg.RefToTable == nil {
+		tg.RefToTable = map[string]struct{}{}
+	}
+
+	for _, t := range ts {
+		tg.RefToTable[t] = struct{}{}
+	}
+}
+
+func (tg *TableGen) RemoveRefTable(t string) {
+	if len(tg.RefToTable) == 0 {
+		return
+	}
+	delete(tg.RefToTable, t)
 }
 
 type GenRule = gen.GenRule

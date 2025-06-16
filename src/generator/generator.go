@@ -24,6 +24,7 @@ func init() {
 	CustomGenConstructors = map[string]CustomGenConstructor{
 		"inc":    NewIncGenerator,
 		"enum":   NewEnumGenerator,
+		"ref":    NewRefGenerator,
 		"type":   NewTypeGenerator,
 		"golang": NewGolangGenerator,
 	}
@@ -45,6 +46,9 @@ type CustomGenConstructor = func(colpath string, r GenRule) (Gen, error)
 type TypeVisitor struct {
 	Colpath string  // the path of the column, e.g. "db.table.col"
 	GenRule GenRule // rules of generator
+
+	// the tables that ref generator point to
+	TableRefs []string
 }
 
 func NewTypeVisitor(colpath string, genRule GenRule) *TypeVisitor {
@@ -310,17 +314,19 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 
 	// custom generator
 	var err error
-	if customGenRule, ok := v.GetRule("gen").(GenRule); ok && len(customGenRule) > 0 {
+	if customGenRule, ok := v.GetRule("gen").(GenRule); ok {
 		var g_ Gen
 		for name, customGenerator := range CustomGenConstructors {
-			_, ok := customGenRule[name]
-			if ok {
-				g_, err = customGenerator(v.Colpath, customGenRule)
-				if err != nil {
-					logrus.Fatalf("Invalid custom generator '%s' for column '%s', err: %v\n", name, v.Colpath, err)
-				}
-				break
+			if _, ok := customGenRule[name]; !ok {
+				continue
 			}
+
+			g_, err = customGenerator(v.Colpath, customGenRule)
+			if err != nil {
+				logrus.Fatalf("Invalid custom generator '%s' for column '%s', err: %v\n", name, v.Colpath, err)
+			}
+			break
+
 		}
 		g = g_
 		if g == nil {
@@ -328,6 +334,10 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				v.Colpath,
 				lo.MapToSlice(CustomGenConstructors, func(name string, _ CustomGenConstructor) string { return name }),
 			)
+		}
+		// record ref tables
+		if refGen, ok := g.(*RefGen); ok {
+			v.TableRefs = append(v.TableRefs, refGen.Table)
 		}
 	}
 	// format generator

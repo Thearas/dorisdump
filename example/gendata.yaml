@@ -1,17 +1,15 @@
 ######
-# Run: 
-#   1. dorisdump gendata --dbs test_db --ddl fixture --rows 100 --genconf example/gendata.yaml -Ldebug
-#   2. dorisdump gendata --dbs test    --ddl fixture --rows 100 --genconf example/gendata.yaml -Ldebug
+# Run:
+#   dorisdump gendata --dbs company,test --ddl example/ddl --genconf example/gendata.yaml
 ######
 
-
 # Default null frequency
-# null_frequency: 0
+null_frequency: 0
 
 
 # Default generate rule of types
 type:
-  # default bigint range is 0 - 100
+  # set default bigint range is 0 - 100
   bigint:
     min: 0
     max: 100
@@ -19,7 +17,7 @@ type:
     min: 1997-02-16
     max: 2025-06-12
   jsonb:
-    # default structure of all jsonb (use MAP or ARRAY is OK too!)
+    # set default structure of all jsonb (use MAP or ARRAY is also OK!)
     structure: 'struct<foo:bigint>'
     # do not gen NULL for jsonb itself
     null_frequency: 0
@@ -37,7 +35,9 @@ tables:
     row_count: 100 # optional, default 1000 (specify by --rows)
     columns:
       - name: department_id
-        null_frequency: 1 # 100% NULL
+        null_frequency: 0.1 # 10% NULL
+        min: 1
+        max: 10
       - name: salary
         min: 15000.00
         max: 16000.00
@@ -53,17 +53,18 @@ tables:
         scale: 3
         min: 100
         max: 102 # max is 102.999
+      - name: datetime1
+        min: "1997-01-15"
+        max: "1997-01-15"
       - name: t_str
-        # All generators can have an optional result format
+        # All generators can have an optional result format.
         # The tag (surrounded by {{ and }}) grammer is same as golang's `fmt.Sprintf()`
+        # NOTE: format will return NULL if the generator returns NULL.
         format: 'substr length 1-5: {{%s}}'
         length:
           min: 1
           max: 5
         null_frequency: 0.1
-      - name: datetime1
-        min: "1997-01-15"
-        max: "1997-01-15"
 
 
       ### Custom generator ###
@@ -82,19 +83,29 @@ tables:
         null_frequency: 0.5
         format: "What's your name? My name is {{%s}}."
         gen:
+          # randomly choose one element
           enum: [foo, bar, foobar]
           weights: [0.2, 0.6, 0.2] # optional, the probabilities of being chosen
 
+      # ref generator
+      - name: t_int
+        # use values from another previously generated table column. Usually handle JOIN.
+        gen:
+          ref: employees.department_id
+          limit: 1000 # randomly choose 1000 values from employees.department_id (default 1000)
+        # you can add a format here if column formats are not the same
+        # format: ""
+
       # use other type's generator
       - name: t_varchar2
-        # format also has some builtin tags like '{{month}}' below,
+        # format also support some builtin tags like '{{month}}' below,
         # see `src/generator/README.md` for all template tags
         format: "year: {{%d}}, month: {{month}}"
         gen:
           type: int
           min: 1997
           max: 2097
-      - name: dt_month # type is varchar but use tinyint to generate month
+      - name: dt_month # type is varchar(6) but use tinyint to generate month
         format: '{{year}}{{%02d}}'
         gen:
           type: tinyint
@@ -104,7 +115,7 @@ tables:
       # Finally, the golang generator
       - name: t_varchar
         gen:
-          # Must have a function named `gen` in golang code
+          # Must have a function `func gen() any` in golang code
           golang: |
             import "fmt"
 
@@ -164,4 +175,14 @@ tables:
                   format: "nested array element: {{%s}}"
                   null_frequency: 0
                   length: 2
+  - name: sales
+    # row_count: 100
+    columns:
+      - name: employee_id
+        gen:
+          ref: employees.employee_id
+      - name: product_id # int
+        format: "1{{%06d}}"
+        gen:
+          ref: employees.employee_id
 

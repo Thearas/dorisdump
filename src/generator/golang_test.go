@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,8 +33,11 @@ func gen() any {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGolangGenerator("", tt.rule)
 			assert.NoError(t, err)
-			if got := g.Gen(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GolangGen.Gen() = %v, want %v", got, tt.want)
+			for i := range 10 {
+				if got := g.Gen(); strconv.Itoa(i) != got {
+					t.Errorf("GolangGen.Gen() = %v, want %v", got, tt.want)
+				}
+
 			}
 		})
 	}

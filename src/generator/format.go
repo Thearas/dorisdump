@@ -23,6 +23,9 @@ func (g *FormatGen) Gen() any {
 	if g.inner != nil {
 		result = g.inner.Gen()
 	}
+	if result == nil {
+		return nil
+	}
 
 	formatted, err := g.template.ExecuteFuncStringWithErr(func(w io.Writer, tag string) (int, error) {
 		if strings.HasPrefix(tag, "%") {
