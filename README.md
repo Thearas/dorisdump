@@ -107,7 +107,11 @@ Generate CSV data file for tables.
 Example:
 
 ```sh
-echo 'create table t1 (a varchar(2), b struct<foo:tinyint>, c date)' > t1.sql
+echo 'create table t1 (
+    a varchar(2),
+    b struct<foo:tinyint>,
+    c date
+)' > t1.sql
 
 dorisdump gendata --ddl t1.sql --rows 5
 
