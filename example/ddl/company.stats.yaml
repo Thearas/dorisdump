@@ -1,4 +1,4 @@
-db: test_db
+db: company
 tables:
     - name: employees
       row_count: 8

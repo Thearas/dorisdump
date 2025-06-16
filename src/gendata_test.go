@@ -100,7 +100,7 @@ PROPERTIES (
 'bloom_filter_columns' = "dt_month, company_code"
 );`
 
-	tg, err := NewTableGen(sql, nil)
+	tg, err := NewTableGen("create-table.sql", sql, nil)
 	assert.NoError(t, err)
 	assert.Len(t, tg.colGens, 74)
 

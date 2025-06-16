@@ -19,8 +19,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -64,7 +66,7 @@ Example:
 		if err := completeGendataConfig(); err != nil {
 			return err
 		}
-		// setup generator
+		// 1. Setup generator
 		if err := generator.Setup(GendataConfig.GenConf); err != nil {
 			return err
 		}
@@ -72,7 +74,8 @@ Example:
 
 		logrus.Infof("Generate data for %d table(s), parallel: %d\n", len(GendataConfig.genFromDDLs), GlobalConfig.Parallel)
 
-		g := src.ParallelGroup(GlobalConfig.Parallel)
+		// 2. Construct table generators
+		var tableGens []*src.TableGen
 		for _, ddlFile := range GendataConfig.genFromDDLs {
 			logrus.Debugf("generating data to %s ...\n", strings.TrimSuffix(ddlFile, ".table.sql"))
 
@@ -84,33 +87,72 @@ Example:
 			if err != nil {
 				return err
 			}
-			tg, err := src.NewTableGen(ddl, stats)
+			tg, err := src.NewTableGen(ddlFile, ddl, stats)
 			if err != nil {
 				return err
 			}
 
-			if GlobalConfig.DryRun {
-				continue
-			}
-
-			o, err := createOutputGenDataWriter(ddlFile)
-			if err != nil {
-				return err
-			}
-
-			g.Go(func() error {
-				defer o.Close()
-
-				w := bufio.NewWriterSize(o, 256*1024)
-				if err := tg.GenCSV(w, GendataConfig.NumRows); err != nil {
-					return err
-				}
-
-				return w.Flush()
-			})
+			tableGens = append(tableGens, tg)
 		}
 
-		return g.Wait()
+		if GlobalConfig.DryRun || len(tableGens) == 0 {
+			return nil
+		}
+
+		// 3. Generate data according to table ref dependence
+		var (
+			allTables = lo.Map(tableGens, func(tg *src.TableGen, _ int) string { return tg.Name })
+			refTables = lo.Uniq(lo.Flatten(lo.Map(tableGens, func(tg *src.TableGen, _ int) []string { return slices.Collect(maps.Keys(tg.RefToTable)) })))
+
+			refNotFoundTable = lo.Without(refTables, allTables...)
+		)
+		if len(refNotFoundTable) > 0 {
+			return fmt.Errorf("these tables are being ref, please generate them together: %v", refNotFoundTable)
+		}
+
+		totalTableGens := len(allTables)
+		for range totalTableGens {
+			if len(tableGens) == 0 {
+				return nil
+			}
+
+			zeroRefTableGens := lo.Filter(tableGens, func(tg *src.TableGen, _ int) bool { return len(tg.RefToTable) == 0 })
+			tableGens = lo.Filter(tableGens, func(tg *src.TableGen, _ int) bool { return len(tg.RefToTable) > 0 })
+
+			// check ref deadlock
+			if len(zeroRefTableGens) == 0 {
+				remainTable2Refs := lo.SliceToMap(tableGens, func(tg *src.TableGen) (string, []string) { return tg.Name, slices.Collect(maps.Keys(tg.RefToTable)) })
+				return fmt.Errorf("table refs deadlock: %v", remainTable2Refs)
+			}
+
+			// Generate the tables with zero ref.
+			g := src.ParallelGroup(GlobalConfig.Parallel)
+			for _, tg := range zeroRefTableGens {
+				g.Go(func() error {
+					o, err := createOutputGenDataWriter(tg.DDLFile)
+					if err != nil {
+						return err
+					}
+					defer o.Close()
+
+					w := bufio.NewWriterSize(o, 256*1024)
+					if err := tg.GenCSV(w, GendataConfig.NumRows); err != nil {
+						return err
+					}
+
+					return w.Flush()
+				})
+
+				// the ref table data is generating, remove from all waiting tableGens
+				lo.ForEach(tableGens, func(g *src.TableGen, _ int) { g.RemoveRefTable(tg.Name) })
+			}
+
+			if err := g.Wait(); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	},
 }
 
@@ -220,12 +262,12 @@ func findTableStats(ddlFileName string) (*src.TableStats, error) {
 			continue
 		}
 		if tableStats.Columns[0].Method != "FULL" {
-			logrus.Warnf("Table stats '%s.%s' is '%s' in '%s', better to run 'ANALYZE DATABASE `%s` WITH SYNC' and dump again\n", db, table, tableStats.Columns[0].Method, dbStatsFile, db)
+			logrus.Warnf("Table stats '%s.%s' is '%s' in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n", db, table, tableStats.Columns[0].Method, dbStatsFile, db)
 		}
 		return tableStats, nil
 	}
 
-	logrus.Warnf("Table stats '%s.%s' not found in '%s', better to run 'ANALYZE DATABASE `%s` WITH SYNC' and dump again\n", db, table, dbStatsFile, db)
+	logrus.Warnf("Table stats '%s.%s' not found in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n", db, table, dbStatsFile, db)
 	return nil, nil
 }
 

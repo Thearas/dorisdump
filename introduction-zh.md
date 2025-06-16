@@ -33,7 +33,7 @@
 
 分为两种，每一步代表一条 `dorisdump` 指令：
 
-- 不需要造数据：`导出 -> 创建表和视图（可选）-> 回放 -> 对比回放结果`
+- 不需要造数据：`导出 -> 回放 -> 对比回放结果`
 - 需要造数据：`导出 -> 创建表和视图（可选）-> 生成和导入数据 -> 回放 -> 对比回放结果`
 
 ## 导出
@@ -88,7 +88,7 @@ output
 
 ### 其他导出参数
 
-- `--analyze` 导出表前自动跑 `ANALYZE TABLE <table> WITH SYNC`，使统计信息更准确
+- `--analyze` 导出表前自动跑 `ANALYZE TABLE <table> WITH SYNC`，使统计信息更准确，默认关闭
 - `--parallel` 控制导出并发量，调大导出更快，调小占用资源更少，默认 `min(机器核数, 10)`
 - `--dump-stats` 导出表时也导出统计信息，导出在 `output/ddl/db.stats.yaml` 文件，默认开启
 - `--only-select` 是否从只导出 `SELECT` 语句，默认开启
@@ -164,9 +164,9 @@ dorisdump import --tables db1.table1 --data my_data.csv
 
 ### 默认的生成规则
 
-默认不生成 `NULL` 数据，可以在[自定义生成规则](#自定义生成规则)中指定 `null_frequency` 更改。
+默认不生成 `NULL`，可以在[自定义生成规则](#自定义生成规则)中指定 `null_frequency` 更改。
 
-各类型的生成规则：
+各类型的默认生成规则：
 
 | Type | Length | Min - Max | Structure |
 | --- | --- | --- | --- |

@@ -3,7 +3,7 @@
 Main features:
 
 1. **Dump** schema and query
-2. **Generate and import** data for dump table
+2. **Generate and import** data for table
 3. **Replay** dump query
 4. **Anonymize** database, table and column name in SQL
 
@@ -27,20 +27,30 @@ By default, only `SELECT` statments will be dumped. Use `--only-select=false` to
 dorisdump dump --help
 
 # dump schemas of database db1 and db2
-dorisdump dump --dump-schema --host <host> --port <port> --user root --password '******' --dbs db1,db2
+dorisdump dump --dump-schema --dbs db1,db2 --host <host> --port <port> --user root --password '***' 
 
-# also dump queries of db1 from audit logs
-dorisdump dump --dump-schema --dump-query --dbs db1 --audit-logs 'fe.audit.log,fe.audit.log.20240802-1'
+# also dump queries from audit logs of db1 and db2
+dorisdump dump --dump-schema --dump-query --dbs db1,db2 --audit-logs 'fe.audit.log,fe.audit.log.20240802-1'
 
 # dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
 dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:45:25' --to '2024-11-14 18:45:26'
 
 
+# Create dump schemas in another DB server
+dorisdump create --help
+
+# create all tables and views of db1 and db2, it auto finds dump schemas under 'output/' dir
+dorisdump create --dbs db1,db2 --host <host> --port <port> --user root --password '***'
+
+# run any create table/view SQL in db1
+dorisdump create --ddl 'dir/*.sql' --db db1
+
+
 # Generate data (Totally offline!)
 dorisdump gendata --help
 
-# gen data for db1 and db2, it auto finds dump schemas under output dir
-dorisdump gendata --dbs db1,db2
+# gen data for db1 and db2, it auto finds dump schemas under 'output/' dir
+dorisdump gendata --dbs db1,db2 --host <host> --port <port> --user root --password '***'
 
 # gen data for t1 and t2 in db1 with config
 dorisdump gendata --dbs db1 --table t1,t2 --genconf example/gendata.yaml
@@ -49,21 +59,11 @@ dorisdump gendata --dbs db1 --table t1,t2 --genconf example/gendata.yaml
 dorisdump gendata --ddl create.sql
 
 
-# Create tables and views
-dorisdump create --help
-
-# create all tables and views of db1 and db2, it auto finds dump schemas under output dir
-dorisdump create --dbs db1,db2
-
-# run any create table/view SQL in db1
-dorisdump create --ddl 'dir/*.sql' --db db1
-
-
 # Import data (Require curl command)
 dorisdump import --help
 
-# import data for db1, it auto finds generated data under output dir
-dorisdump import --dbs db1,db2
+# import data for db1, it auto finds generated data under 'output/' dir
+dorisdump import --dbs db1,db2 --host <host> --port <port> --user root --password '***'
 
 # import data for t1 and t2 in db1
 dorisdump import --dbs db1 --table t1,t2
@@ -99,7 +99,7 @@ dorisdump diff replay1/ replay2/
 
 ### Generate Data
 
-Generate CSV data file for tables.
+Generate CSV data from create-table SQLs. Totally offline!
 
 > [!Tip]
 > No only for Doris, other create-table statements with similar syntax are also supported (like Hive SQL). See [introduction](./introduction-zh.md#生成和导入数据) for more.
