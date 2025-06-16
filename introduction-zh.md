@@ -130,7 +130,7 @@ dorisdump gendata --dbs db1,db2
 # 给已导出的 table1 生成数据
 dorisdump gendata --tables db1.table1 # 或 --dbs db1 --tables table1
 
-# 给任意一个 create-table SQL 文件生成数据
+# 无需事先导出，给任意一个 create table SQL 也能生成数据
 # P.s. 也许不一定是 Doris，其他数据库比如 Hive 也行，但没试过 ;)
 dorisdump gendata --ddl my_create_table.sql
 
@@ -159,7 +159,7 @@ dorisdump import --tables db1.table1 --data my_data.csv
 
 > [!TIP]
 >
-> - 每张表最多生成 100k 数据
+> - 每张表最多生成一百万条数据
 > - 导入时指定 `-Ldebug` 可以看到 `curl` 具体命令，方便复现和排查问题
 
 ### 默认的生成规则

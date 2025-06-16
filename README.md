@@ -2,8 +2,8 @@
 
 Main features:
 
-1. **Dump** schema, column stats and query
-2. **Generate and import** data for table
+1. **Dump** schema and query
+2. **Generate and import** data for dump table
 3. **Replay** dump query
 4. **Anonymize** database, table and column name in SQL
 

@@ -404,7 +404,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, e
 	if len(auditLogs) == 0 {
 		sshUrl, err := chooseRemoteAuditLog(ctx)
 		if err != nil {
-			return 0, fmt.Errorf("please specific audit log files by '--audit-logs' or table by '--audit-log-table', error: %v", err)
+			return 0, fmt.Errorf("please specific audit log files by '--audit-logs' or table by '--audit-log-table', err: %v", err)
 		}
 		auditLogs = []string{sshUrl}
 	}
@@ -430,7 +430,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, e
 		localPath = strings.TrimPrefix(auditLog, "file://")
 		localPaths, err := filepath.Glob(localPath)
 		if err != nil {
-			return 0, fmt.Errorf("invalid audit log path: %s, error: %v", localPath, err)
+			return 0, fmt.Errorf("invalid audit log path: %s, err: %v", localPath, err)
 		}
 
 		auditLogFiles = append(auditLogFiles, localPaths...)

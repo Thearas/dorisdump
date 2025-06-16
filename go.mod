@@ -1,12 +1,12 @@
 module github.com/Thearas/dorisdump
 
-go 1.24.1
+go 1.24.4
 
 require (
 	dario.cat/mergo v1.0.2
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bramvdbogaerde/go-scp v1.5.0
-	github.com/brianvoe/gofakeit/v6 v6.28.0
+	github.com/brianvoe/gofakeit/v7 v7.2.1
 	github.com/dlclark/regexp2 v1.11.5-0.20240806004527-5bbbed8ea10b
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.17.0
@@ -14,6 +14,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-json v0.10.3
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f
+	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/manifoldco/promptui v0.9.0
 	github.com/samber/lo v1.49.1
@@ -23,6 +24,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
+	github.com/valyala/fasttemplate v1.2.2
 	github.com/xyproto/randomstring v1.2.0
 	github.com/zeebo/blake3 v0.2.4
 	golang.org/x/crypto v0.35.0
@@ -50,6 +52,8 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/traefik/yaegi v0.16.1 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

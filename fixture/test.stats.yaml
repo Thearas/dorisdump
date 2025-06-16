@@ -166,10 +166,10 @@ tables:
         - name: dt_month
           ndv: 5
           null_count: 0
-          data_size: 18
-          avg_size_byte: 3
-          min: duk
-          max: ume
+          data_size: 10
+          avg_size_byte: 2
+          min: "0"
+          max: "12"
           method: FULL
         - name: t_bigint
           ndv: 5
@@ -187,7 +187,7 @@ tables:
           min: "FALSE"
           max: "TRUE"
           method: FULL
-        - name: t_empty_string
+        - name: t_str
           ndv: 5
           null_count: 0
           data_size: 28

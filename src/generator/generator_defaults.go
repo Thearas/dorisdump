@@ -1,4 +1,4 @@
-package src
+package generator
 
 import (
 	"math"
@@ -14,11 +14,25 @@ import (
 )
 
 var (
-	GLOBAL_NULL_FREQUENCY = 0.0 // Default null frequency is 0%
-	MAX_DECIMAL_INT_LEN   = len(strconv.FormatInt(math.MaxInt64, 10))
-	GlobalGenRule         = GenRule{
+	GlobalGenRule = GenRule{
 		"null_frequency": GLOBAL_NULL_FREQUENCY,
 	}
+	GLOBAL_NULL_FREQUENCY = 0.0 // Default null frequency is 0%
+	MAX_DECIMAL_INT_LEN   = len(strconv.FormatInt(math.MaxInt64, 10))
+
+	TypeAlias = map[string]string{
+		"INTEGER":    "INT",
+		"TEXT":       "STRING",
+		"BOOL":       "BOOLEAN",
+		"DECIMALV2":  "DECIMAL",
+		"DECIMALV3":  "DECIMAL",
+		"DATEV1":     "DATE",
+		"DATEV2":     "DATE",
+		"DATETIMEV1": "DATETIME",
+		"DATETIMEV2": "DATETIME",
+		"TIMESTAMP":  "DATETIME",
+	}
+
 	DefaultTypeGenRules = map[string]GenRule{
 		"ARRAY": {
 			"length": GenRule{
@@ -144,7 +158,7 @@ func SetupDefaultGenRules(configFile string) error {
 	return nil
 }
 
-func getCustomTableGenRule(table string) (rows int, colrules map[string]GenRule) {
+func GetCustomTableGenRule(table string) (rows int, colrules map[string]GenRule) {
 	tableParts := strings.Split(table, ".")
 	tablePart := tableParts[len(tableParts)-1]
 
