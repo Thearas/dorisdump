@@ -2,13 +2,13 @@ package generator
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/goccy/go-json"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
-	"github.com/xyproto/randomstring"
 	"gopkg.in/yaml.v3"
 )
 
@@ -107,9 +107,12 @@ func MustYamlUmarshal(s string) map[string]any {
 }
 
 func RandomStr(lenMin, lenMax int) string {
+	const allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 	length := gofakeit.IntRange(lenMin, lenMax)
-	if length < 20 {
-		return randomstring.HumanFriendlyString(length)
+	b := make([]byte, length)
+	for i := 0; i < length; i++ {
+		b[i] = allowed[rand.IntN(len(allowed))]
 	}
-	return randomstring.CookieFriendlyString(length)
+	return string(b)
 }
