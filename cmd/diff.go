@@ -31,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var (
@@ -44,8 +44,8 @@ var (
 var diffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "Diff a replay result with another or the original dump sql",
-	Example: `dorisdump diff replay1/ replay2/
-dorisdump diff --original-sqls dump.sql replay1/`,
+	Example: `dodo diff replay1/ replay2/
+dodo diff --original-sqls dump.sql replay1/`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if noColor {

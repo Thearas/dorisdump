@@ -30,8 +30,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/Thearas/dorisdump/src"
-	"github.com/Thearas/dorisdump/src/generator"
+	"github.com/Thearas/dodo/src"
+	"github.com/Thearas/dodo/src/generator"
 )
 
 // GendataConfig holds the configuration values
@@ -54,9 +54,9 @@ var gendataCmd = &cobra.Command{
 	Long: `Gendata command reads table structures from DDL (.table.sql) files and table statistics files (.stats.yaml) to generate fake CSV data.
 
 Example:
-  dorisdump gendata --dbs db1,db2
-  dorisdump gendata --dbs db1 --tables t1,t2 --rows 500 --ddl output/ddl/
-  dorisdump gendata --ddl create.table.sql`,
+  dodo gendata --dbs db1,db2
+  dodo gendata --dbs db1 --tables t1,t2 --rows 500 --ddl output/ddl/
+  dodo gendata --ddl create.table.sql`,
 	Aliases: []string{"g"},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)

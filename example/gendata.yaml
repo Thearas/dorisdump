@@ -1,6 +1,6 @@
 ######
 # Run:
-#   dorisdump gendata --dbs company,test --ddl example/ddl --genconf example/gendata.yaml
+#   dodo gendata --dbs company,test --ddl example/ddl --genconf example/gendata.yaml
 ######
 
 # Default null frequency

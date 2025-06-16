@@ -34,7 +34,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var DumpConfig = Dump{}
@@ -73,13 +73,13 @@ var dumpCmd = &cobra.Command{
 	Long: `
 Dump schema from DB and query from audit-log.
 
-You may want to pass config by '$HOME/.dorisdump.yaml',
+You may want to pass config by '$HOME/.dodo.yaml',
 or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
 	Aliases:          []string{"d"},
-	Example:          "dorisdump dump --dump-schema --dump-query -dbs db1 --audit-logs /path/to/audit.log",
+	Example:          "dodo dump --dump-schema --dump-query -dbs db1 --audit-logs /path/to/audit.log",
 	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
@@ -493,7 +493,7 @@ func (w *queryWriter) WriteSql(s string) error {
 	w.count++
 
 	if AnonymizeConfig.Enabled {
-		// anonymizer will strip leading '/*dorisdump...*/ ' comment,
+		// anonymizer will strip leading '/*dodo...*/ ' comment,
 		// we need restoring it after anonymize
 		var leadComment string
 		if strings.HasPrefix(s, src.ReplaySqlPrefix) {

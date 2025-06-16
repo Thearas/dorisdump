@@ -27,7 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var ReplayConfig = Replay{}
@@ -55,7 +55,7 @@ var replayCmd = &cobra.Command{
 	Use:     "replay",
 	Short:   "Replay queries from dump file",
 	Aliases: []string{"r"},
-	Example: "dorisdump replay -f /path/to/dump.sql",
+	Example: "dodo replay -f /path/to/dump.sql",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},

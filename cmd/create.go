@@ -27,7 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var (
@@ -43,9 +43,9 @@ var createCmd = &cobra.Command{
 	Long: `Create tables and views.
 
 Example:
-  dorisdump create --dbs db1,db2
-  dorisdump create --dbs db1 --tables table1,table2
-  dorisdump create --ddl dir/*.sql`,
+  dodo create --dbs db1,db2
+  dodo create --dbs db1 --tables table1,table2
+  dodo create --ddl dir/*.sql`,
 	Aliases: []string{"c"},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)

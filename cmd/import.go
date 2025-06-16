@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 // ImportConfig holds the configuration values
@@ -47,9 +47,9 @@ var importCmd = &cobra.Command{
 	Long: `Import generated data to Doris via stream load, need 'sh' and 'curl' command.
 
 Example:
-  dorisdump import --dbs db1,db2
-  dorisdump import --dbs db1 --tables t1,t2 --http-port 8030 --data output/gendata/
-  dorisdump import --dbs db1 --tables t1 --data data.csv`,
+  dodo import --dbs db1,db2
+  dodo import --dbs db1 --tables t1,t2 --http-port 8030 --data output/gendata/
+  dodo import --dbs db1 --tables t1 --data data.csv`,
 	Aliases: []string{"i"},
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)

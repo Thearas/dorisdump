@@ -19,7 +19,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/Thearas/dorisdump/cmd"
+	"github.com/Thearas/dodo/cmd"
 )
 
 func main() {

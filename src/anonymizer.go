@@ -12,7 +12,7 @@ import (
 	"github.com/zeebo/blake3"
 	"gopkg.in/yaml.v3"
 
-	"github.com/Thearas/dorisdump/src/parser"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 const (

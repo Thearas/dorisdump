@@ -17,7 +17,7 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 
-	"github.com/Thearas/dorisdump/src/parser"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 var (
@@ -303,7 +303,7 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 		return false
 	}
 
-	// remove dorisdump self queries
+	// remove dodo self queries
 	if strings.HasPrefix(stmt, InternalSqlComment) {
 		return false
 	}

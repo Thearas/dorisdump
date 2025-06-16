@@ -10,8 +10,8 @@ import (
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 
-	gen "github.com/Thearas/dorisdump/src/generator"
-	"github.com/Thearas/dorisdump/src/parser"
+	gen "github.com/Thearas/dodo/src/generator"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 const (

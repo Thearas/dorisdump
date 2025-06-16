@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 
-	"github.com/Thearas/dorisdump/src/parser"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 func RunCreateSQL(ctx context.Context, conn *sqlx.DB, db string, sqlFile string, beCount int, dryrun bool) (needDependence string, err error) {

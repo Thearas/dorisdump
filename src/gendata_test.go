@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Thearas/dorisdump/src/generator"
+	"github.com/Thearas/dodo/src/generator"
 )
 
 func init() {

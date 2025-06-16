@@ -31,26 +31,26 @@
 
 ## 工作流
 
-分为两种，每一步代表一条 `dorisdump` 指令：
+分为两种，每一步代表一条 `dodo` 指令：
 
 - 不需要造数据：`导出 -> 回放 -> 对比回放结果`
 - 需要造数据：`导出 -> 创建表和视图（可选）-> 生成和导入数据 -> 回放 -> 对比回放结果`
 
 ## 导出
 
-`dorisdump dump --help`
+`dodo dump --help`
 
-分为两部分，「导出表和视图」和「导出查询」。二者可以合入一条 `dorisdump` 命令。
+分为两部分，「导出表和视图」和「导出查询」。二者可以合入一条 `dodo` 命令。
 
 ### 导出表和视图
 
-`dorisdump dump --dump-schema`
+`dodo dump --dump-schema`
 
 从 Doris 数据库导出表和视图的 `CREATE` 语句。默认会同时导出表的统计信息，如果统计信息与实际相差较大，推荐指定 `--analyze`。见 [导出的统计信息与实际不符](#导出的统计信息与实际不符)。
 
 ```sh
 # 导出 db1 和 db2 的所有表和视图
-dorisdump dump --dump-schema --host xxx --port xxx --user xxx --password xxx --dbs db1,db2
+dodo dump --dump-schema --host xxx --port xxx --user xxx --password xxx --dbs db1,db2
 
 # 默认导出到 output/ddl 下：
 output
@@ -63,16 +63,16 @@ output
 
 ### 导出查询
 
-`dorisdump dump --dump-query`
+`dodo dump --dump-query`
 
 可以从审计日志表或文件导出，默认只导出 `SELECT` 语句，可以加上 `--only-select=false` 一并导出其他语句。
 
 ```sh
 # 从审计日志表导出，表名一般是 __internal_schema.audit_log
-dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
+dodo dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
 
 # 从审计日志文件导出，'*' 代表匹配多个文件（注意要用单引号括起来）
-dorisdump dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
+dodo dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
 
 # 默认导出到 output/sql 下：
 output
@@ -102,47 +102,47 @@ output
 
 ### 创建表和视图
 
-`dorisdump create --help`
+`dodo create --help`
 
 需要先[导出表和视图](#导出表和视图)到本地，然后去另一个 Doris 创建：
 
 ```sh
 # 创建 db1 和 db2 的所有已导出的表和视图
-dorisdump create --dbs db1,db2
+dodo create --dbs db1,db2
 
 # 创建已导出的 table1 和 table 表
-dorisdump create --dbs db1 --tables table1,table2
+dodo create --dbs db1 --tables table1,table2
 
 # 在 db1 中跑任意 create table/view SQL
-dorisdump create --ddl 'dir/*.sql' --db db1
+dodo create --ddl 'dir/*.sql' --db db1
 ```
 
 ## 生成和导入数据
 
-`dorisdump gendata --help`/`dorisdump import --help`
+`dodo gendata --help`/`dodo import --help`
 
 需要先[导出表和视图](#导出表和视图)到本地，再生成数据和导入：
 
 ```sh
 # 给 db1 和 db2 的所有已导出的表生成数据
-dorisdump gendata --dbs db1,db2
+dodo gendata --dbs db1,db2
 
 # 给已导出的 table1 生成数据
-dorisdump gendata --tables db1.table1 # 或 --dbs db1 --tables table1
+dodo gendata --tables db1.table1 # 或 --dbs db1 --tables table1
 
 # 无需事先导出，给任意一个 create table SQL 也能生成数据
-# P.s. 也许不一定是 Doris，其他数据库比如 Hive 也行，但没试过 ;)
-dorisdump gendata --ddl my_create_table.sql
+# P.s. 不一定是 Doris，其他数据库比如 Hive 也行
+dodo gendata --ddl my_create_table.sql
 
 
 # 给 db1 和 db2 的所有已生成数据的表导入数据
-dorisdump import --dbs db1,db2
+dodo import --dbs db1,db2
 
 # 给已生成数据的 table1 导入数据
-dorisdump import --tables db1.table1 # 或 --dbs db1 --tables table1
+dodo import --tables db1.table1 # 或 --dbs db1 --tables table1
 
 # 导入任意一个 CSV 数据文件到 table1
-dorisdump import --tables db1.table1 --data my_data.csv
+dodo import --tables db1.table1 --data my_data.csv
 ```
 
 实现上，工具会按照 `--dbs` 和 `--tables` 参数，在两阶段分别做这些事：
@@ -193,16 +193,16 @@ dorisdump import --tables db1.table1 --data my_data.csv
 
 ## 回放
 
-`dorisdump replay --help`
+`dodo replay --help`
 
 需要先[导出查询](#导出查询)，然后基于导出的 SQL 文件回放。
 
 ```sh
 # 导出
-dorisdump dump --dump-query --audit-logs fe.audit.log
+dodo dump --dump-query --audit-logs fe.audit.log
 
 # 回放，结果默认放在 `output/replay` 目录下，每个文件代表一个客户端，文件中每行代表一条 SQL 的结果
-dorisdump replay -f output/q0.sql
+dodo replay -f output/q0.sql
 ```
 
 > [!NOTE]
@@ -242,20 +242,20 @@ dorisdump replay -f output/q0.sql
 
 ## 对比回放结果
 
-`dorisdump diff --help`
+`dodo diff --help`
 
 有两种方式：
 
 1. 对比两次回放结果：
 
     ```sh
-    dorisdump diff output/replay1 output/replay2
+    dodo diff output/replay1 output/replay2
     ```
 
 2. 对比导出的 SQL 和它的回放结果：
 
     ```sh
-    dorisdump diff --min-duration-diff 2s --original-sqls 'output/sql/*.sql' output/replay
+    dodo diff --min-duration-diff 2s --original-sqls 'output/sql/*.sql' output/replay
     ```
 
 > `--min-duration-diff` 表示打印执行时长差异超过此值的 SQL，默认 `100ms`
@@ -264,7 +264,7 @@ dorisdump replay -f output/q0.sql
 
 ### 命令行提示与自动补全
 
-`dorisdump completion --help`
+`dodo completion --help`
 
 安装完成或执行上面的命令时，会给出启用自动补全的方法。
 
@@ -272,19 +272,19 @@ dorisdump replay -f output/q0.sql
 
 ### 环境变量和配置文件
 
-`dorisdump --help`
+`dodo --help`
 
 除了命令行传参，还有两种方式：
 
 1. 通过前缀为 `DORIS_xxx` 的大写环境变量传参，比如 `DORIS_HOST=xxx` 等价于  `--host xxx`
-2. 通过配置文件传参，比如 `dorisdump --config-file xxx.yaml`，见 [example](./example/example.dorisdump.yaml)
+2. 通过配置文件传参，比如 `dodo --config-file xxx.yaml`，见 [example](./example/example.dodo.yaml)
 
 参数优先级由高到低：
 
 1. 命令行参数
 2. 环境变量
 3. `--config` 指定的配置文件
-4. 默认配置文件 `~/.dorisdump.yaml`
+4. 默认配置文件 `~/.dodo.yaml`
 
 ---
 
@@ -302,12 +302,12 @@ dorisdump replay -f output/q0.sql
 
 ```sh
 # 分别导出 fe1 和 fe2 的审计日志
-dorisdump dump --dump-query --audit-logs fe1.audlt.log -O fe1
-dorisdump dump --dump-query --audit-logs fe2.audlt.log -O fe2
+dodo dump --dump-query --audit-logs fe1.audlt.log -O fe1
+dodo dump --dump-query --audit-logs fe2.audlt.log -O fe2
 
 # 同时回放 fe1 和 fe2 的审计日志
-nohup dorisdump replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
-nohup dorisdump replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
+nohup dodo replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
+nohup dodo replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
 ```
 
 ---
@@ -331,13 +331,13 @@ for day in {1..31} ; do
       echo "dumping and replaying at $day-$hour"
 
       # 导出
-      dorisdump dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
+      dodo dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
 
       # 回放，并清除前一次回放结果，50 个客户端并发，不间断跑
-      dorisdump replay -f "$sql" --result-dir result --clean --client-count 50 --speed 999999
+      dodo replay -f "$sql" --result-dir result --clean --client-count 50 --speed 999999
 
       # 查看回放结果
-      dorisdump diff --min-duration-diff 1s --original-sqls $sql result -Ldebug 2>&1 | tee -a "result-$day.txt"
+      dodo diff --min-duration-diff 1s --original-sqls $sql result -Ldebug 2>&1 | tee -a "result-$day.txt"
   done
 done
 ```
@@ -366,7 +366,7 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 
 ## 脱敏
 
-`dorisdump anonymize --help`
+`dodo anonymize --help`
 
 基础使用见 [README.md](./README.md#anonymize)。
 
@@ -378,13 +378,13 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 - `--anonymize-reserve-ids` 保留 ID 字段，不做脱敏
 - `--anonymize-id-min-length` 长度小于此值的 ID 字段不做脱敏，默认 `3`
 - `--anonymize-method` hash 方法，`hash` 或 `minihash`，后者在前者的基础上生成简要字典，让脱敏后的 ID 变短，默认是 `minhash`
-- `--anonymize-minihash-dict` 当 hash 方法为 `minihash` 时，指定简要字典文件，默认 `./dorisdump_hashdict.yaml`
+- `--anonymize-minihash-dict` 当 hash 方法为 `minihash` 时，指定简要字典文件，默认 `./dodo_hashdict.yaml`
 
 ## FAQ
 
 ### 怎么把工具给客户，对生产环境有没有影响
 
-客户不能科学上网的话，把[最新二进制](https://github.com/Thearas/dorisdump/releases)下载下来直接给，Linux 版是无依赖的，放机器上就能跑，默认情况下工具不会对集群有任何写入操作。
+客户不能科学上网的话，把[最新二进制](https://github.com/Thearas/dodo/releases)下载下来直接给，Linux 版是无依赖的，放机器上就能跑，默认情况下工具不会对集群有任何写入操作。
 
 导出时担心消耗资源的话，可以设置 `--parallel=1`，内存消耗最多几十兆，一般执行时间在秒级。
 

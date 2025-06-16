@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var AnonymizeConfig = Anonymize{}
@@ -43,7 +43,7 @@ var anonymizeCmd = &cobra.Command{
 	Use:     "anonymize",
 	Short:   "Anonymize sqls",
 	Aliases: []string{"a"},
-	Example: `echo "select * from table1" | dorisdump anonymize -f -`,
+	Example: `echo "select * from table1" | dodo anonymize -f -`,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
@@ -84,5 +84,5 @@ func addAnonymizeBaseFlags(pFlags *pflag.FlagSet, defaultEnabled bool) {
 	pFlags.StringSliceVar(&AnonymizeConfig.ReserveIds, "anonymize-reserve-ids", nil, "Skip anonymization for these ids, usually database names")
 	pFlags.StringVar(&AnonymizeConfig.Method, "anonymize-method", "minihash", "Anonymize method, hash or minihash")
 	pFlags.IntVar(&AnonymizeConfig.IdMinLength, "anonymize-id-min-length", 3, "Skip anonymization for id which length is less than this value, only for hash method")
-	pFlags.StringVar(&AnonymizeConfig.HashDictPath, "anonymize-minihash-dict", "./dorisdump_hashdict.yaml", "Hash dict file path for minihash method")
+	pFlags.StringVar(&AnonymizeConfig.HashDictPath, "anonymize-minihash-dict", "./dodo_hashdict.yaml", "Hash dict file path for minihash method")
 }

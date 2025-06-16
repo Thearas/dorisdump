@@ -1,4 +1,4 @@
-module github.com/Thearas/dorisdump
+module github.com/Thearas/dodo
 
 go 1.24.4
 

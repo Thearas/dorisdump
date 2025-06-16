@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cast"
 
-	"github.com/Thearas/dorisdump/src/parser"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 var _ Gen = &TypeGen{}

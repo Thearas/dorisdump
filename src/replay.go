@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	ReplaySqlPrefix          = `/*dorisdump{`
+	ReplaySqlPrefix          = `/*dodo{`
 	ReplaySqlSuffix          = `*/`
 	replayTsFormat           = "2006-01-02 15:04:05.000"
 	ReplayResultFileExt      = ".result"
@@ -518,7 +518,7 @@ func EncodeReplaySql(ts, client, user, db, queryId, stmt string, durationMs int6
 		panic(err)
 	}
 
-	outputStmt := fmt.Sprintf(`/*dorisdump%s*/ %s`, b, stmt)
+	outputStmt := fmt.Sprintf(`/*dodo%s*/ %s`, b, stmt)
 	if !strings.HasSuffix(outputStmt, ";") {
 		outputStmt += ";"
 	}
@@ -528,7 +528,7 @@ func EncodeReplaySql(ts, client, user, db, queryId, stmt string, durationMs int6
 
 // ReplaySqlMeta will be prepend to every sql as a comment.
 //
-// e.g.	"/*dorisdump{"ts": "2024-09-20 00:00:00", "client": "127.0.0.1:32345", "user": "root", "db": "test", "queryId": "1"}*/ <the sql>"
+// e.g.	"/*dodo{"ts": "2024-09-20 00:00:00", "client": "127.0.0.1:32345", "user": "root", "db": "test", "queryId": "1"}*/ <the sql>"
 type ReplaySqlMeta struct {
 	Ts_        string `json:"ts"`
 	Ts         int64  `json:"-"`

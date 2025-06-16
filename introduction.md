@@ -31,26 +31,26 @@
 
 ## Workflow
 
-There are two types of workflows, with each step representing a `dorisdump` command:
+There are two types of workflows, with each step representing a `dodo` command:
 
 - No data generation needed: `Dump -> Replay -> Compare Replay Results`
 - Data generation needed: `Dump -> Create Tables and Views (Optional) -> Generate and Import Data -> Replay -> Compare Replay Results`
 
 ## Dump
 
-`dorisdump dump --help`
+`dodo dump --help`
 
-This is divided into two parts: "Dump Tables and Views" and "Dump Queries". Both can be combined into a single `dorisdump` command.
+This is divided into two parts: "Dump Tables and Views" and "Dump Queries". Both can be combined into a single `dodo` command.
 
 ### Dump Tables and Views
 
-`dorisdump dump --dump-schema`
+`dodo dump --dump-schema`
 
 Dumps `CREATE` statements for tables and views from a Doris database. By default, it also dumps table statistics. If the statistics differ significantly from the actual data, specifying `--analyze` is recommended. See [Dump statistics do not match the actual ones](#dump-statistics-do-not-match-the-actual-ones).
 
 ```sh
 # Dump all tables and views from db1 and db2
-dorisdump dump --dump-schema --host xxx --port xxx --user xxx --password xxx --dbs db1,db2
+dodo dump --dump-schema --host xxx --port xxx --user xxx --password xxx --dbs db1,db2
 
 # Default dump to output/ddl:
 output
@@ -63,16 +63,16 @@ output
 
 ### Dump Queries
 
-`dorisdump dump --dump-query`
+`dodo dump --dump-query`
 
 Queries can be dump from an audit log table or file. By default, only `SELECT` statements are dump. You can add `--only-select=false` to dump other statements as well.
 
 ```sh
 # Dump from an audit log table, table name is usually __internal_schema.audit_log
-dorisdump dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
+dodo dump --dump-query --audit-log-table <db.table> --from '2024-11-14 17:00:00' --to '2024-11-14 18:00:00' --host xxx --port xxx --user xxx --password xxx
 
 # Dump from audit log files, '*' matches multiple files (note the single quotes)
-dorisdump dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
+dodo dump --dump-query --audit-logs 'fe.audit.log,fe.audit.log.20240802*'
 
 # Default dump to output/sql:
 output
@@ -102,47 +102,47 @@ output
 
 ## Create Tables and Views
 
-`dorisdump create --help`
+`dodo create --help`
 
 You need to first [Dump Tables and Views](#dump-tables-and-views) locally, then create them in another Doris instance:
 
 ```sh
 # Create all dump tables and views for db1 and db2
-dorisdump create --dbs db1,db2
+dodo create --dbs db1,db2
 
 # Create dump table1 and table2
-dorisdump create --dbs db1 --tables table1,table2
+dodo create --dbs db1 --tables table1,table2
 
 # Run any create table/view SQL in db1
-dorisdump create --ddl 'dir/*.sql' --db db1
+dodo create --ddl 'dir/*.sql' --db db1
 ```
 
 ## Generate and Import Data
 
-`dorisdump gendata --help`/`dorisdump import --help`
+`dodo gendata --help`/`dodo import --help`
 
 You need to first [Dump Tables and Views](#dump-tables-and-views) locally, then generate and import data:
 
 ```sh
 # Generate data for all dump tables in db1 and db2
-dorisdump gendata --dbs db1,db2
+dodo gendata --dbs db1,db2
 
 # Generate data for dump table1
-dorisdump gendata --tables db1.table1 # or --dbs db1 --tables table1
+dodo gendata --tables db1.table1 # or --dbs db1 --tables table1
 
 # Data can also be generated for any create table SQL without prior dump
-# P.S. It might not necessarily be Doris; other databases like Hive might also work, but it hasn't been tested ;)
-dorisdump gendata --ddl my_create_table.sql
+# P.S. It might not necessarily be Doris; other databases like Hive also work
+dodo gendata --ddl my_create_table.sql
 
 
 # Import data for all tables with generated data in db1 and db2
-dorisdump import --dbs db1,db2
+dodo import --dbs db1,db2
 
 # Import data for table1 with generated data
-dorisdump import --tables db1.table1 # or --dbs db1 --tables table1
+dodo import --tables db1.table1 # or --dbs db1 --tables table1
 
 # Import any CSV data file into table1
-dorisdump import --tables db1.table1 --data my_data.csv
+dodo import --tables db1.table1 --data my_data.csv
 ```
 
 In implementation, the tool performs these actions in two stages based on the `--dbs` and `--tables` parameters:
@@ -193,16 +193,16 @@ Specify with `--genconf gendata.yaml` during data generation. See [example/genda
 
 ## Replay
 
-`dorisdump replay --help`
+`dodo replay --help`
 
 You need to first [Dump Queries](#dump-queries), then replay based on the dump SQL files.
 
 ```sh
 # Dump
-dorisdump dump --dump-query --audit-logs fe.audit.log
+dodo dump --dump-query --audit-logs fe.audit.log
 
 # Replay, results are placed in the `output/replay` directory by default. Each file represents a client, and each line in the file represents the result of a SQL query.
-dorisdump replay -f output/q0.sql
+dodo replay -f output/q0.sql
 ```
 
 > [!NOTE]
@@ -242,20 +242,20 @@ Controlled by the following parameters:
 
 ## Compare Replay Results
 
-`dorisdump diff --help`
+`dodo diff --help`
 
 There are two ways:
 
 1. Compare two replay results:
 
     ```sh
-    dorisdump diff output/replay1 output/replay2
+    dodo diff output/replay1 output/replay2
     ```
 
 2. Compare dump SQL with its replay result:
 
     ```sh
-    dorisdump diff --min-duration-diff 2s --original-sqls 'output/sql/*.sql' output/replay
+    dodo diff --min-duration-diff 2s --original-sqls 'output/sql/*.sql' output/replay
     ```
 
 > `--min-duration-diff` means print SQLs whose execution duration difference exceeds this value. Default is `100ms`.
@@ -264,7 +264,7 @@ There are two ways:
 
 ### Command-line Prompts and Autocompletion
 
-`dorisdump completion --help`
+`dodo completion --help`
 
 When the installation is complete or when you execute the command above, it will provide instructions on how to enable autocompletion.
 
@@ -272,19 +272,19 @@ When the installation is complete or when you execute the command above, it will
 
 ### Environment Variables and Configuration Files
 
-`dorisdump --help`
+`dodo --help`
 
 Besides command-line arguments, there are two other ways:
 
 1. Pass parameters through uppercase environment variables prefixed with `DORIS_xxx`, e.g., `DORIS_HOST=xxx` is equivalent to `--host xxx`.
-2. Pass parameters through a configuration file, e.g., `dorisdump --config-file xxx.yaml`. See [example](./example/example.dorisdump.yaml).
+2. Pass parameters through a configuration file, e.g., `dodo --config-file xxx.yaml`. See [example](./example/example.dodo.yaml).
 
 Parameter priority from high to low:
 
 1. Command-line arguments
 2. Environment variables
 3. Configuration file specified by `--config`
-4. Default configuration file `~/.dorisdump.yaml`
+4. Default configuration file `~/.dodo.yaml`
 
 ---
 
@@ -302,12 +302,12 @@ Each FE's audit log is separate. When dumping, they must be dump separately. Whe
 
 ```sh
 # Dump audit logs for fe1 and fe2 separately
-dorisdump dump --dump-query --audit-logs fe1.audlt.log -O fe1
-dorisdump dump --dump-query --audit-logs fe2.audlt.log -O fe2
+dodo dump --dump-query --audit-logs fe1.audlt.log -O fe1
+dodo dump --dump-query --audit-logs fe2.audlt.log -O fe2
 
 # Replay audit logs for fe1 and fe2 simultaneously
-nohup dorisdump replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
-nohup dorisdump replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
+nohup dodo replay -H <fe1.ip> -f fe1/sql/q0.sql -O fe1 &
+nohup dodo replay -H <fe2.ip> -f fe2/sql/q0.sql -O fe2 &
 ```
 
 ---
@@ -331,13 +331,13 @@ for day in {1..31} ; do
       echo "dumping and replaying at $day-$hour"
 
       # Dump
-      dorisdump dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
+      dodo dump --dump-query --from "$YEAR_MONTH-$day $hour:00:00" --to "$YEAR_MONTH-$day $hour:59:59" --audit-log-table __internal_schema.audit_log --output "$output"
 
       # Replay, clear previous replay results, 50 clients concurrently, run continuously
-      dorisdump replay -f "$sql" --result-dir result --clean --client-count 50 --speed 999999
+      dodo replay -f "$sql" --result-dir result --clean --client-count 50 --speed 999999
 
       # View replay results
-      dorisdump diff --min-duration-diff 1s --original-sqls $sql result -Ldebug 2>&1 | tee -a "result-$day.txt"
+      dodo diff --min-duration-diff 1s --original-sqls $sql result -Ldebug 2>&1 | tee -a "result-$day.txt"
   done
 done
 ```
@@ -366,7 +366,7 @@ For example, when writing scripts to dump/replay multiple files, it's inconvenie
 
 ## Anonymization
 
-`dorisdump anonymize --help`
+`dodo anonymize --help`
 
 For basic usage, see [README.md](./README.md#anonymize).
 
@@ -378,13 +378,13 @@ Anonymization uses the Go version of Doris Antlr4 Parser, which is currently cas
 - `--anonymize-reserve-ids`: Reserve ID fields, do not anonymize them.
 - `--anonymize-id-min-length`: ID fields with a length less than this value will not be anonymized. Default is `3`.
 - `--anonymize-method`: Hash method, `hash` or `minihash`. The latter generates a concise dictionary based on the former, making anonymized IDs shorter. Default is `minihash`.
-- `--anonymize-minihash-dict`: When the hash method is `minihash`, specify the concise dictionary file. Default is `./dorisdump_hashdict.yaml`.
+- `--anonymize-minihash-dict`: When the hash method is `minihash`, specify the concise dictionary file. Default is `./dodo_hashdict.yaml`.
 
 ## FAQ
 
 ### How to provide the tool to customers, and is there any impact on the production environment?
 
-If customers cannot access the internet, download the [latest binary](https://github.com/Thearas/dorisdump/releases) and provide it directly. The Linux version has no dependencies and can run directly on the machine. By default, the tool will not perform any write operations on the cluster.
+If customers cannot access the internet, download the [latest binary](https://github.com/Thearas/dodo/releases) and provide it directly. The Linux version has no dependencies and can run directly on the machine. By default, the tool will not perform any write operations on the cluster.
 
 If you are concerned about resource consumption during dump, you can set `--parallel=1`. Memory consumption will be at most tens of megabytes, and execution time is generally in seconds.
 

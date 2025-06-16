@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 
-	"github.com/Thearas/dorisdump/src/parser"
+	"github.com/Thearas/dodo/src/parser"
 )
 
 var CustomGenConstructors map[string]CustomGenConstructor
@@ -159,7 +159,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				genRule = maps.Clone(v.GenRule)
 				delete(genRule, "structure")
 			} else {
-				logrus.Fatalf("JSON/JSONB/VARIANT must have gen rule 'structure at column '%s'\n", v.Colpath)
+				logrus.Fatalf("JSON/JSONB/VARIANT must have gen rule 'structure' at column '%s'\n", v.Colpath)
 			}
 
 			p := parser.NewParser(v.Colpath, structure)

@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	InternalSqlComment = "/*dorisdump*/"
+	InternalSqlComment = "/*dodo*/"
 
 	sqlLikeReplacer = strings.NewReplacer(
 		`"`, `\"`,

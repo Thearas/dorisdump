@@ -29,7 +29,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/Thearas/dorisdump/src"
+	"github.com/Thearas/dodo/src"
 )
 
 var (
@@ -56,17 +56,17 @@ type Global struct {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "dorisdump",
-	Short: "Dump schema and query for Doris",
+	Use:   "dodo",
+	Short: "Dump and replay queries from database. Also a powerful fake data generator.",
 	Long: `
-Dump schema and query for Doris.
+Dump and replay queries from database. Also a powerful fake data generator.
 
-You may want to pass config by '$HOME/.dorisdump.yaml',
+You may want to pass config by '$HOME/.dodo.yaml',
 or environment variables with prefix 'DORIS_', e.g.
     DORIS_HOST=xxx
     DORIS_PORT=9030
 	`,
-	Example:          "dorisdump dump --help",
+	Example:          "dodo dump --help",
 	SuggestFor:       []string{"dump", "replay"},
 	ValidArgs:        []string{"completion", "help", "clean", "dump", "anonymize", "replay", "diff"},
 	TraverseChildren: true,
@@ -97,9 +97,9 @@ func init() {
 	}
 
 	pFlags := rootCmd.PersistentFlags()
-	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dorisdump.yaml)")
+	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dodo.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
-	pFlags.StringVar(&GlobalConfig.DorisDumpDataDir, "dorisdump-data-dir", "./.dorisdump/", "Directory for storing dorisdump self data")
+	pFlags.StringVar(&GlobalConfig.DorisDumpDataDir, "dodo-data-dir", "./.dodo/", "Directory for storing dodo self data")
 	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", parallel, "Parallel dump worker")
@@ -149,10 +149,10 @@ func initConfig(cmd *cobra.Command, prefixs ...string) error {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".dorisdump" (without extension).
+		// Search config in home directory with name ".dodo" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".dorisdump")
+		viper.SetConfigName(".dodo")
 	}
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
