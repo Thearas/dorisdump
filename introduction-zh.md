@@ -22,6 +22,7 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
+  - [AI 生成](#ai-生成)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
   - [其他回放参数](#其他回放参数)
@@ -274,11 +275,12 @@ columns:
 
 #### length
 
-指定字符串类型字段或复合类型的长度范围。例如：
+指定字 bitmap、string、array 或 map 类型长度范围。例如：
 
 ```yaml
 columns:
   - name: t_str
+    # or just `length: <int>` if min and max are the same, like `length: 5`
     length:
       min: 1
       max: 5
@@ -473,6 +475,40 @@ columns:
             return fmt.Sprintf("Is odd: %v.", i%2 == 1)
         }
 ```
+
+### AI 生成
+
+使用 [Google Jules](https://jules.google.com)，获取 `gendata.yaml` 文件非常容易：
+
+1. Fork [dodo](https://github.com/Thearas/dodo) 仓库，然后在 [Google Jules](https://jules.google.com) 中打开它，并编写一些提示，例如：
+    > 将 `{{tables}}`、`{{column stats}}` 和 `{{queries}}` 分别替换为 dodo dump 导出的建表语句、列统计信息和查询语句。
+
+    ```markdown
+    为以下表、列统计信息（可选）和查询生成一个 gendata.yaml 配置（通过 `dodo gendata --genconf gendata.yaml` 命令使用）。
+
+    要求：
+    1. 确保执行查询能够返回结果
+
+    文档：
+    1. 配置数据生成指南：`introduction.md#generate-and-import-data`
+    2. 完整示例 `example/gendata.yaml`
+
+    提示：
+    - 不要为未用作条件的列（例如 JOIN 和 WHERE）生成规则。
+    - 生成规则 `format` 内置标签列表（例如 {{month}} 等占位符）可在 `src/generator/README.md` 中找到。
+
+    表：
+    {{tables}}
+
+    列统计：
+    {{column stats}}
+
+    查询：
+    {{queries}}
+    ```
+
+2. 点击 `Approve`，将生成的 `gendata.yaml` 内容复制到本地，并根据 dodo 的文档进行一些细微修改。
+3. 最后，在运行 dodo gendata 生成数据时，添加 `--genconf gendata.yaml`
 
 ## 回放
 

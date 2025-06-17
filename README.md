@@ -3,9 +3,9 @@
 Main features:
 
 1. **Dump** schema and query
-2. [**Generate fake data**](#generate-data) for table
+2. [**Generate fake data**](#generate-data) for tables with *AI powered*
 3. **Replay** audit log
-4. **Anonymize** database, table and column names in SQL
+4. **Anonymize** database, table, column and comment in SQL
 
 > [!IMPORTANT]
 > **See [Introduction & FAQ](./introduction.md) / [中文版](./introduction-zh.md) for more details.**
@@ -20,7 +20,12 @@ curl -sSL https://raw.githubusercontent.com/Thearas/dodo/master/install.sh | bas
 
 ## Usage
 
-By default, only `SELECT` statments will be dumped. Use `--only-select=false` to dump all.
+There are two types of workflows, with each step representing a `dodo` command:
+
+- No data generation needed: `Dump -> Replay -> Diff Replay Results`
+- Data generation needed: `Dump -> Create Schemas (Optional) -> Generate and Import Data -> Replay -> Diff Replay Results`
+
+> By default, only `SELECT` statments will be dumped. Use `--only-select=false` to dump all.
 
 ```sh
 # Dump
@@ -99,9 +104,9 @@ dodo diff replay1/ replay2/
 
 ### Generate Data
 
-Generate CSV data from create-table SQLs. All database with similar syntax as Doris are supported, like MySQL, Hive, etc.
+Generate CSV data from create-table SQLs. All databases with similar syntax as Doris are supported, like MySQL, Hive, etc.
 
-This example uses default generation rule. See **[Custom Generation Rules](./introduction.md#custom-generation-rules)** for more:
+Here is an example. See [Custom Generation Rules](./introduction.md#custom-generation-rules) and **[AI Generation](./introduction.md#ai-generation)** for more:
 
 ```sh
 echo 'create table t1 (

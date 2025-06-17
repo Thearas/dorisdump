@@ -23,8 +23,8 @@ Main Commands:
 - `dodo completion`: Generates shell completion scripts.
 
 Typical Workflows:
-1. No data generation needed: `Dump -> Replay -> Compare Replay Results`
-2. Data generation needed: `Dump -> Create Tables and Views (Optional) -> Generate and Import Data -> Replay -> Compare Replay Results`
+1. No data generation needed: `Dump -> Replay -> Diff Replay Results`
+2. Data generation needed: `Dump -> Create Schemas (Optional) -> Generate and Import Data -> Replay -> Diff Replay Results`
 
 Installation:
 Users can install Dodo using a provided shell script:

@@ -5,7 +5,7 @@
   - [Dump Tables and Views](#dump-tables-and-views)
   - [Dump Queries](#dump-queries)
   - [Other Dump Parameters](#other-dump-parameters)
-- [Create Tables and Views](#create-tables-and-views)
+- [Create Schemas](#create-tables-and-views)
 - [Generate and Import Data](#generate-and-import-data)
   - [Default Generation Rules](#default-generation-rules)
   - [Custom Generation Rules](#custom-generation-rules)
@@ -22,10 +22,11 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
+  - [AI Generation](#ai-generation)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
-- [Compare Replay Results](#compare-replay-results)
+- [Diff Replay Results](#compare-replay-results)
 - [Best Practices](#best-practices)
   - [Command-line Prompts and Autocompletion](#command-line-prompts-and-autocompletion)
   - [Environment Variables and Configuration Files](#environment-variables-and-configuration-files)
@@ -46,8 +47,8 @@
 
 There are two types of workflows, with each step representing a `dodo` command:
 
-- No data generation needed: `Dump -> Replay -> Compare Replay Results`
-- Data generation needed: `Dump -> Create Tables and Views (Optional) -> Generate and Import Data -> Replay -> Compare Replay Results`
+- No data generation needed: `Dump -> Replay -> Diff Replay Results`
+- Data generation needed: `Dump -> Create Schemas (Optional) -> Generate and Import Data -> Replay -> Diff Replay Results`
 
 ## Dump
 
@@ -113,7 +114,7 @@ output
 - `--anonymize`: Anonymizes data during dump, e.g., `select * from table1` becomes `select * from a`.
 - `--anonymize-xxx`: Other anonymization parameters, see [Anonymization](#anonymization).
 
-## Create Tables and Views
+## Create Schemas
 
 `dodo create --help`
 
@@ -274,11 +275,12 @@ columns:
 
 #### length
 
-Specifies the length range for string type fields or complex types. For example:
+Specifies the length range for bitmap, string, array or map types. For example:
 
 ```yaml
 columns:
   - name: t_str
+    # or just `length: <int>` if min and max are the same, like `length: 5`
     length:
       min: 1
       max: 5
@@ -474,6 +476,40 @@ columns:
         }
 ```
 
+### AI Generation
+
+With [Google Jules](https://jules.google.com), it's very easy to get a `gendata.yaml`:
+
+1. Fork [dodo](https://github.com/Thearas/dodo) repo, then open it in [Google Jules](https://jules.google.com) and write some prompts, for example:
+    > Replace `{{tables}}`, `{{column stats}}` and `{{queries}}` with the create table statement, column statistics and queries exported by dodo dump respectively
+
+    ```markdown
+    Generate a gendata.yaml config (used by `dodo gendata --genconf gendata.yaml`) for below tables, column-stats(optional) and queries.
+
+    Requirements:
+    1. Ensure that executing queries can return rows
+
+    Documents:
+    1. The guide config data generation: `introduction.md#generate-and-import-data` 
+    2. Full example `example/gendata.yaml` 
+
+    Tips:
+    - Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+    - The list of generate rule `format` built-in tags(placeholder like {{month}}) can be found at `src/generator/README.md`
+
+    tables:
+    {{tables}}
+
+    column-stats:
+    {{column stats}}
+
+    queries:
+    {{queries}}
+    ```
+
+2. Click `Approve`, copy the generated `gendata.yaml` content to your local computer, and make some minor modifications according to dodo's documentation
+3. Finally, when running dodo gendata to generate data, add `--genconf gendata.yaml`
+
 ## Replay
 
 `dodo replay --help`
@@ -523,7 +559,7 @@ Controlled by the following parameters:
 - `--max-hash-rows`: Maximum number of hash result rows to record during replay, used to compare if two replay results are consistent. Default is no hashing.
 - `--max-conn-idle-time`: Maximum idle time for a client connection. If the interval duration between consecutive SQLs from the same client exceeds this value, the connection will be recycled. Default is `5s`.
 
-## Compare Replay Results
+## Diff Replay Results
 
 `dodo diff --help`
 
