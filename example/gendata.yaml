@@ -3,13 +3,13 @@
 #   dodo gendata --dbs company,test --ddl example/ddl --genconf example/gendata.yaml
 ######
 
-# Default null frequency
+# Global null frequency
 null_frequency: 0
 
 
-# Default generate rule of types
+# Global generate rule of types
 type:
-  # set default bigint range is 0 - 100
+  # set default bigint range to 0 - 100
   bigint:
     min: 0
     max: 100
@@ -185,4 +185,3 @@ tables:
         format: "1{{%06d}}"
         gen:
           ref: employees.employee_id
-

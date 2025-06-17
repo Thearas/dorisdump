@@ -9,6 +9,19 @@
 - [生成和导入数据](#生成和导入数据)
   - [默认的生成规则](#默认的生成规则)
   - [自定义生成规则](#自定义生成规则)
+    - [全局规则与表规则](#全局规则与表规则)
+    - [null_frequency](#null_frequency)
+    - [min/max](#minmax)
+    - [precision/scale](#precisionscale)
+    - [length](#length)
+    - [format](#format)
+    - [Complex Types (map/array/struct/json/variant)](#complex-types-maparraystructjsonvariant)
+    - [gen](#gen)
+      - [inc](#inc)
+      - [enum](#enum)
+      - [ref](#ref)
+      - [type](#type)
+      - [golang](#golang)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
   - [其他回放参数](#其他回放参数)
@@ -189,7 +202,269 @@ dodo import --tables db1.table1 --data my_data.csv
 
 ### 自定义生成规则
 
-生成数据时用 `--genconf gendata.yaml` 指定，示例见 [example/gendata.yaml](./example/gendata.yaml)。
+生成数据时用 `--genconf gendata.yaml` 指定，完整示例见 [example/gendata.yaml](./example/gendata.yaml)。
+
+#### 全局规则与表规则
+
+生成规则可以分为全局和表级别。表级别会覆盖全局配置。
+
+全局规则示例：
+
+```yaml
+# 全局默认 NULL 比例
+null_frequency: 0
+
+# 全局类型生成规则
+type:
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+```
+
+表级别规则示例：
+
+```yaml
+tables:
+  - name: employees
+    row_count: 100  # 可选，默认 1000（也可通过 --rows 指定）
+    columns:
+      - name: department_id
+        null_frequency: 0.1  # 10% NULL
+        min: 1
+        max: 10
+```
+
+#### null_frequency
+
+指定字段的 NULL 值比例，取值范围 0-1。例如：
+
+```yaml
+null_frequency: 0.1  # 10% 的概率生成 NULL
+```
+
+#### min/max
+
+指定数值类型字段的取值范围。例如：
+
+```yaml
+columns:
+  - name: salary
+    min: 15000.00
+    max: 16000.00
+  - name: hire_date
+    min: "1997-01-15"
+    max: "1997-01-15"
+```
+
+#### precision/scale
+
+指定 DECIMAL 类型的精度和小数位数。例如：
+
+```yaml
+columns:
+  - name: t_decimal
+    precision: 10
+    scale: 3
+    min: 100
+    max: 102  # 实际最大值为 102.999
+```
+
+#### length
+
+指定字符串类型字段或复合类型的长度范围。例如：
+
+```yaml
+columns:
+  - name: t_str
+    length:
+      min: 1
+      max: 5
+```
+
+#### format
+
+无论什么生成规则，都能有一个 `format`，通过模板自定义输出到 CSV 文件的格式。使用 `{{%s}}` 或 `{{%d}}` 等占位符，语法同 Go 的 `fmt.Sprintf()`。也支持内置标签如 `{{month}}`、`{{year}}` 等，所有内置标签见：[src/generator/README.md](./src/generator/README.md#format-tags)。
+
+例如：
+
+```yaml
+columns:
+  - name: t_str
+    format: 'substr length 1-5: {{%s}}'
+    length:
+      min: 1
+      max: 5
+```
+
+注意：如果生成器返回 NULL，format 也会返回 NULL。
+
+#### complex types map/array/struct/json/variant
+
+复合类型有特殊的生成规则：
+
+1. MAP 类型，可分别指定 `key` 和 `value` 的生成规则：
+
+    ```yaml
+      columns:
+        - name: t_map_varchar  # map<varchar(255),varchar(255)>
+          key:
+            format: "key-{{%d}}"
+            gen:
+              # 从 0 开始自增
+              inc:
+          value:
+            length: {min: 20, max: 50}
+    ```
+
+2. ARRAY 类型，用 `element` 指定元素的生成规则：
+
+    ```yaml
+    columns:
+      - name: t_array_string  # array<text>
+        length: {min: 1, max: 10}
+        element:
+          gen:
+            enum: [foo, bar, foobar]
+    ```
+
+3. STRUCT 类型，用 `fields` 或 `field` 指定每一个字段的生成规则：
+
+    ```yaml
+    columns:
+      - name: t_struct_nested  # struct<foo:text, struct_field:array<text>>
+        fields:
+          - name: foo
+            length: 3
+          - name: struct_field
+            length: 10
+            element:
+              null_frequency: 0
+              length: 2
+    ```
+
+4. JSON/JSONB/VARIANT 类型，用 `structure` 指定结构：
+
+    ```yaml
+    columns:
+      - name: json1
+        structure: |
+          struct<
+            c1: varchar(3),
+            c2: struct<array_field: array<text>>,  # 支持嵌套类型
+            c3: boolean
+          >
+        fields:
+          - name: c1
+            length: 1
+            null_frequency: 0
+          - name: c2
+            fields:
+              - name: array_field
+                length: 1
+                element:
+                  format: "nested array element: {{%s}}"
+                  null_frequency: 0
+                  length: 2
+    ```
+
+#### gen
+
+自定义生成器，支持以下几种：
+
+##### inc
+
+自增生成器，可指定起始值和步长：
+
+```yaml
+columns:
+  - name: t_string
+    format: "string-inc-{{%d}}"
+    gen:
+      inc:
+        start: 100  # 从 100 开始（默认 0）
+        step: 2     # 步长为 2（默认 1）
+```
+
+##### enum
+
+枚举生成器，从给定值中随机选择：
+
+```yaml
+columns:
+  - name: t_null_string
+    null_frequency: 0.5
+    format: "What's your name? My name is {{%s}}."
+    gen:
+      enum: [foo, bar, foobar]
+      weights: [0.2, 0.6, 0.2]  # 可选，指定各值被选中的概率
+```
+
+##### ref
+
+引用生成器，随机使用其他表的列的值，一般在用于关系列之间，比如 `t1 JOIN t2 ON t1.c1 = t2.c1` 或 `WHERE t1.c1 = t2.c1`：
+
+```yaml
+columns:
+  - name: t_int
+    # format: "1{{%6d}}"
+    gen:
+      ref: employees.department_id
+      limit: 1000  # 随机选择 1000 个值（默认 1000）
+```
+
+> [!IMPORTANT]
+>
+> - 引用的源表必须一起生成
+> - 引用之间不能有死锁
+
+##### type
+
+使用其他类型的生成器，比如 `varchar` 的列用 `int` 类型生成：
+
+```yaml
+columns:
+  - name: t_varchar2
+    format: "year: {{%d}}, month: {{month}}"
+    gen:
+      type: int
+      min: 1997
+      max: 2097
+```
+
+又比如 `varchar` 类型的列使用 `json`（或 `struct`）格式生成：
+
+```yaml
+columns:
+  - name: t_varchar2
+    gen:
+      type: struct<foo:int, bar:text>
+      # fields:
+      #   - name: foo
+      #     gen:
+      #       inc:
+      #         start: 1000
+```
+
+##### golang
+
+使用 Go 代码，支持使用 Go stdlib：
+
+```yaml
+columns:
+  - name: t_varchar
+    gen:
+      golang: |
+        import "fmt"
+        
+        var i int
+        func gen() any {
+            i++
+            return fmt.Sprintf("Is odd: %v.", i%2 == 1)
+        }
+```
 
 ## 回放
 

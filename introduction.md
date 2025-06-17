@@ -9,6 +9,19 @@
 - [Generate and Import Data](#generate-and-import-data)
   - [Default Generation Rules](#default-generation-rules)
   - [Custom Generation Rules](#custom-generation-rules)
+    - [Global Rules vs Table Rules](#global-rules-vs-table-rules)
+    - [null_frequency](#null_frequency)
+    - [min/max](#minmax)
+    - [precision/scale](#precisionscale)
+    - [length](#length)
+    - [format](#format)
+    - [Complex Types (map/array/struct/json/variant)](#complex-types-maparraystructjsonvariant)
+    - [gen](#gen)
+      - [inc](#inc)
+      - [enum](#enum)
+      - [ref](#ref)
+      - [type](#type)
+      - [golang](#golang)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
@@ -273,7 +286,11 @@ columns:
 
 #### format
 
-Customizes the output format using a format template. Uses placeholders like `{{%s}}` or `{{%d}}`, with syntax identical to Go's `fmt.Sprintf()`. Also supports built-in tags like `{{month}}`, `{{year}}`, etc.
+Regardless of the generation rule, there always can have a `format` that customizes the format of the output to the CSV file through the template.
+
+Uses tags like `{{%s}}` or `{{%d}}`, with syntax identical to Go's `fmt.Sprintf()`.
+
+Also supports built-in tags like `{{month}}`, `{{year}}`, etc. All built-in tags can be found at [src/generator/README.md](./src/generator/README.md#format-tags)
 
 For example:
 
@@ -292,7 +309,7 @@ Note: If the generator returns NULL, format will also return NULL.
 
 Complex types have special generation rules:
 
-1.  For MAP types, you can specify generation rules for `key` and `value` separately:
+1. For MAP types, you can specify generation rules for `key` and `value` separately:
 
     ```yaml
       columns:
@@ -306,7 +323,7 @@ Complex types have special generation rules:
             length: {min: 20, max: 50}
     ```
 
-2.  For ARRAY types, use `element` to specify the generation rules for its elements:
+2. For ARRAY types, use `element` to specify the generation rules for its elements:
 
     ```yaml
     columns:
@@ -317,7 +334,7 @@ Complex types have special generation rules:
             enum: [foo, bar, foobar]
     ```
 
-3.  For STRUCT types, use `fields` or `field` to specify the generation rules for each field:
+3. For STRUCT types, use `fields` or `field` to specify the generation rules for each field:
 
     ```yaml
     columns:
@@ -332,7 +349,7 @@ Complex types have special generation rules:
               length: 2 # Refers to the length of each string element in the array
     ```
 
-4.  For JSON/JSONB/VARIANT types, use `structure` to specify the structure:
+4. For JSON/JSONB/VARIANT types, use `structure` to specify the structure:
 
     ```yaml
     columns:
@@ -391,7 +408,7 @@ columns:
 
 ##### ref
 
-Reference generator, randomly uses values from columns already generated in other tables. Typically used for JOINs between relational columns (`t1.c2 = t2.c2`):
+Reference generator, randomly uses values from other table columns. Typically used for JOINs between relational columns, like `t1 JOIN t2 ON t1.c1 = t2.c1` or `WHERE t1.c1 = t2.c1`:
 
 ```yaml
 columns:
@@ -401,6 +418,11 @@ columns:
       ref: employees.department_id
       limit: 1000  # Randomly select 1000 values (default 1000)
 ```
+
+> [!IMPORTANT]
+>
+> - The source tables that be referenced to must be generated together
+> - The references must not have deadlock
 
 ##### type
 

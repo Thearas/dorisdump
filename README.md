@@ -3,7 +3,7 @@
 Main features:
 
 1. **Dump** schema and query
-2. **Generate fake data** for table
+2. [**Generate fake data**](#generate-data) for table
 3. **Replay** audit log
 4. **Anonymize** database, table and column names in SQL
 
@@ -75,7 +75,7 @@ dodo import --tables db1.t1 --data data.csv
 # Replay
 dodo replay --help
 
-# replay queries from dump sql file
+# replay queries in dump sql file (from audit logs)
 dodo replay --host <host> --port <port> --user root --password '***' -f output/sql/q0.sql
 
 # replay with args
@@ -99,10 +99,9 @@ dodo diff replay1/ replay2/
 
 ### Generate Data
 
-Generate CSV data from create-table SQLs.
-See [custom generation rules](./introduction.md#custom-generation-rules) for more.
+Generate CSV data from create-table SQLs. All database with similar syntax as Doris are supported, like MySQL, Hive, etc.
 
-Example:
+Example uses default generation rule, See **[Custom Generation Rules](./introduction.md#custom-generation-rules)** for more:
 
 ```sh
 echo 'create table t1 (
