@@ -499,7 +499,11 @@ func (w *queryWriter) WriteSql(s string) error {
 		if strings.HasPrefix(s, src.ReplaySqlPrefix) {
 			leadComment = s[:strings.Index(s, src.ReplaySqlSuffix)+len(src.ReplaySqlSuffix)+1]
 		}
-		s = leadComment + src.AnonymizeSql(AnonymizeConfig.Method, w.filename+"#"+strconv.Itoa(w.count), s)
+		b := strings.Builder{}
+		b.Grow(len(s))
+		b.WriteString(leadComment)
+		b.WriteString(src.AnonymizeSql(AnonymizeConfig.Method, w.filename+"#"+strconv.Itoa(w.count), s))
+		s = b.String()
 	}
 	if w.w == nil {
 		return nil

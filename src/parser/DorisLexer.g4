@@ -680,11 +680,11 @@ fragment LETTER
     ;
 
 SIMPLE_COMMENT
-    : '--' ('\\\n' | ~[\r\n])* '\r'? '\n'? -> channel(HIDDEN)
+    : '--' ('\\\n' | ~[\r\n])* '\r'? '\n'? -> skip
     ;
 
 BRACKETED_COMMENT
-    : COMMENT_START ( BRACKETED_COMMENT | . )*? ('*/' | {l.markUnclosedComment();} EOF) -> channel(2)
+    : COMMENT_START ( BRACKETED_COMMENT | . )*? ('*/' | {l.markUnclosedComment();} EOF) -> skip
     ;
 
 

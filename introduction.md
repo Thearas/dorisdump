@@ -286,10 +286,10 @@ columns:
 
 #### format
 
-No matter what generation rule, there always can have a `format`, which will run after the column data generation, generate a string basing on the custom template, and then output it to a CSV file. There're two types of tags (or placeholders) can be used in `format`:
+No matter what generation rule, there always can have a `format`, which will run after the column data generation, generate a string basing on the template, and then output it to CSV file. There're two types of tags (aka. placeholders) can be used in `format`:
 
 1. Format the return value of the column, such as `{{%s}}` or `{{%d}}`, etc., with the same syntax as Go's `fmt.Sprintf()`
-2. Built-in tags such as `{{month}}`, `{{year}}`, etc., all built-in tags can be found in: [src/generator/README.md](./src/generator/README.md#format-tags).
+2. Built-in tags such as `{{month}}`, `{{year}}`, etc, all built-in tags can be found in: [src/generator/README.md](./src/generator/README.md#format-tags).
 
 For example:
 
@@ -378,7 +378,7 @@ Complex types have special generation rules:
 Optional custom generator, supports the following types, MUST be defined under `gen:`:
 
 > [!IMPORTANT]
-> Will override the gen rules at the column level (expect `null_frequency` and `format`)
+> Will override the gen rules at the column level (except `null_frequency` and `format`)
 
 ##### inc
 

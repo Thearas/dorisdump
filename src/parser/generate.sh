@@ -59,6 +59,8 @@ cp DorisLexer.g4.orig DorisLexer.g4.new
 sd -fms -n1 '^@members\s*\{.*^\}$' "$lexerReplacer" DorisLexer.g4.new
 sd '\{isValidDecimal\(' '{p.isValidDecimal(' DorisLexer.g4.new
 sd '\{markUnclosedComment\(' '{l.markUnclosedComment(' DorisLexer.g4.new
+sd '^(SIMPLE_COMMENT\n)(.*)channel\(.*\)' '$1${2}skip' DorisLexer.g4.new
+sd '^(BRACKETED_COMMENT\n)(.*)channel\(.*\)' '$1${2}skip' DorisLexer.g4.new
 mv DorisLexer.g4.new DorisLexer.g4
 
 # Replace parser @member
