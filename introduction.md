@@ -22,6 +22,7 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
+  - [AI Generation](#ai-generation)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
@@ -274,11 +275,12 @@ columns:
 
 #### length
 
-Specifies the length range for string type fields or complex types. For example:
+Specifies the length range for bitmap, string, array or map types. For example:
 
 ```yaml
 columns:
   - name: t_str
+    # or just `length: <int>` if min and max are the same, like `length: 5`
     length:
       min: 1
       max: 5
@@ -473,6 +475,40 @@ columns:
             return fmt.Sprintf("Is odd: %v.", i%2 == 1)
         }
 ```
+
+### AI Generation
+
+With [Google Jules](https://jules.google.com), it's very easy to get a `gendata.yaml`:
+
+1. Fork [dodo](https://github.com/Thearas/dodo) repo, then open it in [Google Jules](https://jules.google.com) and write some prompts, for example:
+    > Replace `{{tables}}`, `{{column stats}}` and `{{queries}}` with the create table statement, column statistics and queries exported by dodo dump respectively
+
+    ```markdown
+    Generate a gendata.yaml config (used by `dodo gendata --genconf gendata.yaml`) for below tables, column-stats(optional) and queries.
+
+    Requirements:
+    1. Ensure that executing queries can return rows
+
+    Documents:
+    1. The guide config data generation: `introduction.md#generate-and-import-data` 
+    2. Full example `example/gendata.yaml` 
+
+    Tips:
+    - Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+    - The list of generate rule `format` built-in tags(placeholder like {{month}}) can be found at `src/generator/README.md`
+
+    tables:
+    {{tables}}
+
+    column-stats:
+    {{column stats}}
+
+    queries:
+    {{queries}}
+    ```
+
+2. Click `Approve`, copy the generated `gendata.yaml` content to your local computer, and make some minor modifications according to dodo's documentation
+3. Finally, when running dodo gendata to generate data, add `--genconf gendata.yaml`
 
 ## Replay
 
