@@ -9,6 +9,19 @@
 - [Generate and Import Data](#generate-and-import-data)
   - [Default Generation Rules](#default-generation-rules)
   - [Custom Generation Rules](#custom-generation-rules)
+    - [Global Rules vs Table Rules](#global-rules-vs-table-rules)
+    - [null_frequency](#null_frequency)
+    - [min/max](#minmax)
+    - [precision/scale](#precisionscale)
+    - [length](#length)
+    - [format](#format)
+    - [Complex Types (map/array/struct/json/variant)](#complex-types-maparraystructjsonvariant)
+    - [gen](#gen)
+      - [inc](#inc)
+      - [enum](#enum)
+      - [ref](#ref)
+      - [type](#type)
+      - [golang](#golang)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
@@ -189,7 +202,278 @@ Default generation rules for various types:
 
 ### Custom Generation Rules
 
-Specify with `--genconf gendata.yaml` during data generation. See [example/gendata.yaml](./example/gendata.yaml) for an example.
+When generating data, specify the configuration file using `--genconf gendata.yaml`. For a complete example, see [example/gendata.yaml](./example/gendata.yaml).
+
+#### Global Rules vs. Table Rules
+
+Generation rules can be divided into global and table levels. Table-level configurations will override global configurations.
+
+Example of global rules:
+
+```yaml
+# Global default NULL frequency
+null_frequency: 0
+
+# Global type generation rules
+type:
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+```
+
+Example of table-level rules:
+
+```yaml
+tables:
+  - name: employees
+    row_count: 100  # Optional, default is 1000 (can also be specified by --rows)
+    columns:
+      - name: department_id
+        null_frequency: 0.1  # 10% NULL
+        min: 1
+        max: 10
+```
+
+#### null_frequency
+
+Specifies the proportion of NULL values for a field, with a value range of 0-1. For example:
+
+```yaml
+null_frequency: 0.1  # 10% probability of generating NULL
+```
+
+#### min/max
+
+Specifies the value range for numeric type fields. For example:
+
+```yaml
+columns:
+  - name: salary
+    min: 15000.00
+    max: 16000.00
+  - name: hire_date
+    min: "1997-01-15"
+    max: "1997-01-15"
+```
+
+#### precision/scale
+
+Specifies the precision and scale for DECIMAL types. For example:
+
+```yaml
+columns:
+  - name: t_decimal
+    precision: 10
+    scale: 3
+    min: 100
+    max: 102  # Actual maximum value is 102.999
+```
+
+#### length
+
+Specifies the length range for string type fields or complex types. For example:
+
+```yaml
+columns:
+  - name: t_str
+    length:
+      min: 1
+      max: 5
+```
+
+#### format
+
+Regardless of the generation rule, there always can have a `format` that customizes the format of the output to the CSV file through the template.
+
+Uses tags like `{{%s}}` or `{{%d}}`, with syntax identical to Go's `fmt.Sprintf()`.
+
+Also supports built-in tags like `{{month}}`, `{{year}}`, etc. All built-in tags can be found at [src/generator/README.md](./src/generator/README.md#format-tags)
+
+For example:
+
+```yaml
+columns:
+  - name: t_str
+    format: 'substr length 1-5: {{%s}}'
+    length:
+      min: 1
+      max: 5
+```
+
+Note: If the generator returns NULL, format will also return NULL.
+
+#### complex types map/array/struct/json/variant
+
+Complex types have special generation rules:
+
+1. For MAP types, you can specify generation rules for `key` and `value` separately:
+
+    ```yaml
+      columns:
+        - name: t_map_varchar  # map<varchar(255),varchar(255)>
+          key:
+            format: "key-{{%d}}"
+            gen:
+              # Auto-increment starting from 0
+              inc:
+          value:
+            length: {min: 20, max: 50}
+    ```
+
+2. For ARRAY types, use `element` to specify the generation rules for its elements:
+
+    ```yaml
+    columns:
+      - name: t_array_string  # array<text>
+        length: {min: 1, max: 10} # Specifies the number of elements in the array
+        element: # Specifies the rules for each element
+          gen:
+            enum: [foo, bar, foobar]
+    ```
+
+3. For STRUCT types, use `fields` or `field` to specify the generation rules for each field:
+
+    ```yaml
+    columns:
+      - name: t_struct_nested  # struct<foo:text, struct_field:array<text>>
+        fields:
+          - name: foo
+            length: 3
+          - name: struct_field
+            length: 10 # Refers to the length of the array for struct_field
+            element: # Specifies rules for elements if struct_field is an array or map
+              null_frequency: 0
+              length: 2 # Refers to the length of each string element in the array
+    ```
+
+4. For JSON/JSONB/VARIANT types, use `structure` to specify the structure:
+
+    ```yaml
+    columns:
+      - name: json1
+        structure: |
+          struct<
+            c1: varchar(3),
+            c2: struct<array_field: array<text>>,  # Supports nested types
+            c3: boolean
+          >
+        fields: # Corresponds to the fields defined in 'structure'
+          - name: c1 # Rules for c1
+            length: 1
+            null_frequency: 0
+          - name: c2 # Rules for c2 (which is a struct)
+            fields: # Nested fields for c2
+              - name: array_field # Rules for array_field within c2
+                length: 1 # Length of the array
+                element: # Rules for elements of array_field
+                  format: "nested array element: {{%s}}"
+                  null_frequency: 0
+                  length: 2 # Length of each string element in the array
+    ```
+
+#### gen
+
+Optional custom generator, supports the following types, MUST be defined under `gen:`:
+
+> [!IMPORTANT]
+> Will override the gen rules at the column level (expect `null_frequency` and `format`)
+
+##### inc
+
+Auto-increment generator, can specify start value and step:
+
+```yaml
+columns:
+  - name: t_string
+    format: "string-inc-{{%d}}"
+    # `length` won't work, override by `gen`
+    # length: 10
+    gen:
+      inc:
+        start: 100  # Starts from 100 (default 0)
+        step: 2     # Step is 2 (default 1)
+```
+
+##### enum
+
+Enum generator, randomly selects from given values:
+
+```yaml
+columns:
+  - name: t_null_string
+    null_frequency: 0.5
+    format: "What's your name? My name is {{%s}}."
+    gen:
+      enum: [foo, bar, foobar]
+      weights: [0.2, 0.6, 0.2]  # Optional, specifies the probability of each value being selected
+```
+
+##### ref
+
+Reference generator, randomly uses values from other table columns. Typically used for JOINs between relational columns, like `t1 JOIN t2 ON t1.c1 = t2.c1` or `WHERE t1.c1 = t2.c1`:
+
+```yaml
+columns:
+  - name: t_int
+    # format: "1{{%6d}}"
+    gen:
+      ref: employees.department_id
+      limit: 1000  # Randomly select 1000 values (default 1000)
+```
+
+> [!IMPORTANT]
+>
+> - The source tables that be referenced to must be generated together
+> - The references must not have deadlock
+
+##### type
+
+Uses the generator of another type. For example, generating values for a `varchar` column using an `int` type generator:
+
+```yaml
+columns:
+  - name: t_varchar2
+    format: "year: {{%d}}, month: {{month}}"
+    gen:
+      type: int
+      min: 1997
+      max: 2097
+```
+
+Another example, a `varchar` type column using `json` (or `struct`) format for generation:
+
+```yaml
+columns:
+  - name: t_varchar2
+    gen:
+      type: struct<foo:int, bar:text>
+      # fields: # Optional: Define rules for foo and bar if needed
+      #   - name: foo
+      #     gen:
+      #       inc:
+      #         start: 1000
+```
+
+##### golang
+
+Uses Go code for a custom generator, supports Go stdlib:
+
+```yaml
+columns:
+  - name: t_varchar
+    gen:
+      golang: |
+        import "fmt"
+
+        var i int
+        func gen() any {
+            i++
+            return fmt.Sprintf("Is odd: %v.", i%2 == 1)
+        }
+```
 
 ## Replay
 
