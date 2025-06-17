@@ -286,11 +286,10 @@ columns:
 
 #### format
 
-Regardless of the generation rule, there always can have a `format` that customizes the format of the output to the CSV file through the template.
+No matter what generation rule, there always can have a `format`, which will run after the column data generation, generate a string basing on the custom template, and then output it to a CSV file. There're two types of tags (or placeholders) can be used in `format`:
 
-Uses tags like `{{%s}}` or `{{%d}}`, with syntax identical to Go's `fmt.Sprintf()`.
-
-Also supports built-in tags like `{{month}}`, `{{year}}`, etc. All built-in tags can be found at [src/generator/README.md](./src/generator/README.md#format-tags)
+1. Format the return value of the column, such as `{{%s}}` or `{{%d}}`, etc., with the same syntax as Go's `fmt.Sprintf()`
+2. Built-in tags such as `{{month}}`, `{{year}}`, etc., all built-in tags can be found in: [src/generator/README.md](./src/generator/README.md#format-tags).
 
 For example:
 
@@ -413,7 +412,7 @@ columns:
 
 ##### ref
 
-Reference generator, randomly uses values from other table columns. Typically used for JOINs between relational columns, like `t1 JOIN t2 ON t1.c1 = t2.c1` or `WHERE t1.c1 = t2.c1`:
+Reference generator, randomly uses values from other `table.column`. Typically used for relational columns, like `t1 JOIN t2 ON t1.c1 = t2.c1` or `WHERE t1.c1 = t2.c1`:
 
 ```yaml
 columns:

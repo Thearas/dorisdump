@@ -286,7 +286,10 @@ columns:
 
 #### format
 
-无论什么生成规则，都能有一个 `format`，通过模板自定义输出到 CSV 文件的格式。使用 `{{%s}}` 或 `{{%d}}` 等占位符，语法同 Go 的 `fmt.Sprintf()`。也支持内置标签如 `{{month}}`、`{{year}}` 等，所有内置标签见：[src/generator/README.md](./src/generator/README.md#format-tags)。
+无论什么生成规则，都能有一个 `format`，它会在该列生成数据后跑，通过自定义模板生成字符串，然后输出到 CSV 文件。`format` 中可以使用两种标签（或叫占位符）：
+
+1. 格式化该列的返回值，如 `{{%s}}` 或 `{{%d}}` 等，语法同 Go 的 `fmt.Sprintf()`
+2. 内置标签如 `{{month}}`、`{{year}}` 等，所有内置标签见：[src/generator/README.md](./src/generator/README.md#format-tags)。
 
 例如：
 
