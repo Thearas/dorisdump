@@ -43,6 +43,10 @@ type Gendata struct {
 	OutputDataDir string
 	GenConf       string
 	NumRows       int
+	LLM           string
+	LLMApiKey     string
+	Query         string
+	Prompt        string
 
 	genFromDDLs []string
 }
@@ -56,27 +60,32 @@ var gendataCmd = &cobra.Command{
 Example:
   dodo gendata --dbs db1,db2
   dodo gendata --dbs db1 --tables t1,t2 --rows 500 --ddl output/ddl/
-  dodo gendata --ddl create.table.sql`,
+  dodo gendata --ddl create.table.sql
+  dodo gendata --dbs db1 --tables t1,t2 \
+	--llm 'deepseek-coder' --llm-api-key 'sk-xxx' \
+  	-q 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ('a', 'b', 'c') and t2.d = 1'`,
 	Aliases: []string{"g"},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)
 	},
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+
 		if err := completeGendataConfig(); err != nil {
-			return err
-		}
-		// 1. Setup generator
-		if err := generator.Setup(GendataConfig.GenConf); err != nil {
 			return err
 		}
 		GlobalConfig.Parallel = lo.Min([]int{GlobalConfig.Parallel, len(GendataConfig.genFromDDLs)})
 
 		logrus.Infof("Generate data for %d table(s), parallel: %d\n", len(GendataConfig.genFromDDLs), GlobalConfig.Parallel)
 
-		// 2. Construct table generators
-		var tableGens []*src.TableGen
-		for _, ddlFile := range GendataConfig.genFromDDLs {
+		// 1. Construct table generators
+		var (
+			tableGens []*src.TableGen
+			tables    = make([]string, len(GendataConfig.genFromDDLs))
+			statss    = make([]*src.TableStats, len(GendataConfig.genFromDDLs))
+		)
+		for i, ddlFile := range GendataConfig.genFromDDLs {
 			logrus.Debugf("generating data to %s ...\n", strings.TrimSuffix(ddlFile, ".table.sql"))
 
 			ddl, err := src.ReadFileOrStdin(ddlFile)
@@ -87,7 +96,43 @@ Example:
 			if err != nil {
 				return err
 			}
-			tg, err := src.NewTableGen(ddlFile, ddl, stats)
+			tables[i] = ddl
+			statss[i] = stats
+		}
+		// send to LLM
+		if GendataConfig.LLM != "" {
+			logrus.Infof("Generating 'gendata.yaml' via LLM model: %s\n", GendataConfig.LLM)
+			genconf, err := src.LLMGendataConfig(
+				ctx,
+				GendataConfig.LLMApiKey, "", GendataConfig.LLM, GendataConfig.Prompt,
+				tables, lo.Map(statss, func(s *src.TableStats, _ int) string { return string(src.MustYamlMarshal(s)) }),
+				[]string{GendataConfig.Query},
+			)
+			if err != nil {
+				logrus.Errorf("Failed to create gendata config via LLM %s\n", GendataConfig.LLM)
+				return err
+			}
+			logrus.Debugf("===LLM output config===\n%s\n", genconf)
+			// store gendata.yaml
+			if err := os.MkdirAll(GlobalConfig.DodoDataDir, 0755); err != nil {
+				return err
+			}
+			genconfPath := filepath.Join(GlobalConfig.DodoDataDir, "gendata.yaml")
+			if err := src.WriteFile(genconfPath, genconf); err != nil {
+				logrus.Errorf("Failed to write gendata config to %s\n", genconfPath)
+				return err
+			}
+			if !src.Confirm(fmt.Sprintf("Using LLM output config: '%s', please check it before going on", genconfPath)) {
+				return nil
+			}
+			GendataConfig.GenConf = genconfPath
+		}
+		// 2. Setup generator
+		if err := generator.Setup(GendataConfig.GenConf); err != nil {
+			return err
+		}
+		for i, ddlFile := range GendataConfig.genFromDDLs {
+			tg, err := src.NewTableGen(ddlFile, tables[i], statss[i])
 			if err != nil {
 				return err
 			}
@@ -166,6 +211,11 @@ func init() {
 	pFlags.StringVarP(&GendataConfig.OutputDataDir, "output-data-dir", "o", "", "Directory where CSV files will be generated")
 	pFlags.IntVarP(&GendataConfig.NumRows, "rows", "r", 0, fmt.Sprintf("Number of rows to generate per table (default %d)", src.DefaultGenRowCount))
 	pFlags.StringVarP(&GendataConfig.GenConf, "genconf", "c", "", "Generator config file")
+	pFlags.StringVarP(&GendataConfig.LLM, "llm", "l", "", "LLM model to use, e.g. 'deepseek-code', 'deepseek-chat', 'deepseek-reasoner'")
+	pFlags.StringVarP(&GendataConfig.LLMApiKey, "llm-api-key", "k", "", "LLM API key")
+	pFlags.StringVarP(&GendataConfig.Query, "query", "q", "", "SQL query file to generate data, only can be used when LLM is on")
+	pFlags.StringVarP(&GendataConfig.Prompt, "prompt", "p", "", "Additional user prompt for LLM")
+
 }
 
 // completeGendataConfig validates and completes the gendata configuration
@@ -179,6 +229,14 @@ func completeGendataConfig() (err error) {
 
 	if err := src.CheckGenRowCount(GendataConfig.NumRows); err != nil {
 		return err
+	}
+
+	if GendataConfig.LLM != "" {
+		if GendataConfig.LLMApiKey == "" {
+			return errors.New("--llm-api-key must be provided when --llm is specified")
+		}
+	} else if GendataConfig.Query != "" {
+		return errors.New("--query can only be used when --llm is specified")
 	}
 
 	// if --ddl is a sql file, not need --dbs or --tables

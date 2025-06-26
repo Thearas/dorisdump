@@ -66,7 +66,7 @@ mv DorisLexer.g4.new DorisLexer.g4
 # Replace parser @member
 read -r -d '' parserReplacer <<- EOF || true
 @members {
-var doris_legacy_SQL_syntax = true
+var ansiSQLSyntax = false
 }
 EOF
 cp DorisParser.g4.orig DorisParser.g4.new

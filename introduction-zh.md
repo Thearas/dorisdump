@@ -22,7 +22,9 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
-  - [AI 生成](#ai-生成)
+  - [AI 生成数据](#ai-生成数据)
+    - [使用 Deepseek](#使用-deepseek)
+    - [使用 Google Jules](#使用-google-jules)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
   - [其他回放参数](#其他回放参数)
@@ -476,9 +478,35 @@ columns:
         }
 ```
 
-### AI 生成
+### AI 生成数据
 
-使用 [Google Jules](https://jules.google.com)，获取 `gendata.yaml` 文件非常容易：
+AI 生成时可以传入查询，令生成的数据能被该查询查出来。
+
+#### 使用 Deepseek
+
+必须传入 `--llm` 和 `--llm-api-key` 两个参数，前者代表 Deepseek 的模型名称（比如 `deepseek-chat` 和 `deepseek-reasoner`），后者代表 API Key：
+
+```bash
+# 从导出的 t1,t2 表生成数据
+dodo gendata --dbs db1 --tables t1,t2 \
+    --llm 'deepseek-coder' --llm-api-key 'sk-xxx' \
+    --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ('a', 'b', 'c') and t2.d = 1'`
+
+# 从任意 create-table 和 query 生成数据
+dodo gendata --llm 'deepseek-coder' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
+
+# 使用 `--prompt` 附加提示
+dodo gendata ... --prompt '每张表生成 1000 行数据'
+```
+
+> [!NOTE]
+>
+> - 使用 `deepseek-reasoner` 效果更好，但也会慢很多
+> - 可以使用 `--prompt` 附加提示
+
+#### 使用 Google Jules
+
+使用 [Google Jules](https://jules.google.com) 获取 `gendata.yaml` 文件非常容易，全程点点点即可：
 
 1. Fork [dodo](https://github.com/Thearas/dodo) 仓库，然后在 [Google Jules](https://jules.google.com) 中打开它，并编写一些提示，例如：
     > 将 `{{tables}}`、`{{column stats}}` 和 `{{queries}}` 分别替换为 dodo dump 导出的建表语句、列统计信息和查询语句。

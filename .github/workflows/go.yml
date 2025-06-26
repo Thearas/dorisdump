@@ -25,4 +25,6 @@ jobs:
       run: make build
 
     - name: Test
+      env:
+        DORIS_DEEPSEEK_API_KEY: ${{ secrets.DORIS_DEEPSEEK_API_KEY }}
       run: go test -v ./...
