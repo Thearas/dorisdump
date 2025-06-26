@@ -38,12 +38,12 @@ var (
 )
 
 type Global struct {
-	ConfigFile       string
-	LogLevel         string
-	DorisDumpDataDir string
-	OutputDir        string
-	DryRun           bool
-	Parallel         int
+	ConfigFile  string
+	LogLevel    string
+	DodoDataDir string
+	OutputDir   string
+	DryRun      bool
+	Parallel    int
 
 	DBHost     string
 	DBPort     uint16
@@ -99,7 +99,7 @@ func init() {
 	pFlags := rootCmd.PersistentFlags()
 	pFlags.StringVar(&GlobalConfig.ConfigFile, "config", "", "Config file (default is $HOME/.dodo.yaml)")
 	pFlags.StringVarP(&GlobalConfig.LogLevel, "log-level", "L", "info", "Log level, one of: trace, debug, info, warn")
-	pFlags.StringVar(&GlobalConfig.DorisDumpDataDir, "dodo-data-dir", "./.dodo/", "Directory for storing dodo self data")
+	pFlags.StringVar(&GlobalConfig.DodoDataDir, "dodo-data-dir", "./.dodo/", "Directory for storing dodo self data")
 	pFlags.StringVarP(&GlobalConfig.OutputDir, "output", "O", "./output/", "Directory for storing dump sql and replay result")
 	pFlags.BoolVar(&GlobalConfig.DryRun, "dry-run", false, "Dry run")
 	pFlags.IntVar(&GlobalConfig.Parallel, "parallel", parallel, "Parallel dump worker")

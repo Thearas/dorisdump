@@ -55,13 +55,17 @@ dodo create --ddl 'dir/*.sql' --db db1
 dodo gendata --help
 
 # gen data from any create-table SQL (MySQL, Hive, ...)
-dodo gendata --ddl create.sql
+dodo gendata --ddl table.sql
 
 # gen data for db1 and db2, it auto finds dump schemas under 'output/' dir
 dodo gendata --dbs db1,db2 --host <host> --port <port> --user root --password '***'
 
 # gen data with config
 dodo gendata --dbs db1 --genconf example/gendata.yaml
+
+# gen data with AI (Deepseek LLM)
+dodo gendata -l 'deepseek-coder' -k '<deepseek-api-key>' --ddl table.sql --query 'select xxx'
+
 
 
 # Import data (Require curl command)

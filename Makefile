@@ -9,7 +9,7 @@ build:
 build-hyper:
 	CXX=$(CXX) go build -tags chimera -o dodo main.go
 
-build-darwin:
+build-darwin: gen-prompt
 	CXX=$(CXX) GOOS=darwin CGO_ENABLED=1 GOEXPERIMENT=newinliner CGO_LDFLAGS='-static-libstdc++' go build -tags chimera -o dodo-darwin-$(GOARCH) -a -trimpath -ldflags "-w -s"
 	tar czf dodo-darwin-$(GOARCH).tar.gz dodo-darwin-$(GOARCH)
 
@@ -26,8 +26,13 @@ test:
 install: build
 	cp dodo /usr/local/bin
 
-gen:
-	@go generate ./...
+gen: gen-parser gen-prompt
+
+gen-parser:
+	@go generate ./src/parser
+
+gen-prompt:
+	@go generate ./src/prompt
 
 fmt:
 	@go fmt .
