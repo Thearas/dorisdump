@@ -10,6 +10,10 @@ import (
 )
 
 func TestLLMGendataConfig(t *testing.T) {
+	apikey := os.Getenv("DORIS_DEEPSEEK_API_KEY")
+	if apikey == "" {
+		return
+	}
 	type args struct {
 		ctx         context.Context
 		apiKey      string
@@ -28,7 +32,7 @@ func TestLLMGendataConfig(t *testing.T) {
 			name: "simple",
 			args: args{
 				ctx:    context.Background(),
-				apiKey: os.Getenv("DORIS_DEEPSEEK_API_KEY"),
+				apiKey: apikey,
 				tables: []string{`
 CREATE TABLE c (
     wa varchar(255) NOT NULL COMMENT '********',

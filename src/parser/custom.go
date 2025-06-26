@@ -69,7 +69,7 @@ func (h *errHandler) ReportMatch(p antlr.Parser) {
 	case DorisParserCOMMENT:
 		// hide next string literal, e.g. COMMENT '***'
 		for _, l := range p.GetParseListeners() {
-			if l, ok := l.(*listener); ok {
+			if l, ok := l.(*listener); ok && l.hideSqlComment {
 				l.hideNextString = true
 			}
 		}
