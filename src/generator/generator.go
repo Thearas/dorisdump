@@ -201,7 +201,12 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			}
 
 			intVals := ty.AllINTEGER_VALUE()
-			p := cast.ToInt(intVals[0].GetText())
+			var p, s int
+			if len(intVals) > 0 {
+				p = cast.ToInt(intVals[0].GetText())
+			} else {
+				p = 8
+			}
 			if p > 38 {
 				p = 38
 			}
@@ -210,14 +215,14 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				// logrus.Debugf("Precision '%d' is larger than the defined precision '%d' for column '%s', using %d instead\n", precision, p, v.Colpath, p)
 			}
 			if len(intVals) > 1 {
-				s := cast.ToInt(intVals[1].GetText())
-				if s < 0 || s > precision {
-					// logrus.Debugf("Scale '%d' is invalid for precision '%d' in column '%s', using 0 instead\n", s, precision, v.Colpath)
-					s = 0
-				} else if scale > s {
-					// logrus.Debugf("Scale '%d' is larger than the defined scale '%d' for column '%s', using %d instead\n", scale, s, v.Colpath, s)
-					scale = s
-				}
+				s = cast.ToInt(intVals[1].GetText())
+			}
+			if s < 0 || s > precision {
+				// logrus.Debugf("Scale '%d' is invalid for precision '%d' in column '%s', using 0 instead\n", s, precision, v.Colpath)
+				s = 0
+			} else if scale > s {
+				// logrus.Debugf("Scale '%d' is larger than the defined scale '%d' for column '%s', using %d instead\n", scale, s, v.Colpath, s)
+				scale = s
 			}
 
 			var min, max int64

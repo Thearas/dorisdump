@@ -58,10 +58,26 @@ func (h *errHandler) ReportMatch(p antlr.Parser) {
 	h.DefaultErrorStrategy.ReportMatch(p)
 
 	// Do not modify ENGINE name.
-	if p.GetCurrentToken().GetTokenType() == DorisParserENGINE {
+	tokenType := p.GetCurrentToken().GetTokenType()
+	switch tokenType {
+	case DorisParserENGINE:
 		for _, l := range p.GetParseListeners() {
-			if _, ok := l.(*listener); ok {
-				l.(*listener).ignoreCurrentIdentifier = true
+			if l, ok := l.(*listener); ok {
+				l.ignoreCurrentIdentifier = true
+			}
+		}
+	case DorisParserCOMMENT:
+		// hide next string literal, e.g. COMMENT '***'
+		for _, l := range p.GetParseListeners() {
+			if l, ok := l.(*listener); ok && l.hideSqlComment {
+				l.hideNextString = true
+			}
+		}
+	case DorisParserSTRING_LITERAL:
+		for _, l := range p.GetParseListeners() {
+			if l, ok := l.(*listener); ok && l.hideNextString {
+				l.hideNextString = false
+				hideComment(p.GetParserRuleContext(), p.GetCurrentToken())
 			}
 		}
 	}
@@ -88,6 +104,7 @@ type listener struct {
 
 	// state variables
 	ignoreCurrentIdentifier bool
+	hideNextString          bool
 	lastModifiedIdentifier  string
 }
 
@@ -192,20 +209,6 @@ func (l *listener) recoverSymbolText(node antlr.TerminalNode) {
 	}
 }
 
-// Hide COMMENT '***'
-func (l *listener) ExitSimpleColumnDef(ctx *SimpleColumnDefContext) {
-	if l.hideSqlComment {
-		hideComment(ctx, ctx.GetComment())
-	}
-}
-
-// Hide COMMENT '***'
-func (l *listener) ExitColumnDef(ctx *ColumnDefContext) {
-	if l.hideSqlComment {
-		hideComment(ctx, ctx.GetComment())
-	}
-}
-
 func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
 	if comment == nil {
 		return
@@ -217,8 +220,7 @@ func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
 	}
 
 	newText := fmt.Sprintf(`'%s'`, strings.Repeat("*", len(text)))
-	c := ctx.GetChild(ctx.GetChildCount() - 1)
-	c.(*antlr.TerminalNodeImpl).GetSymbol().SetText(newText)
+	comment.SetText(newText)
 }
 
 type Parser struct {

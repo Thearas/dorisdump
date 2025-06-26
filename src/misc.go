@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/encoding/htmlindex"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -199,6 +200,14 @@ func (e *DummyEncoder) Encode(b []byte) ([]byte, error) {
 
 func MustJsonMarshal(v any) []byte {
 	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func MustYamlMarshal(v any) []byte {
+	data, err := yaml.Marshal(v)
 	if err != nil {
 		panic(err)
 	}

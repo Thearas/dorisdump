@@ -5,7 +5,7 @@
   - [Dump Tables and Views](#dump-tables-and-views)
   - [Dump Queries](#dump-queries)
   - [Other Dump Parameters](#other-dump-parameters)
-- [Create Schemas](#create-tables-and-views)
+- [Create Schemas](#create-schemas)
 - [Generate and Import Data](#generate-and-import-data)
   - [Default Generation Rules](#default-generation-rules)
   - [Custom Generation Rules](#custom-generation-rules)
@@ -26,7 +26,7 @@
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
-- [Diff Replay Results](#compare-replay-results)
+- [Diff Replay Results](#diff-replay-results)
 - [Best Practices](#best-practices)
   - [Command-line Prompts and Autocompletion](#command-line-prompts-and-autocompletion)
   - [Environment Variables and Configuration Files](#environment-variables-and-configuration-files)
@@ -147,6 +147,9 @@ dodo gendata --tables db1.table1 # or --dbs db1 --tables table1
 # Data can also be generated for any create table SQL without prior dump
 # P.S. It might not necessarily be Doris; other databases like Hive also work
 dodo gendata --ddl my_create_table.sql
+
+# Generate data with config
+dodo gendata ... --genconf gendata.yaml
 
 
 # Import data for all tables with generated data in db1 and db2
@@ -298,7 +301,7 @@ For example:
 ```yaml
 columns:
   - name: t_str
-    format: 'substr length 1-5: {{%s}}'
+    format: 'substr length 1-5: {{%s}} and a build-in tags: {{preposition_simple}}'
     length:
       min: 1
       max: 5
@@ -380,7 +383,7 @@ Complex types have special generation rules:
 Optional custom generator, supports the following types, MUST be defined under `gen:`:
 
 > [!IMPORTANT]
-> Will override the gen rules at the column level (except `null_frequency` and `format`)
+> `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
 
 ##### inc
 
@@ -400,7 +403,7 @@ columns:
 
 ##### enum
 
-Enum generator, randomly selects from given values:
+Enum generator, randomly selects from given values. There is an  optional config `weights` (can only be used with `enum`):
 
 ```yaml
 columns:

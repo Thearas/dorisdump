@@ -173,7 +173,7 @@ func completeDumpConfig() error {
 
 	DumpConfig.OutputDDLDir = filepath.Join(GlobalConfig.OutputDir, "ddl")
 	DumpConfig.OutputQueryDir = filepath.Join(GlobalConfig.OutputDir, "sql")
-	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DorisDumpDataDir, "auditlog")
+	DumpConfig.LocalAuditLogCacheDir = filepath.Join(GlobalConfig.DodoDataDir, "auditlog")
 
 	if DumpConfig.AuditLogTable != "" && !strings.Contains(DumpConfig.AuditLogTable, ".") {
 		return errors.New("need to specific database in '--audit-log-table', like 'audit_db.audit_tbl'")

@@ -1,0 +1,1471 @@
+<prompt>
+<request>
+You are a skilled Doris SQL programmer and want to reproduce a user's SQL bug with fake data.
+So your task is generating YAML configurations for the data generation tool dodo (used via `dodo gendata --genconf gendata.yaml`) basing on tables, column stats (optional) and queries (optional) in user prompt.
+</request>
+
+<requirements>
+1. The generated data must be able to be queried by user's queries
+2. The YAML configurations should according to 'usage' below. Do not use rule key in `gendata.yaml` that haven't been documented in 'usage'
+3. When column stats conflict with queries conditions, prioritize queries conditions and ignore column stats
+4. Output should in YAML format and do not output empty result
+</requirements>
+
+<usage>
+Learn the usage below (document and example) of tool `dodo`. Especially, the `gendata` command and its `--genconf` config:
+
+1. The overview is in XML tag `readme` (Markdown format)
+2. The guide of config data generation is in XML tag `introduction`, subtitle `generate-and-import-data` (Markdown format)
+3. The full example is in XML tag `example` (YAML format)
+
+<document>
+<readme>
+# Dodo
+
+Main features:
+
+1. **Dump** schema and query
+2. [**Generate fake data**](#generate-data) for tables with *AI powered*
+3. **Replay** audit log
+4. **Anonymize** database, table, column and comment in SQL
+
+> [!IMPORTANT]
+> **See [Introduction & FAQ](./introduction.md) / [中文版](./introduction-zh.md) for more details.**
+
+[![demo](https://asciinema.org/a/706093.svg)](https://asciinema.org/a/706093)
+
+## Install
+
+```sh
+curl -sSL https://raw.githubusercontent.com/Thearas/dodo/master/install.sh | bash
+```
+
+## Usage
+
+There are two types of workflows, with each step representing a `dodo` command:
+
+- No data generation needed: `Dump -> Replay -> Diff Replay Results`
+- Data generation needed: `Dump -> Create Schemas (Optional) -> Generate and Import Data -> Replay -> Diff Replay Results`
+
+> By default, only `SELECT` statments will be dumped. Use `--only-select=false` to dump all.
+
+```sh
+# Dump
+dodo dump --help
+
+# dump schemas of database db1 and db2
+dodo dump --dump-schema --dbs db1,db2 --host <host> --port <port> --user root --password '***' 
+
+# also dump queries from audit logs of db1 and db2
+dodo dump --dump-schema --dump-query --dbs db1,db2 --audit-logs 'fe.audit.log,fe.audit.log.20240802-1'
+
+# dump queries from audit log table instead of files, need enable <https://doris.apache.org/docs/admin-manual/audit-plugin>
+dodo dump --dump-query --audit-log-table <db.table> --from '2024-11-14 18:45:25' --to '2024-11-14 18:45:26'
+
+
+# Create dump schemas in another DB server
+dodo create --help
+
+# create all tables and views of db1 and db2, it auto finds dump schemas under 'output/' dir
+dodo create --dbs db1,db2 --host <host> --port <port> --user root --password '***'
+
+# run any create table/view SQL in db1
+dodo create --ddl 'dir/*.sql' --db db1
+
+
+# Generate data (Totally offline!)
+dodo gendata --help
+
+# gen data from any create-table SQL (MySQL, Hive, ...)
+dodo gendata --ddl table.sql
+
+# gen data for db1 and db2, it auto finds dump schemas under 'output/' dir
+dodo gendata --dbs db1,db2 --host <host> --port <port> --user root --password '***'
+
+# gen data with config
+dodo gendata --dbs db1 --genconf example/gendata.yaml
+
+# gen data with AI (Deepseek LLM)
+dodo gendata -l 'deepseek-coder' -k '<deepseek-api-key>' --ddl table.sql --query 'select xxx'
+
+
+
+# Import data (Require curl command)
+dodo import --help
+
+# import data for db1, it auto finds generated data under 'output/' dir
+dodo import --dbs db1,db2 --host <host> --port <port> --user root --password '***'
+
+# import data for t1 and t2 in db1
+dodo import --dbs db1 --table t1,t2
+
+# import data from any CSV file
+dodo import --tables db1.t1 --data data.csv
+
+
+# Replay
+dodo replay --help
+
+# replay queries in dump sql file (from audit logs)
+dodo replay --host <host> --port <port> --user root --password '***' -f output/sql/q0.sql
+
+# replay with args
+dodo replay -f output/sql/q0.sql \
+    --from '2024-09-20 08:00:00' --to '2024-09-20 09:00:00' \
+    --users 'readonly,root' --dbs 'db1,db2' \   # filter sql by users and databases
+    --speed 0.5 \                               # increase(< 1.0) or decrease(> 1.0) the time between two serial sqls proportionally, default 1
+    --result-dir output/replay \
+    --clean                                     # clean 'output/replay' dir before replay
+
+
+# Diff replay result
+dodo diff --help
+
+# diff replay result which is slower more than 200ms than original
+dodo diff --min-duration-diff 200ms --original-sqls 'output/sql/*.sql' output/replay
+
+# diff of two replay result directories
+dodo diff replay1/ replay2/
+```
+
+### Generate Data
+
+Generate CSV data from create-table SQLs. All databases with similar syntax as Doris are supported, like MySQL, Hive, etc.
+
+Here is an example. See [Custom Generation Rules](./introduction.md#custom-generation-rules) and **[AI Generation](./introduction.md#ai-generation)** for more:
+
+```sh
+echo 'create table t1 (
+    a varchar(2),
+    b struct<foo:tinyint>,
+    c date
+)' > t1.sql
+
+dodo gendata --ddl t1.sql --rows 5
+
+cat output/gendata/t1/*
+sO☆{"foo":-66}☆2020-07-23
+lg☆{"foo":-121}☆2021-06-15
+4☆{"foo":-117}☆2015-06-17
+8h☆{"foo":-83}☆2024-09-06
+KW☆{"foo":7}☆2019-02-02
+```
+
+### Anonymize
+
+**This feature is experimental, case-insensitive, which means `table1` and `TABLE1` will have the same result.** Two ways:
+
+- Use `dodo anonymize`:
+
+    ```bash
+    echo "select * from table1" | dodo anonymize -f -
+    ```
+
+- Use `--anonymize` flag while dumping:
+
+    ```bash
+    dodo dump ... --anonymize
+    ```
+
+> [!NOTE]
+> Keep `./dodo_hashdict.yaml` if you want the result to be consistent (put it at current directory, or specify by `--anonymize-minihash-dict`).
+
+### Config
+
+You may want to pass parameters by config file or environment, see `dodo --help` and [example](./example/example.dodo.yaml).
+
+## Build
+
+1. Install **optional** dependences:
+
+    - On macOS: [vectorscan](https://github.com/VectorCamp/vectorscan) with Chimera support
+    - On Linux: [hyperscan](https://intel.github.io/hyperscan) with Chimera support
+
+2. Run `make` (or `make build-hyper` if the dependences in step 1 are installed)
+
+## Update Doris Parser
+
+```sh
+make gen
+```
+</readme>
+
+<introduction>
+## Generate and Import Data
+
+`dodo gendata --help`/`dodo import --help`
+
+You need to first [Dump Tables and Views](#dump-tables-and-views) locally, then generate and import data:
+
+```sh
+# Generate data for all dump tables in db1 and db2
+dodo gendata --dbs db1,db2
+
+# Generate data for dump table1
+dodo gendata --tables db1.table1 # or --dbs db1 --tables table1
+
+# Data can also be generated for any create table SQL without prior dump
+# P.S. It might not necessarily be Doris; other databases like Hive also work
+dodo gendata --ddl my_create_table.sql
+
+# Generate data with config
+dodo gendata ... --genconf gendata.yaml
+
+
+# Import data for all tables with generated data in db1 and db2
+dodo import --dbs db1,db2
+
+# Import data for table1 with generated data
+dodo import --tables db1.table1 # or --dbs db1 --tables table1
+
+# Import any CSV data file into table1
+dodo import --tables db1.table1 --data my_data.csv
+```
+
+In implementation, the tool performs these actions in two stages based on the `--dbs` and `--tables` parameters:
+
+1. In the generation stage:
+
+    1. Scans the dump directory `output/ddl/` for matching `<db>.<table>.table.sql` files. The dump directory can be specified with `--ddl`.
+    2. Combines the corresponding statistics file `<db>.stats.yaml` with the custom generation rules file (specified by `--genconf`) to determine the final generation rules.
+    3. Generates CSV files into the data generation directory `output/gendata/<db>.<table>/` according to the generation rules.
+2. In the import stage:
+
+    1. Scans the data generation directory `output/gendata/` for matching `<db>.<table>/*` data files. The data generation directory can be specified with `--data`.
+    2. Uses the `curl` command to run StreamLoad for data import.
+
+> [!TIP]
+>
+> - A maximum of one million rows of data can be generated per table.
+> - Specifying `-Ldebug` during import shows the specific `curl` command, which is helpful for reproducing and troubleshooting issues.
+
+### Default Generation Rules
+
+By default, `NULL` values are not generated. This can be changed by specifying `null_frequency` in [Custom Generation Rules](#custom-generation-rules).
+
+Default generation rules for various types:
+
+| Type | Length | Min - Max | Structure |
+| --- | --- | --- | --- |
+| ARRAY | 1 - 3 |  |  |
+| MAP | 1 - 3 |  |  |
+| JSON/JSONB |  |  | STRUCT<col1:SMALLINT, col2:SMALLINT> |
+| VARIANT |  |  | STRUCT<col1:SMALLINT, col2:SMALLINT> |
+| BITMAP | 5 | element: 0 - MaxInt32 |  |
+| TEXT/STRING/VARCHAR | 1 - 10 |  |  |
+| TINYINT |  | MinInt8 - MaxInt8 |  |
+| SMALLINT |  | MinInt16 - MaxInt16 |  |
+| INT |  | MinInt32 - MaxInt32 |  |
+| BIGINT |  | MinInt32 - MaxInt32 |  |
+| LARGEINT |  | MinInt32 - MaxInt32 |  |
+| FLOAT |  | MinInt16 - MaxInt16 | |
+| DOUBLE |  | MinInt32 - MaxInt32 |  |
+| DECIMAL |  | MinInt32 - MaxInt32 |  |
+| DATE |  | 10 years ago - now |  |
+| DATETIME |  | 10 years ago - now |  |
+
+### Custom Generation Rules
+
+When generating data, specify the configuration file using `--genconf gendata.yaml`. For a complete example, see [example/gendata.yaml](./example/gendata.yaml).
+
+#### Global Rules vs. Table Rules
+
+Generation rules can be divided into global and table levels. Table-level configurations will override global configurations.
+
+Example of global rules:
+
+```yaml
+# Global default NULL frequency
+null_frequency: 0
+
+# Global type generation rules
+type:
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+```
+
+Example of table-level rules:
+
+```yaml
+tables:
+  - name: employees
+    row_count: 100  # Optional, default is 1000 (can also be specified by --rows)
+    columns:
+      - name: department_id
+        null_frequency: 0.1  # 10% NULL
+        min: 1
+        max: 10
+```
+
+#### null_frequency
+
+Specifies the proportion of NULL values for a field, with a value range of 0-1. For example:
+
+```yaml
+null_frequency: 0.1  # 10% probability of generating NULL
+```
+
+#### min/max
+
+Specifies the value range for numeric type fields. For example:
+
+```yaml
+columns:
+  - name: salary
+    min: 15000.00
+    max: 16000.00
+  - name: hire_date
+    min: "1997-01-15"
+    max: "1997-01-15"
+```
+
+#### precision/scale
+
+Specifies the precision and scale for DECIMAL types. For example:
+
+```yaml
+columns:
+  - name: t_decimal
+    precision: 10
+    scale: 3
+    min: 100
+    max: 102  # Actual maximum value is 102.999
+```
+
+#### length
+
+Specifies the length range for bitmap, string, array or map types. For example:
+
+```yaml
+columns:
+  - name: t_str
+    # or just `length: <int>` if min and max are the same, like `length: 5`
+    length:
+      min: 1
+      max: 5
+```
+
+#### format
+
+No matter what generation rule, there always can have a `format`, which will run after the column data generation, generate a string basing on the template, and then output it to CSV file. There're two types of tags (aka. placeholders) can be used in `format`:
+
+1. Format the return value of the column, such as `{{%s}}` or `{{%d}}`, etc., with the same syntax as Go's `fmt.Sprintf()`
+2. Built-in tags such as `{{month}}`, `{{year}}`, etc, all built-in tags can be found in: [src/generator/README.md](./src/generator/README.md#format-tags).
+
+For example:
+
+```yaml
+columns:
+  - name: t_str
+    format: 'substr length 1-5: {{%s}} and a build-in tags: {{preposition_simple}}'
+    length:
+      min: 1
+      max: 5
+```
+
+Note: If the generator returns NULL, format will also return NULL.
+
+#### complex types map/array/struct/json/variant
+
+Complex types have special generation rules:
+
+1. For MAP types, you can specify generation rules for `key` and `value` separately:
+
+    ```yaml
+      columns:
+        - name: t_map_varchar  # map<varchar(255),varchar(255)>
+          key:
+            format: "key-{{%d}}"
+            gen:
+              # Auto-increment starting from 0
+              inc:
+          value:
+            length: {min: 20, max: 50}
+    ```
+
+2. For ARRAY types, use `element` to specify the generation rules for its elements:
+
+    ```yaml
+    columns:
+      - name: t_array_string  # array<text>
+        length: {min: 1, max: 10} # Specifies the number of elements in the array
+        element: # Specifies the rules for each element
+          gen:
+            enum: [foo, bar, foobar]
+    ```
+
+3. For STRUCT types, use `fields` or `field` to specify the generation rules for each field:
+
+    ```yaml
+    columns:
+      - name: t_struct_nested  # struct<foo:text, struct_field:array<text>>
+        fields:
+          - name: foo
+            length: 3
+          - name: struct_field
+            length: 10 # Refers to the length of the array for struct_field
+            element: # Specifies rules for elements if struct_field is an array or map
+              null_frequency: 0
+              length: 2 # Refers to the length of each string element in the array
+    ```
+
+4. For JSON/JSONB/VARIANT types, use `structure` to specify the structure:
+
+    ```yaml
+    columns:
+      - name: json1
+        structure: |
+          struct<
+            c1: varchar(3),
+            c2: struct<array_field: array<text>>,  # Supports nested types
+            c3: boolean
+          >
+        fields: # Corresponds to the fields defined in 'structure'
+          - name: c1 # Rules for c1
+            length: 1
+            null_frequency: 0
+          - name: c2 # Rules for c2 (which is a struct)
+            fields: # Nested fields for c2
+              - name: array_field # Rules for array_field within c2
+                length: 1 # Length of the array
+                element: # Rules for elements of array_field
+                  format: "nested array element: {{%s}}"
+                  null_frequency: 0
+                  length: 2 # Length of each string element in the array
+    ```
+
+#### gen
+
+Optional custom generator, supports the following types, MUST be defined under `gen:`:
+
+> [!IMPORTANT]
+> `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
+
+##### inc
+
+Auto-increment generator, can specify start value and step:
+
+```yaml
+columns:
+  - name: t_string
+    format: "string-inc-{{%d}}"
+    # `length` won't work, override by `gen`
+    # length: 10
+    gen:
+      inc:
+        start: 100  # Starts from 100 (default 0)
+        step: 2     # Step is 2 (default 1)
+```
+
+##### enum
+
+Enum generator, randomly selects from given values. There is an  optional config `weights` (can only be used with `enum`):
+
+```yaml
+columns:
+  - name: t_null_string
+    null_frequency: 0.5
+    format: "What's your name? My name is {{%s}}."
+    gen:
+      enum: [foo, bar, foobar]
+      weights: [0.2, 0.6, 0.2]  # Optional, specifies the probability of each value being selected
+```
+
+##### ref
+
+Reference generator, randomly uses values from other `table.column`. Typically used for relational columns, like `t1 JOIN t2 ON t1.c1 = t2.c1` or `WHERE t1.c1 = t2.c1`:
+
+```yaml
+columns:
+  - name: t_int
+    # format: "1{{%6d}}"
+    gen:
+      ref: employees.department_id
+      limit: 1000  # Randomly select 1000 values (default 1000)
+```
+
+> [!IMPORTANT]
+>
+> - The source tables that be referenced to must be generated together
+> - The references must not have deadlock
+
+##### type
+
+Uses the generator of another type. For example, generating values for a `varchar` column using an `int` type generator:
+
+```yaml
+columns:
+  - name: t_varchar2
+    format: "year: {{%d}}, month: {{month}}"
+    gen:
+      type: int
+      min: 1997
+      max: 2097
+```
+
+Another example, a `varchar` type column using `json` (or `struct`) format for generation:
+
+```yaml
+columns:
+  - name: t_varchar2
+    gen:
+      type: struct<foo:int, bar:text>
+      # fields: # Optional: Define rules for foo and bar if needed
+      #   - name: foo
+      #     gen:
+      #       inc:
+      #         start: 1000
+```
+
+##### golang
+
+Uses Go code for a custom generator, supports Go stdlib:
+
+```yaml
+columns:
+  - name: t_varchar
+    gen:
+      golang: |
+        import "fmt"
+
+        var i int
+        func gen() any {
+            i++
+            return fmt.Sprintf("Is odd: %v.", i%2 == 1)
+        }
+```
+
+### AI Generation
+</introduction>
+</document>
+
+<example>
+<user-prompt>
+<tables>
+CREATE TABLE `employees` (
+  `employee_id` int NULL,
+  `department_id` int NULL,
+  `salary` decimal(10,2) NULL,
+  `hire_date` date NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`employee_id`, `department_id`, `salary`)
+DISTRIBUTED BY RANDOM BUCKETS AUTO
+PROPERTIES (
+"replication_allocation" = "tag.location.default: 1",
+"min_load_replica_num" = "-1",
+"is_being_synced" = "false",
+"storage_medium" = "hdd",
+"storage_format" = "V2",
+"inverted_index_storage_format" = "V2",
+"light_schema_change" = "true",
+"disable_auto_compaction" = "false",
+"binlog.enable" = "false",
+"binlog.ttl_seconds" = "86400",
+"binlog.max_bytes" = "9223372036854775807",
+"binlog.max_history_nums" = "9223372036854775807",
+"enable_single_replica_compaction" = "false",
+"group_commit_interval_ms" = "10000",
+"group_commit_data_bytes" = "134217728"
+);
+CREATE TABLE `sales` (
+  `sale_id` int NULL,
+  `product_id` int NULL,
+  `employee_id` int NULL,
+  `sale_amount` decimal(10,2) NULL,
+  `sale_date` date NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`sale_id`, `product_id`, `employee_id`)
+DISTRIBUTED BY RANDOM BUCKETS AUTO
+PROPERTIES (
+"replication_allocation" = "tag.location.default: 1",
+"min_load_replica_num" = "-1",
+"is_being_synced" = "false",
+"storage_medium" = "hdd",
+"storage_format" = "V2",
+"inverted_index_storage_format" = "V2",
+"light_schema_change" = "true",
+"disable_auto_compaction" = "false",
+"binlog.enable" = "false",
+"binlog.ttl_seconds" = "86400",
+"binlog.max_bytes" = "9223372036854775807",
+"binlog.max_history_nums" = "9223372036854775807",
+"enable_single_replica_compaction" = "false",
+"group_commit_interval_ms" = "10000",
+"group_commit_data_bytes" = "134217728"
+);
+CREATE TABLE `all_type_nullable` (
+  `dt_month` varchar(6) NULL,
+  `company_code` decimal(20,1) NULL,
+  `json1` json NULL,
+  `jsonb1` jsonb NULL,
+  `variant1` variant NULL,
+  `date1` date NULL,
+  `datetime1` datetime NULL,
+  `t_bitmap` bitmap NOT NULL DEFAULT BITMAP_EMPTY,
+  `t_null_string` text NULL,
+  `t_null_varchar` varchar(255) NULL,
+  `t_null_char` char(10) NULL,
+  `t_null_decimal_precision_2` decimal(2,1) NULL,
+  `t_null_decimal_precision_4` decimal(4,2) NULL,
+  `t_null_decimal_precision_8` decimal(8,4) NULL,
+  `t_null_decimal_precision_17` decimal(17,8) NULL,
+  `t_null_decimal_precision_18` decimal(18,8) NULL,
+  `t_null_decimal_precision_38` decimal(38,16) NULL,
+  `t_str` text NULL,
+  `t_string` text NULL,
+  `t_empty_varchar` varchar(255) NULL,
+  `t_varchar` varchar(255) NULL,
+  `t_varchar2` varchar(255) NULL,
+  `t_char` char(10) NULL,
+  `t_int` int NULL,
+  `t_bigint` bigint NULL,
+  `t_float` float NULL,
+  `t_double` double NULL,
+  `t_boolean_true` boolean NULL,
+  `t_boolean_false` boolean NULL,
+  `t_decimal_precision_2` decimal(2,1) NULL,
+  `t_decimal_precision_4` decimal(4,2) NULL,
+  `t_decimal_precision_8` decimal(8,4) NULL,
+  `t_decimal_precision_17` decimal(17,8) NULL,
+  `t_decimal_precision_18` decimal(18,8) NULL,
+  `t_decimal_precision_38` decimal(38,16) NULL,
+  `t_map_string` map<text,text> NULL,
+  `t_map_varchar` map<varchar(255),varchar(255)> NULL,
+  `t_map_char` map<char(10),char(10)> NULL,
+  `t_map_int` map<int,int> NULL,
+  `t_map_bigint` map<bigint,bigint> NULL,
+  `t_map_float` map<float,float> NULL,
+  `t_map_double` map<double,double> NULL,
+  `t_map_boolean` map<boolean,boolean> NULL,
+  `t_map_decimal_precision_2` map<decimal(2,1),decimal(2,1)> NULL,
+  `t_map_decimal_precision_4` map<decimal(4,2),decimal(4,2)> NULL,
+  `t_map_decimal_precision_8` map<decimal(8,4),decimal(8,4)> NULL,
+  `t_map_decimal_precision_17` map<decimal(17,8),decimal(17,8)> NULL,
+  `t_map_decimal_precision_18` map<decimal(18,8),decimal(18,8)> NULL,
+  `t_map_decimal_precision_38` map<decimal(38,16),decimal(38,16)> NULL,
+  `t_array_string` array<text> NULL,
+  `t_array_int` array<int> NULL,
+  `t_array_bigint` array<bigint> NULL,
+  `t_array_float` array<float> NULL,
+  `t_array_double` array<double> NULL,
+  `t_array_boolean` array<boolean> NULL,
+  `t_array_varchar` array<varchar(255)> NULL,
+  `t_array_char` array<char(10)> NULL,
+  `t_array_decimal_precision_2` array<decimal(2,1)> NULL,
+  `t_array_decimal_precision_4` array<decimal(4,2)> NULL,
+  `t_array_decimal_precision_8` array<decimal(8,4)> NULL,
+  `t_array_decimal_precision_17` array<decimal(17,8)> NULL,
+  `t_array_decimal_precision_18` array<decimal(18,8)> NULL,
+  `t_array_decimal_precision_38` array<decimal(38,16)> NULL,
+  `t_struct_bigint` struct<s_bigint:bigint> NULL,
+  `t_complex` map<text,array<struct<s_int:int>>> NULL,
+  `t_struct_nested` struct<struct_field:array<text>> NULL,
+  `t_struct_null` struct<struct_field_null:text,struct_field_null2:text> NULL,
+  `t_struct_non_nulls_after_nulls` struct<struct_non_nulls_after_nulls1:int,struct_non_nulls_after_nulls2:text> NULL,
+  `t_nested_struct_non_nulls_after_nulls` struct<struct_field1:int,struct_field2:text,struct_field3:struct<nested_struct_field1:int,nested_struct_field2:text>> NULL,
+  `t_map_null_value` map<text,text> NULL,
+  `t_array_string_starting_with_nulls` array<text> NULL,
+  `t_array_string_with_nulls_in_between` array<text> NULL,
+  `t_array_string_ending_with_nulls` array<text> NULL,
+  `t_array_string_all_nulls` array<text> NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`dt_month`)
+COMMENT 'OLAP'
+DISTRIBUTED BY HASH(`dt_month`) BUCKETS 10
+PROPERTIES (
+"replication_allocation" = "tag.location.default: 1",
+"min_load_replica_num" = "-1",
+"bloom_filter_columns" = "dt_month, company_code",
+"is_being_synced" = "false",
+"storage_medium" = "hdd",
+"storage_format" = "V2",
+"inverted_index_storage_format" = "V2",
+"light_schema_change" = "true",
+"disable_auto_compaction" = "false",
+"binlog.enable" = "false",
+"binlog.ttl_seconds" = "86400",
+"binlog.max_bytes" = "9223372036854775807",
+"binlog.max_history_nums" = "9223372036854775807",
+"enable_single_replica_compaction" = "false",
+"group_commit_interval_ms" = "10000",
+"group_commit_data_bytes" = "134217728"
+);
+</tables>
+
+<column-stats>
+db: company
+tables:
+    - name: employees
+      row_count: 8
+      columns:
+        - name: hire_date
+          ndv: 8
+          null_count: 0
+          data_size: 32
+          avg_size_byte: 4
+          min: "2023-01-15"
+          max: "2023-08-30"
+          method: SAMPLE
+        - name: department_id
+          ndv: 3
+          null_count: 0
+          data_size: 32
+          avg_size_byte: 4
+          min: "10"
+          max: "30"
+          method: SAMPLE
+        - name: employee_id
+          ndv: 8
+          null_count: 0
+          data_size: 32
+          avg_size_byte: 4
+          min: "1"
+          max: "8"
+          method: SAMPLE
+        - name: salary
+          ndv: 7
+          null_count: 0
+          data_size: 64
+          avg_size_byte: 8
+          min: "45000.00"
+          max: "80000.00"
+          method: SAMPLE
+db: test
+tables:
+    - name: all_type_nullable
+      row_count: 5
+      columns:
+        - name: t_boolean_true
+          ndv: 2
+          null_count: 0
+          data_size: 5
+          avg_size_byte: 1
+          min: "FALSE"
+          max: "TRUE"
+          method: FULL
+        - name: t_null_decimal_precision_18
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-9939384076.38002145"
+          max: "9833382040.06565294"
+          method: FULL
+        - name: t_null_decimal_precision_38
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-8651731472684581768.1691744767450163"
+          max: "-2091192466690782103.3044663751923254"
+          method: FULL
+        - name: t_null_decimal_precision_8
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-5060.2174"
+          max: "5780.0281"
+          method: FULL
+        - name: t_string
+          ndv: 5
+          null_count: 0
+          data_size: 30
+          avg_size_byte: 6
+          min: gioo
+          max: ve
+          method: FULL
+        - name: date1
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "2022-01-28"
+          max: "2025-05-10"
+          method: FULL
+        - name: t_decimal_precision_17
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-880327755.73014927"
+          max: "-51425361.62351588"
+          method: FULL
+        - name: t_decimal_precision_38
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-7804553279841345278.6167463686997645"
+          max: "9119285621347768021.9335436899403616"
+          method: FULL
+        - name: t_empty_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 32
+          avg_size_byte: 6
+          min: efaminog
+          max: oar
+          method: FULL
+        - name: t_null_decimal_precision_17
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-760301698.80964654"
+          max: "826464628.92119347"
+          method: FULL
+        - name: t_decimal_precision_18
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-8547384058.04765621"
+          max: "6498916753.87319452"
+          method: FULL
+        - name: t_double
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-571877127.5455029"
+          max: "2054765894.9373324"
+          method: FULL
+        - name: t_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: bonibaduve
+          max: ugebi
+          method: FULL
+        - name: t_null_decimal_precision_4
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-79.47"
+          max: "76.11"
+          method: FULL
+        - name: company_code
+          ndv: 5
+          null_count: 0
+          data_size: 80
+          avg_size_byte: 16
+          min: "-1336160711408061501.9"
+          max: "4112709727168943974.1"
+          method: FULL
+        - name: t_char
+          ndv: 5
+          null_count: 0
+          data_size: 50
+          avg_size_byte: 10
+          min: erivalorab
+          max: uvimofitab
+          method: FULL
+        - name: t_decimal_precision_4
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-71.23"
+          max: "90.13"
+          method: FULL
+        - name: t_null_decimal_precision_2
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-7.2"
+          max: "8.3"
+          method: FULL
+        - name: t_null_varchar
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: fimadin
+          max: ra
+          method: FULL
+        - name: datetime1
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "2017-03-19 20:01:18"
+          max: "2022-05-07 10:18:11"
+          method: FULL
+        - name: dt_month
+          ndv: 5
+          null_count: 0
+          data_size: 10
+          avg_size_byte: 2
+          min: "0"
+          max: "12"
+          method: FULL
+        - name: t_bigint
+          ndv: 5
+          null_count: 0
+          data_size: 40
+          avg_size_byte: 8
+          min: "-1034738942"
+          max: "346671835"
+          method: FULL
+        - name: t_boolean_false
+          ndv: 2
+          null_count: 0
+          data_size: 5
+          avg_size_byte: 1
+          min: "FALSE"
+          max: "TRUE"
+          method: FULL
+        - name: t_str
+          ndv: 5
+          null_count: 0
+          data_size: 28
+          avg_size_byte: 5
+          min: elitelo
+          max: uvok
+          method: FULL
+        - name: t_int
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-458637585"
+          max: "1718914612"
+          method: FULL
+        - name: t_null_string
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: fesumega
+          max: uvewoiuaou
+          method: FULL
+        - name: t_varchar_max_length
+          ndv: 5
+          null_count: 0
+          data_size: 31
+          avg_size_byte: 6
+          min: apuge
+          max: upo
+          method: FULL
+        - name: t_decimal_precision_2
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-6.6"
+          max: "8.3"
+          method: FULL
+        - name: t_decimal_precision_8
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-9854.9034"
+          max: "3662.0190"
+          method: FULL
+        - name: t_float
+          ndv: 5
+          null_count: 0
+          data_size: 20
+          avg_size_byte: 4
+          min: "-24238.533"
+          max: "25398.23"
+          method: FULL
+        - name: t_null_char
+          ndv: 5
+          null_count: 0
+          data_size: 50
+          avg_size_byte: 10
+          min: itaposalob
+          max: ufamularun
+          method: FULL
+</column-stats>
+
+<queries>
+
+</queries>
+</user-prompt>
+
+<output>
+######
+# Run:
+#   dodo gendata --dbs company,test --ddl example/ddl --genconf example/gendata.yaml
+######
+
+# Global null frequency
+null_frequency: 0
+
+
+# Global generate rule of types
+type:
+  # set default bigint range to 0 - 100
+  bigint:
+    min: 0
+    max: 100
+  date:
+    min: 1997-02-16
+    max: 2025-06-12
+  jsonb:
+    # set default structure of all jsonb (use MAP or ARRAY is also OK!)
+    structure: 'struct<foo:bigint>'
+    # do not gen NULL for jsonb itself
+    null_frequency: 0
+    fields:
+      # range -1 to 1, 10% NULL
+      - name: foo
+        min: -1
+        max: 1
+        null_frequency: 0.1
+
+
+# tables generate rule
+tables:
+  - name: employees
+    row_count: 100 # optional, default 1000 (specify by --rows)
+    columns:
+      - name: department_id
+        null_frequency: 0.1 # 10% NULL
+        min: 1
+        max: 10
+      - name: salary
+        min: 15000.00
+        max: 16000.00
+      - name: hire_date
+        min: "1997-01-15"
+        max: "1997-01-15"
+
+  - name: all_type_nullable
+    # row_count: 100
+    columns:
+      - name: t_null_decimal_precision_38
+        precision: 10
+        scale: 3
+        min: 100
+        max: 102 # max is 102.999
+      - name: datetime1
+        min: "1997-01-15"
+        max: "1997-01-15"
+      - name: t_str
+        # All generators can have an optional result format.
+        # The tag (surrounded by {{ and }}) grammer is same as golang's `fmt.Sprintf()`
+        # NOTE: format will return NULL if the generator returns NULL.
+        format: 'substr length 1-5: {{%s}}'
+        length:
+          min: 1
+          max: 5
+        null_frequency: 0.1
+
+
+      ### Custom generator ###
+      ### Will override the gen rules at the column level (expect `null_frequency` and `format`)
+
+      # inc generator
+      - name: t_string
+        format: "string-inc-{{%d}}"
+        # `length` won't work, override by `gen`
+        # length: 10
+        gen:
+          # incrementing from 100 (default 0), step 2 (default 1)
+          inc:
+            start: 100
+            step: 2
+
+      # enum generator
+      - name: t_null_string
+        null_frequency: 0.5
+        format: "What's your name? My name is {{%s}}."
+        gen:
+          # randomly choose one element
+          enum: [foo, bar, foobar]
+          weights: [0.2, 0.6, 0.2] # optional, the probabilities of being chosen
+
+      # ref generator
+      - name: t_int
+        # use values from another previously generated table column. Usually handle JOIN.
+        gen:
+          ref: employees.department_id
+          limit: 1000 # randomly choose 1000 values from employees.department_id (default 1000)
+        # you can add a format here if column formats are not the same
+        # format: ""
+
+      # use other type's generator
+      - name: t_varchar2
+        # format also support some builtin tags like '{{month}}' below,
+        # see `src/generator/README.md` for all template tags
+        format: "year: {{%d}}, month: {{month}}"
+        gen:
+          type: int
+          min: 1997
+          max: 2097
+      - name: dt_month # type is varchar(6) but use tinyint to generate month
+        format: '{{year}}{{%02d}}'
+        gen:
+          type: tinyint
+          min: 1
+          max: 12
+
+      # Finally, the golang generator
+      - name: t_varchar
+        gen:
+          # Must have a function `func gen() any` in golang code
+          golang: |
+            import "fmt"
+
+            var i int
+            func gen() any {
+                i++
+                return fmt.Sprintf("Is odd: %v.", i%2 == 1)
+            }
+
+
+
+      ### Complex type ###
+      - name: t_map_varchar # map<varchar(255),varchar(255)>
+        key:
+          format: "key-{{%d}}"
+          gen:
+            # default to start from 0
+            inc:
+        value:
+          length: {min: 20, max: 50}
+
+      - name: t_array_string # array<text>
+        length: {min: 1, max: 10}
+        element:
+          # custom generatot for array element
+          gen:
+            enum: [foo, bar, foobar]
+
+      - name: t_struct_nested # struct<foo:text, struct_field:array<text>>
+        fields:
+          - name: foo
+            length: 3
+          - name: struct_field
+            length: 10
+            element:
+              null_frequency: 0
+              length: 2
+
+      # JSON/JSONB/VARIANT
+      - name: json1
+        structure: |
+          struct<
+            c1: varchar(3),
+            c2: struct<array_field: array<text>>, -- nested complex type (yes, you can write comment here)
+            c3: boolean
+          >
+        fields:
+          # length 1, 0% NULL
+          - name: c1
+            length: 1
+            null_frequency: 0
+          - name: c2 # struct<array_field: array<text>>>
+            fields:
+              - name: array_field
+                length: 1
+                element:
+                  format: "nested array element: {{%s}}"
+                  null_frequency: 0
+                  length: 2
+  - name: sales
+    # row_count: 100
+    columns:
+      - name: employee_id
+        gen:
+          ref: employees.employee_id
+      - name: product_id # int
+        format: "1{{%06d}}"
+        gen:
+          ref: employees.employee_id
+</output>
+</example>
+
+</usage>
+
+<tips>
+<tip>
+Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+</tip>
+
+<tip>
+The list of generate rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
+
+
+| Name | Return Type |
+| --- | --- |
+| preposition_simple | string |
+| verb_action | string |
+| buzz_word | string |
+| country | string |
+| hacker_adjective | string |
+| last_name | string |
+| movie_genre | string |
+| book_title | string |
+| connective | string |
+| dessert | string |
+| bird | string |
+| middle_name | string |
+| movie_name | string |
+| url | string |
+| username | string |
+| ach_routing | string |
+| adverb_manner | string |
+| hacker_noun | string |
+| product_upc | string |
+| pronoun_indefinite | string |
+| adverb_degree | string |
+| longitude | float64 |
+| street_suffix | string |
+| vowel | string |
+| beer_hop | string |
+| cusip | string |
+| noun_determiner | string |
+| phrase_preposition | string |
+| preposition | string |
+| car_maker | string |
+| http_status_code | int |
+| hackering_verb | string |
+| hour | int |
+| interjection | string |
+| language | string |
+| adjective_descriptive | string |
+| dog | string |
+| first_name | string |
+| minecraft_weather | string |
+| name | string |
+| safari_user_agent | string |
+| uuid | string |
+| verb | string |
+| bool | bool |
+| connective_listing | string |
+| digit | string |
+| adjective_quantitative | string |
+| adverb | string |
+| error_http_client | error |
+| gamertag | string |
+| minecraft_villager_job | string |
+| song_genre | string |
+| cat | string |
+| month_string | string |
+| noun_concrete | string |
+| street_prefix | string |
+| uint_32 | uint32 |
+| bitcoin_private_key | string |
+| minecraft_wood | string |
+| preposition_double | string |
+| user_agent | string |
+| emoji_alias | string |
+| mac_address | string |
+| noun_proper | string |
+| input_name | string |
+| name_suffix | string |
+| pronoun_reflective | string |
+| verb_linking | string |
+| adjective | string |
+| adjective_interrogative | string |
+| book_genre | string |
+| domain_suffix | string |
+| error_database | error |
+| error_http_server | error |
+| hacker_verb | string |
+| isin | string |
+| name_prefix | string |
+| minecraft_animal | string |
+| street_name | string |
+| time_zone | string |
+| hex_color | string |
+| bs | string |
+| ach_account | string |
+| firefox_user_agent | string |
+| hacker_abbreviation | string |
+| pronoun_object | string |
+| year | int |
+| city | string |
+| minecraft_mob_neutral | string |
+| noun_collective_animal | string |
+| credit_card_exp | string |
+| language_bcp | string |
+| adjective_demonstrative | string |
+| breakfast | string |
+| day | int |
+| phrase_adverb | string |
+| time_zone_full | string |
+| job_title | string |
+| phone | string |
+| street_number | string |
+| uint_8 | uint8 |
+| gender | string |
+| noun_collective_people | string |
+| slogan | string |
+| language_abbreviation | string |
+| song_artist | string |
+| street | string |
+| uint_16 | uint16 |
+| emoji_description | string |
+| minecraft_ore | string |
+| sentence_simple | string |
+| adverb_place | string |
+| farm_animal | string |
+| http_method | string |
+| latitude | float64 |
+| app_name | string |
+| file_mime_type | string |
+| lorem_ipsum_word | string |
+| lunch | string |
+| minecraft_armor_part | string |
+| noun | string |
+| phrase | string |
+| letter | string |
+| company | string |
+| emoji_tag | string |
+| minecraft_mob_boss | string |
+| minecraft_mob_passive | string |
+| phrase_noun | string |
+| beer_ibu | string |
+| drink | string |
+| http_version | string |
+| int_32 | int32 |
+| state_abr | string |
+| connective_casual | string |
+| emoji | string |
+| error_runtime | error |
+| int_64 | int64 |
+| minecraft_armor_tier | string |
+| product_material | string |
+| pronoun_relative | string |
+| ssn | string |
+| uint | uint |
+| uint_64 | uint64 |
+| adverb_frequency_indefinite | string |
+| car_transmission_type | string |
+| month | int |
+| quote | string |
+| minecraft_dye | string |
+| programming_language | string |
+| week_day | string |
+| company_suffix | string |
+| error_grpc | error |
+| snack | string |
+| preposition_compound | string |
+| minecraft_mob_hostile | string |
+| past_date | Time |
+| phone_formatted | string |
+| pronoun_personal | string |
+| app_author | string |
+| celebrity_business | string |
+| noun_uncountable | string |
+| pronoun_interrogative | string |
+| verb_helping | string |
+| hacker_phrase | string |
+| product_category | string |
+| product_use_case | string |
+| file_extension | string |
+| hobby | string |
+| pet_name | string |
+| word | string |
+| beer_blg | string |
+| product_benefit | string |
+| connective_examplify | string |
+| date | Time |
+| error_http | error |
+| flip_a_coin | string |
+| product_name | string |
+| verb_transitive | string |
+| beer_yeast | string |
+| celebrity_sport | string |
+| credit_card_cvv | string |
+| error_validation | error |
+| int | int |
+| minecraft_food | string |
+| time_zone_region | string |
+| dinner | string |
+| noun_countable | string |
+| product_suffix | string |
+| safe_color | string |
+| comment | string |
+| connective_time | string |
+| minecraft_biome | string |
+| zip | string |
+| adjective_indefinite | string |
+| bitcoin_address | string |
+| currency_short | string |
+| emoji_category | string |
+| minute | int |
+| product_dimension | string |
+| connective_comparative | string |
+| i_pv_6_address | string |
+| product_description | string |
+| vegetable | string |
+| adjective_proper | string |
+| country_abr | string |
+| noun_common | string |
+| beer_alcohol | string |
+| animal | string |
+| car_fuel_type | string |
+| animal_type | string |
+| car_model | string |
+| color | string |
+| currency_long | string |
+| error | error |
+| song_name | string |
+| chrome_user_agent | string |
+| nano_second | int |
+| adverb_time_definite | string |
+| adverb_time_indefinite | string |
+| domain_name | string |
+| school | string |
+| second | int |
+| time_zone_abv | string |
+| minecraft_weapon | string |
+| noun_abstract | string |
+| opera_user_agent | string |
+| time_zone_offset | float32 |
+| error_object | error |
+| future_date | Time |
+| http_status_code_simple | int |
+| hipster_word | string |
+| minecraft_tool | string |
+| pronoun_demonstrative | string |
+| pronoun_possessive | string |
+| verb_intransitive | string |
+| float_32 | float32 |
+| fruit | string |
+| int_16 | int16 |
+| minecraft_villager_level | string |
+| noun_collective_thing | string |
+| product_feature | string |
+| pronoun | string |
+| celebrity_actor | string |
+| adjective_possessive | string |
+| blurb | string |
+| float_64 | float64 |
+| i_pv_4_address | string |
+| state | string |
+| connective_complaint | string |
+| phrase_verb | string |
+| question | string |
+| adverb_frequency_definite | string |
+| credit_card_type | string |
+| beer_name | string |
+| beer_style | string |
+| car_type | string |
+| job_descriptor | string |
+| minecraft_villager_station | string |
+| app_version | string |
+| beer_malt | string |
+| book_author | string |
+| email | string |
+| int_8 | int8 |
+| job_level | string |
+</tip>
+</tips>
+
+</prompt>
