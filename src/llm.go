@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Thearas/dodo/src/prompt"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/sirupsen/logrus"
+
+	"github.com/Thearas/dodo/src/prompt"
 )
 
 const (
@@ -21,11 +22,15 @@ func LLMGendataConfig(
 	apiKey, baseURL, model, prompt_ string,
 	tables, columnStats, sqls []string,
 ) (string, error) {
-	if baseURL == "" {
-		baseURL = "https://api.deepseek.com/beta"
-	}
 	if model == "" {
 		model = "deepseek-coder"
+	}
+	if baseURL == "" {
+		if strings.HasPrefix(strings.ToLower(model), "deepseek") {
+			baseURL = "https://api.deepseek.com/beta"
+		} else {
+			baseURL = "https://api.openai.com/v1/"
+		}
 	}
 
 	userPrompt := fmt.Sprintf(`

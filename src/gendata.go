@@ -178,7 +178,6 @@ func (tg *TableGen) GenCSV(w *bufio.Writer, rows int) error {
 		colIdxRefGens = make(map[int]*gen.RefGen, len(colRefGen))
 		for i, c := range tg.Columns {
 			if refgen, ok := colRefGen[c]; ok {
-				refgen.WithSourceTableRows(tg.rows)
 				colIdxRefGens[i] = refgen
 			}
 		}
@@ -206,10 +205,7 @@ func (tg *TableGen) genOne(w *bufio.Writer, colIdxRefGens map[int]*gen.RefGen) {
 		// add value to ref gen
 		if len(colIdxRefGens) > 0 {
 			if refgen := colIdxRefGens[i]; refgen != nil {
-				full := refgen.AddRefVals(val)
-				if full {
-					delete(colIdxRefGens, i)
-				}
+				refgen.AddRefVals(val)
 			}
 		}
 

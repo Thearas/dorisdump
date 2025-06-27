@@ -17,6 +17,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/manifoldco/promptui v0.9.0
+	github.com/openai/openai-go v1.7.0
 	github.com/samber/lo v1.49.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cast v1.6.0
@@ -45,7 +46,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/openai/openai-go v1.7.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect

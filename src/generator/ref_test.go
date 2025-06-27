@@ -34,7 +34,7 @@ func TestRefGenerator(t *testing.T) {
 		},
 		{
 			name:    "ref_col1 3",
-			args:    args{r: GenRule{"ref": "table1.col1", "limit": 30}},
+			args:    args{r: GenRule{"ref": "table1.col1", "limit": 100}},
 			wantErr: false,
 		},
 	}
@@ -54,14 +54,12 @@ func TestRefGenerator(t *testing.T) {
 	assert.Len(t, shardColGens, 2)
 
 	refCol1 := getColumnRefGen("table1", "col1")
-	assert.Equal(t, 30, refCol1.Limit)
+	assert.Equal(t, 100, refCol1.Limit)
 	refCol1_2 := refGens[2]
 	assert.Equal(t, 20, refCol1_2.Limit)
 	refColOther := getColumnRefGen("table1", "other_col")
 	assert.Equal(t, 10, refColOther.Limit)
 
-	table1Rows := 1000
-	refCol1.WithSourceTableRows(table1Rows)
 	refCol1.AddRefVals()
 	refCol1.AddRefVals(1, 2, 3, 4)
 	refCol1.AddRefVals(lo.ToAnySlice(lo.Range(996))...)
@@ -69,8 +67,8 @@ func TestRefGenerator(t *testing.T) {
 
 	refCol1_3 := refGens[3]
 	assert.Len(t, *refCol1_3.refValsPtr, len(*refCol1.refValsPtr))
-	assert.GreaterOrEqual(t, len(*refCol1_3.refValsPtr), 25)
+	assert.Len(t, *refCol1_3.refValsPtr, 100)
 	for range 100 {
-		assert.LessOrEqual(t, refCol1_3.Gen(), 1100)
+		assert.Less(t, refCol1_3.Gen(), 1100)
 	}
 }

@@ -40,8 +40,7 @@ type RefGen struct {
 	Limit  int
 
 	refValsPtr *[]any
-
-	possibility float32
+	nth        int
 }
 
 func (g *RefGen) Clone() *RefGen {
@@ -57,31 +56,21 @@ func (g *RefGen) TableColumn() string {
 	return fmt.Sprintf("%s.%s", g.Table, g.Column)
 }
 
-// rowCount is the source table row count that ref points to.
-func (g *RefGen) WithSourceTableRows(rowCount int) {
-	g.possibility = float32(g.Limit) / float32(rowCount)
-}
-
-func (g *RefGen) AddRefVals(vals ...any) (full bool) {
-	if g.possibility <= 0 {
-		panic("unreachable: ref possibility must > 0")
-	}
-	refVals := *g.refValsPtr
+func (g *RefGen) AddRefVals(vals ...any) {
 	for _, v := range vals {
-		if len(refVals) >= g.Limit {
-			return true
-		}
+		g.nth++
 
-		// need at least one value in refVals
-		pickup := len(refVals) == 0 || g.possibility >= 1 || rand.Float32() <= g.possibility
-		if !pickup {
+		// at least g.Limit value in refVals
+		if len(*g.refValsPtr) < g.Limit {
+			*g.refValsPtr = append(*g.refValsPtr, v)
 			continue
 		}
 
-		*g.refValsPtr = append(*g.refValsPtr, v)
+		replaceIdx := rand.IntN(g.nth)
+		if replaceIdx < g.Limit {
+			(*g.refValsPtr)[replaceIdx] = v
+		}
 	}
-
-	return false
 }
 
 func (g *RefGen) Gen() any {
