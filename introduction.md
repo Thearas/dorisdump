@@ -23,6 +23,8 @@
       - [type](#type)
       - [golang](#golang)
   - [AI Generation](#ai-generation)
+    - [Using Deepseek](#using-deepseek)
+    - [Using Google Jules](#using-google-jules)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
