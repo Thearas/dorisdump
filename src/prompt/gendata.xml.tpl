@@ -8,7 +8,7 @@ So your task is generating YAML configurations for the data generation tool dodo
 1. The generated data must be able to be queried by user's queries
 2. The YAML configurations should according to 'usage' below. Do not use rule key in `gendata.yaml` that haven't been documented in 'usage'
 3. When column stats conflict with queries conditions, prioritize queries conditions and ignore column stats
-4. Output should in YAML format and do not output empty result
+4. Output should be a valid YAML and do not output anything else except YAML
 </requirements>
 
 <usage>
@@ -52,11 +52,11 @@ Learn the usage below (document and example) of tool `dodo`. Especially, the `ge
 
 <tips>
 <tip>
-Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+Do not generation rules for those columns that not been used as condition (like JOIN and WHERE).
 </tip>
 
 <tip>
-The list of generate rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
+The list of generation rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
 
 「format-tags」
 </tip>

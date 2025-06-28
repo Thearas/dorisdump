@@ -7,6 +7,8 @@ import (
 
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
+
+	"github.com/Thearas/dodo/src/parser"
 )
 
 var _ Gen = &GolangGen{}
@@ -21,7 +23,7 @@ func (g *GolangGen) Gen() any {
 	return g.genF()
 }
 
-func NewGolangGenerator(_ string, r GenRule) (Gen, error) {
+func NewGolangGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	// The code snippet must have a function `func gen() any {...}`
 	codeSnippet, ok := r["golang"].(string)
 	if !ok {

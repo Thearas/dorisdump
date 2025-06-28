@@ -8,6 +8,8 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/samber/lo"
 	"github.com/spf13/cast"
+
+	"github.com/Thearas/dodo/src/parser"
 )
 
 var _ Gen = &EnumGen{}
@@ -18,6 +20,14 @@ type EnumGen struct {
 }
 
 func (g *EnumGen) Gen() any {
+	v := g.gen()
+	if gr, ok := v.(Gen); ok {
+		return gr.Gen()
+	}
+	return v
+}
+
+func (g *EnumGen) gen() any {
 	if len(g.Weights) == 0 {
 		return g.Enum[gofakeit.IntN(len(g.Enum))]
 	}
@@ -33,14 +43,21 @@ func (g *EnumGen) Gen() any {
 	panic("EnumGen.Gen(): unreachable")
 }
 
-func NewEnumGenerator(_ string, r GenRule) (Gen, error) {
+func NewEnumGenerator(colpath string, dataType parser.IDataTypeContext, r GenRule) (Gen, error) {
 	enum_ := r["enum"]
 	if enum_ == nil {
 		enum_ = cast.ToStringSlice(r["enums"])
 	}
 	enum, ok := enum_.([]any)
-	if !ok {
+	if !ok || len(enum) == 0 {
 		return nil, errors.New("enum is empty")
+	}
+	for i, v := range enum {
+		gr, ok := v.(GenRule)
+		if !ok {
+			continue
+		}
+		enum[i] = newTypeGenerator(fmt.Sprintf("%s.enum.%d", colpath, i), gr, dataType)
 	}
 
 	weights_ := r["weights"]
@@ -51,7 +68,7 @@ func NewEnumGenerator(_ string, r GenRule) (Gen, error) {
 		return &EnumGen{Enum: enum}, nil
 	}
 	ws, ok := weights_.([]any)
-	if !ok {
+	if !ok || len(ws) == 0 {
 		return nil, fmt.Errorf("weights should be a [float], but got: %T", r["weights"])
 	}
 	weights := lo.Map(ws, func(w any, _ int) float32 { return cast.ToFloat32(w) })

@@ -10,6 +10,8 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
+
+	"github.com/Thearas/dodo/src/parser"
 )
 
 // TODO: use disk to store refVals, now is in-memory impl.
@@ -84,7 +86,7 @@ func (g *RefGen) Gen() any {
 	return refVals[gofakeit.IntN(limit)]
 }
 
-func NewRefGenerator(_ string, r GenRule) (Gen, error) {
+func NewRefGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	refGenMapLock.Lock()
 	defer refGenMapLock.Unlock()
 

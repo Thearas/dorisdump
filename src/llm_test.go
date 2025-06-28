@@ -12,6 +12,7 @@ import (
 func TestLLMGendataConfig(t *testing.T) {
 	apikey := os.Getenv("DORIS_DEEPSEEK_API_KEY")
 	if apikey == "" {
+		t.SkipNow()
 		return
 	}
 	type args struct {

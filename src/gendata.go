@@ -20,6 +20,8 @@ const (
 	MaxGenRowCount     = 1_000_000
 )
 
+type GenRule = gen.GenRule
+
 func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen, error) {
 	// parse create-table statement
 	sqlId := ddlfile
@@ -240,8 +242,6 @@ func (tg *TableGen) RemoveRefTable(t string) {
 	}
 	delete(tg.RefToTable, t)
 }
-
-type GenRule = gen.GenRule
 
 func CheckGenRowCount(rows int) error {
 	if rows < 0 {

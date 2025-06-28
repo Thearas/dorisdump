@@ -382,7 +382,9 @@ columns:
 可选自定义生成器，支持以下几种，必须在 `gen:` 的下面定义：
 
 > [!IMPORTANT]
-> 会覆盖列本身层级的生成规则（`null_frequency` 和 `format` 除外）
+>
+> - 会覆盖列本身层级的生成规则（`null_frequency` 和 `format` 除外）
+> - 同一时间只能指定一个生成器，比如指定了 `inc` 生成器，就不能再指定 `enum` 生成器
 
 ##### inc
 
@@ -402,7 +404,7 @@ columns:
 
 ##### enum
 
-枚举生成器，从给定值中随机选择：
+枚举生成器，从给定值中随机选择，枚举值可以是字面量或者生成规则：
 
 ```yaml
 columns:
@@ -412,6 +414,16 @@ columns:
     gen:
       enum: [foo, bar, foobar]
       weights: [0.2, 0.6, 0.2]  # 可选，指定各值被选中的概率
+  - name: t_bigint
+    gen:
+      # 随机选择一个生成规则来生成值，各有 1/4 的概率被选中
+      enum:
+        - length: 5
+        - length: {min: 5, max: 10}
+        - format: "my name is {{username}}"
+        - gen:
+            enum: [1, 2, 3]
+    weights: [0.25, 0.25, 0.25, 0.25]
 ```
 
 ##### ref

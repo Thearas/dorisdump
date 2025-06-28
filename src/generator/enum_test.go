@@ -2,7 +2,12 @@ package generator
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Thearas/dodo/src/parser"
 )
 
 func TestEnumGen_Gen(t *testing.T) {
@@ -39,7 +44,8 @@ func TestEnumGen_Gen(t *testing.T) {
 
 func TestNewEnumGenRule(t *testing.T) {
 	type args struct {
-		r GenRule
+		dataType string
+		r        GenRule
 	}
 	tests := []struct {
 		name    string
@@ -50,7 +56,8 @@ func TestNewEnumGenRule(t *testing.T) {
 		{
 			name: "simple",
 			args: args{
-				r: MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5, 0.1]}"),
+				dataType: "int",
+				r:        MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5, 0.1]}"),
 			},
 			want: &EnumGen{
 				Enum:    []any{1, 2, 3},
@@ -59,21 +66,46 @@ func TestNewEnumGenRule(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "complex",
+			args: args{
+				dataType: "varchar(100)",
+				r: MustYamlUmarshal(`
+enum:
+    - length: 5
+    - length: {min: 5, max: 10}
+    - format: "int to str: {{%d}}"
+      gen:
+          enum: [1, 2, 3]
+weights: [0.4, 0.5, 0.1]
+ `),
+			},
+			wantErr: false,
+		},
+		{
 			name: "err: less weights",
 			args: args{
-				r: MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5]}"),
+				dataType: "int",
+				r:        MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5]}"),
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewEnumGenerator("", tt.args.r)
+			p := parser.NewParser(tt.name, tt.args.dataType)
+			dataType := p.DataType()
+			assert.NoError(t, p.ErrListener.LastErr)
+			got, err := NewEnumGenerator(tt.name, dataType, tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewEnumGenRule() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if strings.HasPrefix(tt.name, "complex") {
+				enum := got.(*EnumGen).Enum
+				for _, v := range enum {
+					assert.IsType(t, "", v.(Gen).Gen())
+				}
+			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnumGenRule() = %v, want %v", got, tt.want)
 			}
 		})

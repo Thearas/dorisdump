@@ -385,7 +385,9 @@ Complex types have special generation rules:
 Optional custom generator, supports the following types, MUST be defined under `gen:`:
 
 > [!IMPORTANT]
-> `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
+>
+> - `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
+> - Only one generator can be specified at the same time, for example, if the `inc` generator is specified, the `enum` generator cannot be specified
 
 ##### inc
 
@@ -405,7 +407,7 @@ columns:
 
 ##### enum
 
-Enum generator, randomly selects from given values. There is an  optional config `weights` (can only be used with `enum`):
+Enum generator, randomly selects from given values, values can be literals or generation rules. There is an optional config `weights` (can only be used with `enum`):
 
 ```yaml
 columns:
@@ -415,6 +417,16 @@ columns:
     gen:
       enum: [foo, bar, foobar]
       weights: [0.2, 0.6, 0.2]  # Optional, specifies the probability of each value being selected
+  - name: t_bigint
+    gen:
+      # randomly choose one generation rule to generate value, each has 25% probability
+      enum:
+        - length: 5
+        - length: {min: 5, max: 10}
+        - format: "my name is {{username}}"
+        - gen:
+            enum: [1, 2, 3]
+    weights: [0.25, 0.25, 0.25, 0.25]
 ```
 
 ##### ref
@@ -526,7 +538,7 @@ With [Google Jules](https://jules.google.com), it's very easy to get a `gendata.
 
     Tips:
     - Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
-    - The list of generate rule `format` built-in tags(placeholder like {{month}}) can be found at `src/generator/README.md`
+    - The list of generation rule `format` built-in tags(placeholder like {{month}}) can be found at `src/generator/README.md`
 
     tables:
     {{tables}}

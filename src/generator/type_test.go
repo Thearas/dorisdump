@@ -84,7 +84,7 @@ func TestTypeGenerator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewTypeGenerator(tt.args.colpath, tt.args.r)
+			got, err := NewTypeGenerator(tt.args.colpath, nil, tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewTypeGenerator() error = %v, wantErr %v", err, tt.wantErr)
 				return
