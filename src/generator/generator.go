@@ -41,7 +41,7 @@ type Gen interface {
 	Gen() any
 }
 
-type CustomGenConstructor = func(colpath string, r GenRule) (Gen, error)
+type CustomGenConstructor = func(colpath string, dataType parser.IDataTypeContext, r GenRule) (Gen, error)
 
 type TypeVisitor struct {
 	Colpath string  // the path of the column, e.g. "db.table.col"
@@ -63,7 +63,7 @@ func NewTypeVisitor(colpath string, genRule GenRule) *TypeVisitor {
 func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 	baseType := v.GetBaseType(type_)
 
-	// Merge global (aka. default) generate rules.
+	// Merge global (aka. default) generation rules.
 	v.MergeDefaultRule(baseType)
 	if logrus.GetLevel() > logrus.DebugLevel {
 		logrus.Tracef("gen rule of '%s': %s\n", v.Colpath, string(MustJsonMarshal(v.GenRule)))
@@ -326,7 +326,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				continue
 			}
 
-			g_, err = customGenerator(v.Colpath, customGenRule)
+			g_, err = customGenerator(v.Colpath, type_, customGenRule)
 			if err != nil {
 				logrus.Fatalf("Invalid custom generator '%s' for column '%s', err: %v\n", name, v.Colpath, err)
 			}

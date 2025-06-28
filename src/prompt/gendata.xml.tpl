@@ -52,11 +52,11 @@ Learn the usage below (document and example) of tool `dodo`. Especially, the `ge
 
 <tips>
 <tip>
-Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+Do not generation rules for those columns that not been used as condition (like JOIN and WHERE).
 </tip>
 
 <tip>
-The list of generate rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
+The list of generation rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
 
 「format-tags」
 </tip>

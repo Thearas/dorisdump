@@ -31,7 +31,7 @@ func gen() any {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := NewGolangGenerator("", tt.rule)
+			g, err := NewGolangGenerator("", nil, tt.rule)
 			assert.NoError(t, err)
 			for i := range 10 {
 				if got := g.Gen(); strconv.Itoa(i) != got {

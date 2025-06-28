@@ -443,7 +443,9 @@ Complex types have special generation rules:
 Optional custom generator, supports the following types, MUST be defined under `gen:`:
 
 > [!IMPORTANT]
-> `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
+>
+> - `gen:` will override the gen rules at the column level (except `null_frequency` and `format`), makes `length`, `min/max` no longer effective.
+> - Only one generator can be specified at the same time, for example, if the `inc` generator is specified, the `enum` generator cannot be specified
 
 ##### inc
 
@@ -463,7 +465,7 @@ columns:
 
 ##### enum
 
-Enum generator, randomly selects from given values. There is an  optional config `weights` (can only be used with `enum`):
+Enum generator, randomly selects from given values, values can be literals or generation rules. There is an optional config `weights` (can only be used with `enum`):
 
 ```yaml
 columns:
@@ -473,6 +475,16 @@ columns:
     gen:
       enum: [foo, bar, foobar]
       weights: [0.2, 0.6, 0.2]  # Optional, specifies the probability of each value being selected
+  - name: t_bigint
+    gen:
+      # randomly choose one generation rule to generate value, each has 25% probability
+      enum:
+        - length: 5
+        - length: {min: 5, max: 10}
+        - format: "my name is {{username}}"
+        - gen:
+            enum: [1, 2, 3]
+    weights: [0.25, 0.25, 0.25, 0.25]
 ```
 
 ##### ref
@@ -1004,7 +1016,7 @@ tables:
 null_frequency: 0
 
 
-# Global generate rule of types
+# Global generation rule of types
 type:
   # set default bigint range to 0 - 100
   bigint:
@@ -1026,7 +1038,7 @@ type:
         null_frequency: 0.1
 
 
-# tables generate rule
+# tables generation rule
 tables:
   - name: employees
     row_count: 100 # optional, default 1000 (specify by --rows)
@@ -1078,14 +1090,24 @@ tables:
             start: 100
             step: 2
 
-      # enum generator
+      # enum generator, enum value can be any literal or a generation rule
       - name: t_null_string
         null_frequency: 0.5
         format: "What's your name? My name is {{%s}}."
         gen:
-          # randomly choose one element
+          # randomly choose one literal value
           enum: [foo, bar, foobar]
           weights: [0.2, 0.6, 0.2] # optional, the probabilities of being chosen
+      - name: t_bigint
+        gen:
+          # randomly choose one generation rule to generate value, each has 25% probability
+          enum:
+            - length: 5
+            - length: {min: 5, max: 10}
+            - format: "my name is {{username}}"
+            - gen:
+                enum: [1, 2, 3]
+        weights: [0.25, 0.25, 0.25, 0.25]
 
       # ref generator
       - name: t_int
@@ -1192,11 +1214,11 @@ tables:
 
 <tips>
 <tip>
-Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
+Do not generation rules for those columns that not been used as condition (like JOIN and WHERE).
 </tip>
 
 <tip>
-The list of generate rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
+The list of generation rule `format` built-in tags (placeholder like {{month}}) in Markdown table:
 
 
 | Name | Return Type |

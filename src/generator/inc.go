@@ -1,6 +1,10 @@
 package generator
 
-import "github.com/spf13/cast"
+import (
+	"github.com/spf13/cast"
+
+	"github.com/Thearas/dodo/src/parser"
+)
 
 var _ Gen = &IncGen{}
 
@@ -15,7 +19,7 @@ func (g *IncGen) Gen() any {
 	return result
 }
 
-func NewIncGenerator(_ string, r GenRule) (Gen, error) {
+func NewIncGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	start := cast.ToInt64(r["start"])
 	step := cast.ToInt64(r["step"])
 	if step == 0 {
