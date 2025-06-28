@@ -8,7 +8,7 @@ So your task is generating YAML configurations for the data generation tool dodo
 1. The generated data must be able to be queried by user's queries
 2. The YAML configurations should according to 'usage' below. Do not use rule key in `gendata.yaml` that haven't been documented in 'usage'
 3. When column stats conflict with queries conditions, prioritize queries conditions and ignore column stats
-4. Output should in YAML format and do not output empty result
+4. Output should be a valid YAML and do not output anything else except YAML
 </requirements>
 
 <usage>
