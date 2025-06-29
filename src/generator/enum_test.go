@@ -78,7 +78,7 @@ enum:
       gen:
           enum: [1, 2, 3]
     - format: "{{%d}}"
-	  gen:
+      gen:
           ref: table1.col1
 weights: [0.4, 0.4, 0.1, 0.1]
  `),
@@ -110,7 +110,9 @@ weights: [0.4, 0.4, 0.1, 0.1]
 				refgen.AddRefVals(lo.ToAnySlice(lo.Range(996))...)
 				enum := got.(*EnumGen).Enum
 				for _, v := range enum {
-					assert.IsType(t, "", v.(Gen).Gen())
+					for range 100 {
+						assert.IsType(t, "", v.(Gen).Gen())
+					}
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnumGenRule() = %v, want %v", got, tt.want)
