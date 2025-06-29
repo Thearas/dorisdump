@@ -216,7 +216,8 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			if s < 0 || s > precision {
 				// logrus.Debugf("Scale '%d' is invalid for precision '%d' in column '%s', using 0 instead\n", s, precision, v.Colpath)
 				s = 0
-			} else if scale > s {
+			}
+			if scale > s {
 				// logrus.Debugf("Scale '%d' is larger than the defined scale '%d' for column '%s', using %d instead\n", scale, s, v.Colpath, s)
 				scale = s
 			}

@@ -79,7 +79,7 @@ enum:
           enum: [1, 2, 3]
     - format: "{{%d}}"
       gen:
-          ref: table1.col1
+          ref: t1.col1
 weights: [0.4, 0.4, 0.1, 0.1]
  `),
 			},
@@ -105,8 +105,8 @@ weights: [0.4, 0.4, 0.1, 0.1]
 				return
 			}
 			if strings.HasPrefix(tt.name, "complex") {
-				// inject values to ref table1.col1
-				refgen := getColumnRefGen("table1", "col1")
+				// inject values to ref t1.col1
+				refgen := getColumnRefGen("t1", "col1")
 				refgen.AddRefVals(lo.ToAnySlice(lo.Range(996))...)
 				enum := got.(*EnumGen).Enum
 				for _, v := range enum {

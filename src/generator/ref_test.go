@@ -9,8 +9,7 @@ import (
 
 func TestRefGenerator(t *testing.T) {
 	type args struct {
-		in0 string
-		r   GenRule
+		r GenRule
 	}
 	tests := []struct {
 		name    string
