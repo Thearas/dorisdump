@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Thearas/dodo/src/parser"
@@ -76,7 +77,10 @@ enum:
     - format: "int to str: {{%d}}"
       gen:
           enum: [1, 2, 3]
-weights: [0.4, 0.5, 0.1]
+    - format: "{{%d}}"
+	  gen:
+          ref: table1.col1
+weights: [0.4, 0.4, 0.1, 0.1]
  `),
 			},
 			wantErr: false,
@@ -95,12 +99,15 @@ weights: [0.4, 0.5, 0.1]
 			p := parser.NewParser(tt.name, tt.args.dataType)
 			dataType := p.DataType()
 			assert.NoError(t, p.ErrListener.LastErr)
-			got, err := NewEnumGenerator(tt.name, dataType, tt.args.r)
+			got, err := NewEnumGenerator(NewTypeVisitor(tt.name, nil), dataType, tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewEnumGenRule() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if strings.HasPrefix(tt.name, "complex") {
+				// inject values to ref table1.col1
+				refgen := getColumnRefGen("table1", "col1")
+				refgen.AddRefVals(lo.ToAnySlice(lo.Range(996))...)
 				enum := got.(*EnumGen).Enum
 				for _, v := range enum {
 					assert.IsType(t, "", v.(Gen).Gen())

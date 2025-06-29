@@ -86,7 +86,7 @@ func (g *RefGen) Gen() any {
 	return refVals[gofakeit.IntN(limit)]
 }
 
-func NewRefGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewRefGenerator(v *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	refGenMapLock.Lock()
 	defer refGenMapLock.Unlock()
 
@@ -128,6 +128,9 @@ func NewRefGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error
 
 	sharedRefGen = g.Clone()
 	refGenMap[g.Table][g.Column] = sharedRefGen
+
+	// record ref tables
+	*v.TableRefs = append(*v.TableRefs, g.Table)
 
 	return g, nil
 }

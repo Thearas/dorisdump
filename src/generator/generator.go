@@ -41,26 +41,27 @@ type Gen interface {
 	Gen() any
 }
 
-type CustomGenConstructor = func(colpath string, dataType parser.IDataTypeContext, r GenRule) (Gen, error)
+type CustomGenConstructor = func(v *typeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error)
 
-type TypeVisitor struct {
+type typeVisitor struct {
 	Colpath string  // the path of the column, e.g. "db.table.col"
 	GenRule GenRule // rules of generator
 
 	// the tables that ref generator point to
-	TableRefs []string
+	TableRefs *[]string
 }
 
-func NewTypeVisitor(colpath string, genRule GenRule) *TypeVisitor {
+func NewTypeVisitor(colpath string, genRule GenRule) *typeVisitor {
 	if genRule == nil {
 		genRule = GenRule{}
 	}
-	return &TypeVisitor{
-		Colpath: colpath,
-		GenRule: genRule,
+	return &typeVisitor{
+		Colpath:   colpath,
+		GenRule:   genRule,
+		TableRefs: &[]string{},
 	}
 }
-func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
+func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 	baseType := v.GetBaseType(type_)
 
 	// Merge global (aka. default) generation rules.
@@ -81,7 +82,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			// Handle array type
 			g_ := &ArrayGen{}
 			g_.LenMin, g_.LenMax = v.GetLength()
-			g_.SetElementGen(v.GetChildGenRule("element", ty.DataType(0)))
+			g_.SetElementGen(v.GetChildGen("element", ty.DataType(0)))
 			g = g_
 		case "MAP":
 			// Handle map type
@@ -93,8 +94,8 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			// Handle key-value pair in map
 			g_ := &MapGen{}
 			g_.LenMin, g_.LenMax = v.GetLength()
-			g_.SetKeyGen(v.GetChildGenRule("key", kv[0]))
-			g_.SetValueGen(v.GetChildGenRule("value", kv[1]))
+			g_.SetKeyGen(v.GetChildGen("key", kv[0]))
+			g_.SetValueGen(v.GetChildGen("value", kv[1]))
 			g = g_
 		case "STRUCT":
 			// Handle struct type
@@ -128,12 +129,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			for _, field := range ty.ComplexColTypeList().AllComplexColType() {
 				fieldName := strings.Trim(field.Identifier().GetText(), "`")
 				fieldType := field.DataType()
-				fieldGenRule, ok := fields[fieldName]
-				if !ok {
-					fieldGenRule = nil
-				}
-				fieldVisitor := NewTypeVisitor(v.Colpath+"."+fieldName, fieldGenRule)
-				g_.AddChild(fieldName, fieldVisitor.GetTypeGen(fieldType))
+				g_.AddChild(fieldName, v.GetChildGen(fieldName, fieldType, fields[fieldName]))
 			}
 			g = g_
 		default:
@@ -326,7 +322,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				continue
 			}
 
-			g_, err = customGenerator(v.Colpath, type_, customGenRule)
+			g_, err = customGenerator(v, type_, customGenRule)
 			if err != nil {
 				logrus.Fatalf("Invalid custom generator '%s' for column '%s', err: %v\n", name, v.Colpath, err)
 			}
@@ -339,10 +335,6 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				v.Colpath,
 				lo.MapToSlice(CustomGenConstructors, func(name string, _ CustomGenConstructor) string { return name }),
 			)
-		}
-		// record ref tables
-		if refGen, ok := g.(*RefGen); ok {
-			v.TableRefs = append(v.TableRefs, refGen.Table)
 		}
 	}
 	// format generator
@@ -365,7 +357,7 @@ func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 	return g
 }
 
-func (v *TypeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
+func (v *typeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
 	switch ty := type_.(type) {
 	case *parser.ComplexDataTypeContext:
 		t = ty.GetComplex_().GetText()
@@ -377,7 +369,7 @@ func (v *TypeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
 	return strings.ToUpper(t)
 }
 
-func (v *TypeVisitor) MergeDefaultRule(baseType string) *TypeVisitor {
+func (v *typeVisitor) MergeDefaultRule(baseType string) *typeVisitor {
 	defaultGenRule, ok := DefaultTypeGenRules[baseType]
 	if !ok {
 		if ty_, ok := TypeAlias[baseType]; ok {
@@ -399,11 +391,11 @@ func (v *TypeVisitor) MergeDefaultRule(baseType string) *TypeVisitor {
 	return v
 }
 
-func (v *TypeVisitor) HasGenRule() bool {
+func (v *typeVisitor) HasGenRule() bool {
 	return len(v.GenRule) > 0
 }
 
-func (v *TypeVisitor) GetRule(name string, defaultValue ...any) any {
+func (v *typeVisitor) GetRule(name string, defaultValue ...any) any {
 	if !v.HasGenRule() {
 		return nil
 	}
@@ -416,11 +408,11 @@ func (v *TypeVisitor) GetRule(name string, defaultValue ...any) any {
 	return nil
 }
 
-func (v *TypeVisitor) GetMinMax() (min, max any) {
+func (v *typeVisitor) GetMinMax() (min, max any) {
 	return v.GetRule("min"), v.GetRule("max")
 }
 
-func (v *TypeVisitor) GetLength() (min, max int) {
+func (v *typeVisitor) GetLength() (min, max int) {
 	l := v.GetRule("length")
 	if l == nil {
 		logrus.Fatalf("length not found for column '%s'\n", v.Colpath)
@@ -440,7 +432,7 @@ func (v *TypeVisitor) GetLength() (min, max int) {
 	return
 }
 
-func (v *TypeVisitor) ChildGenRule(name string) GenRule {
+func (v *typeVisitor) ChildGenRule(name string) GenRule {
 	r := v.GetRule(name)
 	if r == nil {
 		return nil
@@ -448,11 +440,22 @@ func (v *TypeVisitor) ChildGenRule(name string) GenRule {
 	return r.(GenRule)
 }
 
-func (v *TypeVisitor) GetChildGenRule(name string, childType parser.IDataTypeContext) Gen {
-	return NewTypeVisitor(v.Colpath+"."+name, v.ChildGenRule(name)).GetTypeGen(childType)
+func (v *typeVisitor) GetChildGen(name string, childType parser.IDataTypeContext, childGenRule ...GenRule) Gen {
+	var visitor *typeVisitor
+	if len(childGenRule) > 0 {
+		// If the child already has gen rule, use it
+		visitor = NewTypeVisitor(v.Colpath+"."+name, childGenRule[0])
+	} else {
+		visitor = NewTypeVisitor(v.Colpath+"."+name, v.ChildGenRule(name))
+	}
+
+	// child visitor uses the same table ref records as root visitor's
+	visitor.TableRefs = v.TableRefs
+
+	return visitor.GetTypeGen(childType)
 }
 
-func (v *TypeVisitor) GetNullFrequency() float32 {
+func (v *typeVisitor) GetNullFrequency() float32 {
 	nullFrequency, err := cast.ToFloat32E(v.GetRule("null_frequency", GLOBAL_NULL_FREQUENCY))
 	if err != nil || nullFrequency < 0 || nullFrequency > 1 {
 		logrus.Fatalf("Invalid null frequency '%v' for column '%s': %v\n", v.GetRule("null_frequency"), v.Colpath, err)
