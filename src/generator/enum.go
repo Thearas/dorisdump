@@ -43,7 +43,7 @@ func (g *EnumGen) gen() any {
 	panic("EnumGen.Gen(): unreachable")
 }
 
-func NewEnumGenerator(colpath string, dataType parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewEnumGenerator(visitor *typeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error) {
 	enum_ := r["enum"]
 	if enum_ == nil {
 		enum_ = cast.ToStringSlice(r["enums"])
@@ -57,7 +57,7 @@ func NewEnumGenerator(colpath string, dataType parser.IDataTypeContext, r GenRul
 		if !ok {
 			continue
 		}
-		enum[i] = newTypeGenerator(fmt.Sprintf("%s.enum.%d", colpath, i), gr, dataType)
+		enum[i] = visitor.GetChildGen(fmt.Sprintf("enum.%d", i), dataType, gr)
 	}
 
 	weights_ := r["weights"]

@@ -9,8 +9,7 @@ import (
 
 func TestRefGenerator(t *testing.T) {
 	type args struct {
-		in0 string
-		r   GenRule
+		r GenRule
 	}
 	tests := []struct {
 		name    string
@@ -41,7 +40,7 @@ func TestRefGenerator(t *testing.T) {
 	refGens := []*RefGen{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewRefGenerator(tt.args.in0, nil, tt.args.r)
+			got, err := NewRefGenerator(NewTypeVisitor(tt.name, nil), nil, tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRefGenerator() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -23,7 +23,7 @@ func (g *GolangGen) Gen() any {
 	return g.genF()
 }
 
-func NewGolangGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewGolangGenerator(_ *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	// The code snippet must have a function `func gen() any {...}`
 	codeSnippet, ok := r["golang"].(string)
 	if !ok {
@@ -40,7 +40,9 @@ func NewGolangGenerator(_ string, _ parser.IDataTypeContext, r GenRule) (Gen, er
 	i := interp.New(interp.Options{})
 	// check if possible to use golang stdlib
 	if strings.Contains(code, "import") {
-		i.Use(stdlib.Symbols)
+		if err := i.Use(stdlib.Symbols); err != nil {
+			return nil, fmt.Errorf("golang import stdlib failed, err: %v\n", err)
+		}
 	}
 	_, err := i.Eval(code)
 	if err != nil {

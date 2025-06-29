@@ -10,7 +10,7 @@ import (
 func TestFormatGen_Gen(t *testing.T) {
 	SetupFormatTags()
 
-	innerGen, err := NewEnumGenerator("", nil, GenRule{"enum": []any{1, 2, 3, 4, 5}})
+	innerGen, err := NewEnumGenerator(nil, nil, GenRule{"enum": []any{1, 2, 3, 4, 5}})
 	assert.NoError(t, err)
 
 	type fields struct {

@@ -65,7 +65,7 @@ func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen,
 	for _, col := range c.ColumnDefs().GetCols() {
 		colName := strings.Trim(col.GetColName().GetText(), "`")
 		colType_ := col.GetType_()
-		visitor := &gen.TypeVisitor{Colpath: fmt.Sprintf("%s.%s", table, colName)}
+		visitor := gen.NewTypeVisitor(fmt.Sprintf("%s.%s", table, colName), nil)
 		colBaseType := visitor.GetBaseType(colType_)
 
 		if colBaseType == "BITMAP" {
@@ -80,7 +80,7 @@ func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen,
 
 		// build column generator
 		tg.colGens = append(tg.colGens, visitor.GetTypeGen(colType_))
-		tg.RecordRefTables(visitor.TableRefs...)
+		tg.RecordRefTables(*visitor.TableRefs...)
 		tg.Columns = append(tg.Columns, colName)
 	}
 
