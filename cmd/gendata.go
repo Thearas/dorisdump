@@ -62,8 +62,8 @@ Example:
   dodo gendata --dbs db1 --tables t1,t2 --rows 500 --ddl output/ddl/
   dodo gendata --ddl create.table.sql
   dodo gendata --dbs db1 --tables t1,t2 \
-	--llm 'deepseek-coder' --llm-api-key 'sk-xxx' \
-  	-q 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ('a', 'b', 'c') and t2.d = 1'`,
+	--llm 'deepseek-chat' --llm-api-key 'sk-xxx' \
+  	-q 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'`,
 	Aliases: []string{"g"},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)
@@ -239,19 +239,21 @@ func completeGendataConfig() (err error) {
 		return errors.New("--query can only be used when --llm is specified")
 	}
 
-	// if --ddl is a sql file, not need --dbs or --tables
-	if stat, err := os.Stat(GendataConfig.DDL); err == nil && !stat.IsDir() {
-		if !strings.HasSuffix(stat.Name(), ".sql") {
-			return errors.New("the ddl file must ends with '.sql'")
+	// if --ddl are sql file(s), not need --dbs or --tables
+	if strings.HasSuffix(GendataConfig.DDL, ".sql") {
+		for _, ddl := range strings.Split(GendataConfig.DDL, ",") {
+			if !strings.HasSuffix(ddl, ".sql") {
+				return fmt.Errorf("ddl file must ends with '.sql', got '%s'", ddl)
+			}
+			GendataConfig.genFromDDLs = append(GendataConfig.genFromDDLs, ddl)
 		}
-		GendataConfig.genFromDDLs = []string{GendataConfig.DDL}
 		return nil
 	}
 
 	GlobalConfig.DBs, GlobalConfig.Tables = lo.Uniq(GlobalConfig.DBs), lo.Uniq(GlobalConfig.Tables)
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
 	if len(dbs) == 0 && len(tables) == 0 {
-		return errors.New("expected at least one database or tables, please use --dbs/--tables flag or --ddl flag with a '.sql' file")
+		return errors.New("expected at least one database or tables, please use --dbs/--tables flag or --ddl flag with '.sql' file(s)")
 	} else if len(dbs) == 1 {
 		// prepend default database if only one database specified
 		prefix := dbs[0] + "."

@@ -160,7 +160,7 @@ func completeCreateConfig() (err error) {
 	GlobalConfig.DBs, GlobalConfig.Tables = lo.Uniq(GlobalConfig.DBs), lo.Uniq(GlobalConfig.Tables)
 	dbs, tables := GlobalConfig.DBs, GlobalConfig.Tables
 	if len(dbs) == 0 && len(tables) == 0 {
-		return errors.New("expected at least one database or tables, please use --dbs/--tables flag or --ddl flag with a '.sql' file")
+		return errors.New("expected at least one database or tables, please use --dbs/--tables flag or --ddl flag")
 	} else if len(dbs) == 1 {
 		// prepend default database if only one database specified
 		prefix := dbs[0] + "."

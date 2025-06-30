@@ -501,11 +501,11 @@ AI 生成时可以传入查询，令生成的数据能被该查询查出来。
 ```bash
 # 从导出的 t1,t2 表生成数据
 dodo gendata --dbs db1 --tables t1,t2 \
-    --llm 'deepseek-coder' --llm-api-key 'sk-xxx' \
-    --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ('a', 'b', 'c') and t2.d = 1'`
+    --llm 'deepseek-chat' --llm-api-key 'sk-xxx' \
+    --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'
 
 # 从任意 create-table 和 query 生成数据
-dodo gendata --llm 'deepseek-coder' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
+dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
 
 # 使用 `--prompt` 附加提示
 dodo gendata ... --prompt '每张表生成 1000 行数据'

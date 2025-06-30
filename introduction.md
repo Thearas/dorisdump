@@ -504,11 +504,11 @@ You must pass the `--llm` and `--llm-api-key` parameters. The former represents 
 ```bash
 # Generate data from exported t1, t2 tables
 dodo gendata --dbs db1 --tables t1,t2 \
-    --llm 'deepseek-coder' --llm-api-key 'sk-xxx' \
-    --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ('a', 'b', 'c') and t2.d = 1'`
+    --llm 'deepseek-chat' --llm-api-key 'sk-xxx' \
+    --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'
 
 # Generate data from any create-table and query
-dodo gendata --llm 'deepseek-coder' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
+dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
 
 # Use --prompt to add additional hints
 dodo gendata ... --prompt 'Generate 1000 rows for each table'
