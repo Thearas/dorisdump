@@ -14,18 +14,11 @@ So your task is generating YAML configurations for the data generation tool dodo
 <usage>
 Learn the usage below (document and example) of tool `dodo`. Especially, the `gendata` command and its `--genconf` config:
 
-1. The overview is in XML tag `readme` (Markdown format)
-2. The guide of config data generation is in XML tag `introduction`, subtitle `generate-and-import-data` (Markdown format)
-3. The full example is in XML tag `example` (YAML format)
+1. The guide of YAML configurations for the data generation is in XML tag `document` (Markdown format)
+2. The full example is in XML tag `example` (YAML format)
 
 <document>
-<readme>
-「readme」
-</readme>
-
-<introduction>
 「introduction」
-</introduction>
 </document>
 
 <example>

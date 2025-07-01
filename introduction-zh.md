@@ -23,7 +23,7 @@
       - [type](#type)
       - [golang](#golang)
   - [AI 生成数据](#ai-生成数据)
-    - [使用 Deepseek](#使用-deepseek)
+    - [使用 OpenAI/Deepseek](#使用-openaideepseek)
     - [使用 Google Jules](#使用-google-jules)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
@@ -308,7 +308,7 @@ columns:
 
 注意：如果生成器返回 NULL，format 也会返回 NULL。
 
-#### complex types map/array/struct/json/variant
+#### Complex types map/array/struct/json/variant
 
 复合类型有特殊的生成规则：
 
@@ -492,11 +492,11 @@ columns:
 
 ### AI 生成数据
 
-AI 生成时可以传入查询，令生成的数据能被该查询查出来。
+AI 生成时可以传入查询，令生成的数据能被该查询查出来。有两种方法：
 
-#### 使用 Deepseek
+#### 使用 OpenAI/Deepseek
 
-必须传入 `--llm` 和 `--llm-api-key` 两个参数，前者代表 Deepseek 的模型名称（比如 `deepseek-chat` 和 `deepseek-reasoner`），后者代表 API Key：
+必须传入 `--llm` 和 `--llm-api-key` 两个参数，前者代表 OpenAI/Deepseek 的模型名称（比如 `deepseek-chat` 和 `deepseek-reasoner`），后者代表 API Key：
 
 ```bash
 # 从导出的 t1,t2 表生成数据
@@ -510,11 +510,6 @@ dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql
 # 使用 `--prompt` 附加提示
 dodo gendata ... --prompt '每张表生成 1000 行数据'
 ```
-
-> [!NOTE]
->
-> - 使用 `deepseek-reasoner` 效果更好，但也会慢很多
-> - 可以使用 `--prompt` 附加提示
 
 #### 使用 Google Jules
 

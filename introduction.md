@@ -23,7 +23,7 @@
       - [type](#type)
       - [golang](#golang)
   - [AI Generation](#ai-generation)
-    - [Using Deepseek](#using-deepseek)
+    - [Using OpenAI/Deepseek](#using-openaideepseek)
     - [Using Google Jules](#using-google-jules)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
@@ -311,7 +311,7 @@ columns:
 
 Note: If the generator returns NULL, format will also return NULL.
 
-#### complex types map/array/struct/json/variant
+#### Complex types map/array/struct/json/variant
 
 Complex types have special generation rules:
 
@@ -495,11 +495,11 @@ columns:
 
 ### AI Generation
 
-When generating data using AI, you can pass in a query to ensure that the generated data can be retrieved by that query.
+When generating data using AI, you can pass in a query to ensure that the generated data can be retrieved by that query. Two ways:
 
-#### Using Deepseek
+#### Using OpenAI/Deepseek
 
-You must pass the `--llm` and `--llm-api-key` parameters. The former represents the Deepseek model name (e.g., `deepseek-chat` and `deepseek-reasoner`), and the latter is the API Key:
+You must pass the `--llm` and `--llm-api-key` parameters. The former represents the OpenAI/Deepseek model name (e.g., `deepseek-chat` and `deepseek-reasoner`), and the latter is the API Key:
 
 ```bash
 # Generate data from exported t1, t2 tables
@@ -513,11 +513,6 @@ dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql
 # Use --prompt to add additional hints
 dodo gendata ... --prompt 'Generate 1000 rows for each table'
 ```
-
-> [!NOTE]
->
-> - Using `deepseek-reasoner` yields better results but is also much slower.
-> - You can use `--prompt` to add additional hints.
 
 #### Using Google Jules
 
