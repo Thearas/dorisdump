@@ -42,6 +42,10 @@ func ExpandHome(path string) string {
 }
 
 func WriteFile(path string, content string) error {
+	if content == "" {
+		return nil
+	}
+
 	// append newline if not exists
 	b := []byte(content)
 	if b[len(b)-1] != '\n' {

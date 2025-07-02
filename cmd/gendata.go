@@ -101,7 +101,8 @@ Example:
 		}
 		// send to LLM
 		if GendataConfig.LLM != "" {
-			logrus.Infof("Generating 'gendata.yaml' via LLM model: %s\n", GendataConfig.LLM)
+			genconfPath := filepath.Join(GlobalConfig.DodoDataDir, "gendata.yaml")
+			logrus.Infof("Generating '%s' via LLM model: %s\n", genconfPath, GendataConfig.LLM)
 			genconf, err := src.LLMGendataConfig(
 				ctx,
 				GendataConfig.LLMApiKey, "", GendataConfig.LLM, GendataConfig.Prompt,
@@ -112,12 +113,11 @@ Example:
 				logrus.Errorf("Failed to create gendata config via LLM %s\n", GendataConfig.LLM)
 				return err
 			}
-			logrus.Debugf("===LLM output config===\n%s\n", genconf)
+
 			// store gendata.yaml
 			if err := os.MkdirAll(GlobalConfig.DodoDataDir, 0755); err != nil {
 				return err
 			}
-			genconfPath := filepath.Join(GlobalConfig.DodoDataDir, "gendata.yaml")
 			if err := src.WriteFile(genconfPath, genconf); err != nil {
 				logrus.Errorf("Failed to write gendata config to %s\n", genconfPath)
 				return err
@@ -242,8 +242,12 @@ func completeGendataConfig() (err error) {
 	}
 
 	// if --ddl are sql file(s), not need --dbs or --tables
-	if strings.HasSuffix(GendataConfig.DDL, ".sql") {
-		for _, ddl := range strings.Split(GendataConfig.DDL, ",") {
+	ddlFiles, err := src.FileGlob(strings.Split(GendataConfig.DDL, ","))
+	if err != nil {
+		return err
+	}
+	if len(ddlFiles) > 1 {
+		for _, ddl := range ddlFiles {
 			if !strings.HasSuffix(ddl, ".sql") {
 				return fmt.Errorf("ddl file must ends with '.sql', got '%s'", ddl)
 			}

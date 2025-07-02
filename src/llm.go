@@ -3,8 +3,11 @@ package src
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/fatih/color"
+	"github.com/goccy/go-json"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/sirupsen/logrus"
@@ -70,7 +73,7 @@ func LLMGendataConfig(
 		OfString: openai.String("\n```"),
 	}
 	stop.SetExtraFields(map[string]any{"prefix": true})
-	chatCompletion, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+	c := client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 		Model:       model,
 		Temperature: openai.Float(0.3),
 		Stop:        stop,
@@ -80,9 +83,33 @@ func LLMGendataConfig(
 			openai.AssistantMessage(LLMOutputPrefix),
 		},
 	})
-	if err != nil {
+	defer c.Close()
+
+	var (
+		reasoningPrinter = color.New(color.FgHiBlack)
+		resultPrinter    = color.New(color.FgHiWhite)
+		result           strings.Builder
+	)
+	for c.Next() {
+		content := c.Current().Choices[0].Delta.Content
+
+		// https://github.com/openai/openai-go?tab=readme-ov-file#undocumented-response-properties
+		r := map[string]any{}
+		if err := json.Unmarshal([]byte(c.Current().Choices[0].Delta.RawJSON()), &r); err != nil {
+			return "", err
+		}
+
+		reasoningContent, ok := r["reasoning_content"].(string)
+		if ok {
+			reasoningPrinter.Fprint(os.Stderr, reasoningContent)
+			continue
+		}
+		resultPrinter.Fprint(os.Stdout, content)
+		result.WriteString(content)
+	}
+	if err := c.Err(); err != nil {
 		return "", err
 	}
 
-	return strings.TrimPrefix(chatCompletion.Choices[0].Message.Content, LLMOutputPrefix), nil
+	return strings.TrimPrefix(result.String(), LLMOutputPrefix), nil
 }

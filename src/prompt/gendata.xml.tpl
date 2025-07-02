@@ -12,16 +12,98 @@ So your task is generating YAML configurations for the data generation tool dodo
 </requirements>
 
 <usage>
-Learn the usage below (document and example) of tool `dodo`. Especially, the `gendata` command and its `--genconf` config:
+Learn the usage below (document and examples) of tool `dodo`. Especially, the `gendata` command and its `--genconf` config:
 
-1. The guide of YAML configurations for the data generation is in XML tag `document` (Markdown format)
-2. The full example is in XML tag `example` (YAML format)
+1. The guide of YAML configurations for the data generation is in XML tag `document`
+2. The two examples are in XML tag `examples`
 
 <document>
 「introduction」
 </document>
 
+<examples>
 <example>
+Simple example(with queries):
+<user-prompt>
+<tables>
+CREATE TABLE t1 (
+  a int NULL,
+  c varchar(10) NULL,
+  other_col string NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(a)
+DISTRIBUTED BY RANDOM BUCKETS AUTO
+PROPERTIES ("replication_allocation" = "tag.location.default: 1");
+CREATE TABLE t2 (
+  b int NULL,
+  d varchar(10) NULL,
+  other_col int NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(b)
+DISTRIBUTED BY RANDOM BUCKETS AUTO
+PROPERTIES ("replication_allocation" = "tag.location.default: 1");
+</tables>
+
+<column-stats>
+name: t1
+row_count: 1000
+columns:
+  - name: a
+    ndv: 300
+    null_count: 0
+    data_size: 32
+    avg_size_byte: 4
+    min: "10"
+    max: "30"
+    method: FULL
+---
+name: t2
+row_count: 2000
+columns:
+  - name: d
+    ndv: 5
+    null_count: 0
+    data_size: 32
+    avg_size_byte: 4
+    min: "1"
+    max: "5"
+    method: FULL
+</column-stats>
+
+<queries>
+select * from t1 join t2 on t1.a = t2.b where c IN ("a", "b", "c") and d = 1
+</queries>
+
+<additional-user-prompt>
+Each table has 500 rows.
+</additional-user-prompt>
+</user-prompt>
+
+<output>
+tables:
+  - name: t1
+    row_count: 500
+    columns:
+      - name: a
+        min: 10
+        max: 30
+      - name: c
+        gen:
+          enum: [a, b, c]
+  - name: t2
+    row_count: 500
+    columns:
+      - name: b
+        gen:
+          ref: t1.a
+      - name: d
+        gen:
+          enum: [1]
+</output>
+</example>
+
+<example>
+All kinds of generation rules example(without queries):
 <user-prompt>
 <tables>
 「tables」
@@ -39,7 +121,9 @@ Learn the usage below (document and example) of tool `dodo`. Especially, the `ge
 <output>
 「example」
 </output>
-</example>
+</examples>
+
+</examples>
 
 </usage>
 
