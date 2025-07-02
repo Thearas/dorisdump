@@ -58,7 +58,7 @@ func TestNewEnumGenRule(t *testing.T) {
 			name: "simple",
 			args: args{
 				dataType: "int",
-				r:        MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5, 0.1]}"),
+				r:        MustYAMLUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5, 0.1]}"),
 			},
 			want: &EnumGen{
 				Enum:    []any{1, 2, 3},
@@ -70,7 +70,7 @@ func TestNewEnumGenRule(t *testing.T) {
 			name: "complex",
 			args: args{
 				dataType: "varchar(100)",
-				r: MustYamlUmarshal(`
+				r: MustYAMLUmarshal(`
 enum:
     - length: 5
     - length: {min: 5, max: 10}
@@ -89,7 +89,7 @@ weights: [0.4, 0.4, 0.1, 0.1]
 			name: "err: less weights",
 			args: args{
 				dataType: "int",
-				r:        MustYamlUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5]}"),
+				r:        MustYAMLUmarshal("{enum: [1, 2, 3], weights: [0.4, 0.5]}"),
 			},
 			wantErr: true,
 		},

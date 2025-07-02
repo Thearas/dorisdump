@@ -42,7 +42,7 @@ func SetupFormatTags() {
 	FormatTags = map[string]reflect.Value{}
 
 	// Add all zero args fake functions to tags
-	for i := 0; i < v.NumMethod(); i++ {
+	for i := range v.NumMethod() {
 		// check if the method is in the exclusion list
 		if slices.Contains(templateExclusion, v.Type().Method(i).Name) {
 			continue

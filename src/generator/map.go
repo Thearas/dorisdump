@@ -21,17 +21,17 @@ func (g *MapGen) SetValueGen(v Gen) {
 }
 
 func (g *MapGen) Gen() any {
-	len := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
+	length := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
 
 	var b bytes.Buffer
 	b.WriteByte('{')
-	for i := 0; i < len; i++ {
+	for i := range length {
 		key := g.Key.Gen()
 		value := g.Value.Gen()
-		b.Write(MustJsonMarshal(key))
+		b.Write(MustJSONMarshal(key))
 		b.WriteByte(':')
-		b.Write(MustJsonMarshal(value))
-		if i < len-1 {
+		b.Write(MustJSONMarshal(value))
+		if i < length-1 {
 			b.WriteByte(',')
 		}
 	}

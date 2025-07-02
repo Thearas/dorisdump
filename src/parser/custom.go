@@ -19,11 +19,11 @@ var (
 )
 
 func NewListener(hideSqlComment bool, modifyIdentifier func(id string) string) DorisParserListener {
-	return &listener{hideSqlComment: hideSqlComment, modifyIdentifier: modifyIdentifier}
+	return &listener{hideSQLComment: hideSqlComment, modifyIdentifier: modifyIdentifier}
 }
 
-func NewErrListener(sqlId string) *errListener {
-	return &errListener{ConsoleErrorListener: antlr.NewConsoleErrorListener(), sqlId: sqlId}
+func NewErrListener(sqlId string) *ErrListener {
+	return &ErrListener{ConsoleErrorListener: antlr.NewConsoleErrorListener(), sqlId: sqlId}
 }
 
 func NewErrHandler() antlr.ErrorStrategy {
@@ -69,7 +69,7 @@ func (h *errHandler) ReportMatch(p antlr.Parser) {
 	case DorisParserCOMMENT:
 		// hide next string literal, e.g. COMMENT '***'
 		for _, l := range p.GetParseListeners() {
-			if l, ok := l.(*listener); ok && l.hideSqlComment {
+			if l, ok := l.(*listener); ok && l.hideSQLComment {
 				l.hideNextString = true
 			}
 		}
@@ -77,21 +77,21 @@ func (h *errHandler) ReportMatch(p antlr.Parser) {
 		for _, l := range p.GetParseListeners() {
 			if l, ok := l.(*listener); ok && l.hideNextString {
 				l.hideNextString = false
-				hideComment(p.GetParserRuleContext(), p.GetCurrentToken())
+				hideComment(p.GetCurrentToken())
 			}
 		}
 	}
 }
 
-type errListener struct {
+type ErrListener struct {
 	*antlr.ConsoleErrorListener
 	sqlId   string
 	LastErr error
 }
 
-func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, _ antlr.RecognitionException) {
+func (l *ErrListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, message string, _ antlr.RecognitionException) {
 	// remove string after 'expecting', it's too annoying
-	msg = strings.Split(msg, "expecting")[0]
+	msg := strings.Split(message, "expecting")[0]
 	l.LastErr = errors.New(msg)
 	logrus.Errorf("sql %s parse error at line %d:%d %s\n", l.sqlId, line, column, msg)
 }
@@ -99,7 +99,7 @@ func (l *errListener) SyntaxError(_ antlr.Recognizer, _ any, line, column int, m
 type listener struct {
 	*BaseDorisParserListener
 
-	hideSqlComment   bool
+	hideSQLComment   bool
 	modifyIdentifier func(id string) string
 
 	// state variables
@@ -209,7 +209,7 @@ func (l *listener) recoverSymbolText(node antlr.TerminalNode) {
 	}
 }
 
-func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
+func hideComment(comment antlr.Token) {
 	if comment == nil {
 		return
 	}
@@ -225,7 +225,7 @@ func hideComment(ctx antlr.ParserRuleContext, comment antlr.Token) {
 
 type Parser struct {
 	*DorisParser
-	ErrListener *errListener
+	ErrListener *ErrListener
 }
 
 func (p *Parser) Parse() (IMultiStatementsContext, error) {

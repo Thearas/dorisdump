@@ -16,6 +16,7 @@ import (
 	"github.com/Thearas/dodo/src/parser"
 )
 
+//nolint:revive
 func RunCreateSQL(ctx context.Context, conn *sqlx.DB, db string, sqlFile string, beCount int, dryrun bool) (needDependence string, err error) {
 	ddl, err := os.ReadFile(sqlFile)
 	if err != nil {

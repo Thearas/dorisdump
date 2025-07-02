@@ -17,11 +17,11 @@ func (g *ArrayGen) SetElementGen(elem Gen) {
 }
 
 func (g *ArrayGen) Gen() any {
-	len := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
+	length := rand.IntN(g.LenMax-g.LenMin+1) + g.LenMin
 
-	elementData := lo.RepeatBy(len, func(_ int) any {
+	elementData := lo.RepeatBy(length, func(_ int) any {
 		return g.Element.Gen()
 	})
 
-	return json.RawMessage(MustJsonMarshal(elementData))
+	return json.RawMessage(MustJSONMarshal(elementData))
 }

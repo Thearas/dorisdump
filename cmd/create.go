@@ -47,11 +47,11 @@ Example:
   dodo create --dbs db1 --tables table1,table2
   dodo create --ddl dir/*.sql`,
 	Aliases: []string{"c"},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
 		if err := completeCreateConfig(); err != nil {

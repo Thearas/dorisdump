@@ -270,6 +270,7 @@ func ShowFronendsDisksDir(ctx context.Context, conn *sqlx.DB, diskType string) (
 	return dir, r.Err()
 }
 
+//nolint:revive
 func GetTablesStats(ctx context.Context, conn *sqlx.DB, analyze bool, dbname string, tables ...string) ([]*TableStats, error) {
 	if len(tables) == 0 {
 		return []*TableStats{}, nil
@@ -322,12 +323,12 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 			return nil, err
 		}
 
-		min, max := vals["min"].([]byte), vals["max"].([]byte)
-		if bytes.HasPrefix(min, []byte(`'`)) {
-			min = bytes.ReplaceAll(min[1:len(min)-1], []byte(`''`), []byte(`'`))
+		minVal, maxVal := vals["min"].([]byte), vals["max"].([]byte)
+		if bytes.HasPrefix(minVal, []byte(`'`)) {
+			minVal = bytes.ReplaceAll(minVal[1:len(minVal)-1], []byte(`''`), []byte(`'`))
 		}
-		if bytes.HasPrefix(max, []byte(`'`)) {
-			max = bytes.ReplaceAll(max[1:len(max)-1], []byte(`''`), []byte(`'`))
+		if bytes.HasPrefix(maxVal, []byte(`'`)) {
+			maxVal = bytes.ReplaceAll(maxVal[1:len(maxVal)-1], []byte(`''`), []byte(`'`))
 		}
 		method, ok := vals["method"]
 		if !ok {
@@ -340,8 +341,8 @@ func getTableStats(ctx context.Context, conn *sqlx.DB, dbname, table string) (*T
 			NullCount:   int64(cast.ToFloat64((string(vals["num_null"].([]byte))))),
 			AvgSizeByte: int64(cast.ToFloat64((string(vals["avg_size_byte"].([]byte))))),
 			DataSize:    int64(cast.ToFloat64((string(vals["data_size"].([]byte))))),
-			Min:         string(min),
-			Max:         string(max),
+			Min:         string(minVal),
+			Max:         string(maxVal),
 			Method:      cast.ToString(method),
 		})
 	}
@@ -410,7 +411,7 @@ func GetDBAuditLogs(
 	for i := range logScans {
 		s := NewSimpleAuditLogScanner(opts)
 		s.Init()
-		defer s.Close()
+		defer s.Close() //nolint:revive
 		logScans[i] = s
 	}
 
@@ -431,11 +432,11 @@ func GetDBAuditLogs(
 		}
 
 		g.Go(func() error {
-			const LimitPerSelect = 100
+			const limitPerSelect = 100
 
 			pageConds := ""
-			for offset := start; offset < end; offset += LimitPerSelect {
-				limit := LimitPerSelect
+			for offset := start; offset < end; offset += limitPerSelect {
+				limit := limitPerSelect
 
 				overflow := offset + limit - end
 				if overflow > 0 {
@@ -447,7 +448,7 @@ func GetDBAuditLogs(
 					offset_ = 0
 				}
 
-				time, queryId, err := getDBAuditLogs(ctx, logScan, db, dbname, table, conditions+pageConds, limit, offset_)
+				time, queryId, err := getDBAuditLogsWithConds(ctx, logScan, db, dbname, table, conditions+pageConds, limit, offset_)
 				if err != nil {
 					return err
 				}
@@ -486,7 +487,7 @@ func GetDBAuditLogs(
 	return count, nil
 }
 
-func getDBAuditLogs(
+func getDBAuditLogsWithConds(
 	ctx context.Context,
 	logScan *SimpleAuditLogScanner,
 	db *sqlx.DB,
@@ -494,8 +495,8 @@ func getDBAuditLogs(
 	conditions string,
 	limit, offset int,
 ) (lastTime string, lastQueryId string, err error) {
-	const MaxRetry = 5
-	for retry := 0; retry < MaxRetry; retry++ {
+	const maxRetry = 5
+	for retry := range maxRetry {
 		stmt := fmt.Sprintf("SELECT `time`, client_ip, user, db, query_time, query_id, stmt FROM `%s`.`%s` WHERE %s ORDER BY `time`, query_id LIMIT %d OFFSET %d",
 			dbname,
 			table,
@@ -511,7 +512,7 @@ func getDBAuditLogs(
 			logrus.Errorf("query audit log table failed: retry: %d, db: %s, table: %s, err: %v\n", retry, dbname, table, err)
 			continue
 		}
-		defer r.Close()
+		defer r.Close() //nolint:revive
 
 		var i int
 		for ; r.Next(); i++ {

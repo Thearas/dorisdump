@@ -47,7 +47,7 @@ var diffCmd = &cobra.Command{
 	Example: `dodo diff replay1/ replay2/
 dodo diff --original-sqls dump.sql replay1/`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if noColor {
 			if err := os.Setenv("NO_COLOR", "true"); err != nil {
 				return err
@@ -154,6 +154,7 @@ func readOriginalDumpSQLs(clientCount int) (map[string][]*src.ReplaySql, error) 
 		if err != nil {
 			return nil, err
 		}
+		//nolint:revive
 		defer f.Close()
 
 		client2sqls_, _, _, err := src.DecodeReplaySqls(
@@ -318,7 +319,9 @@ func (d *diff2) result() string {
 
 	if len(originalDumpSQLs) == 0 {
 		if d.r1.ReturnRows != d.r2.ReturnRows {
-			result = append(result, fmt.Sprintf("rows count not match: %s != %s", color.GreenString(strconv.Itoa(d.r1.ReturnRows)), color.RedString(strconv.Itoa(d.r2.ReturnRows))))
+			result = append(result, fmt.Sprintf("rows count not match: %s != %s",
+				color.GreenString(strconv.Itoa(d.r1.ReturnRows)),
+				color.RedString(strconv.Itoa(d.r2.ReturnRows))))
 		}
 		if d.r1.ReturnRowsHash != d.r2.ReturnRowsHash {
 			result = append(result, color.RedString("rows hash not match (count: %d)", d.r1.ReturnRows))
@@ -326,7 +329,9 @@ func (d *diff2) result() string {
 	}
 
 	if d.r2.DurationMs-d.r1.DurationMs > minDurationDiff.Milliseconds() {
-		result = append(result, fmt.Sprintf("duration too long: %s vs %s", color.GreenString("%dms", d.r1.DurationMs), color.RedString("%dms", d.r2.DurationMs)))
+		result = append(result, fmt.Sprintf("duration too long: %s vs %s",
+			color.GreenString("%dms", d.r1.DurationMs),
+			color.RedString("%dms", d.r2.DurationMs)))
 	}
 	return strings.Join(result, "\n")
 }

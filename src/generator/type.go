@@ -20,7 +20,7 @@ func (g *TypeGen) Gen() any {
 	return g.gen.Gen()
 }
 
-func NewTypeGenerator(v *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewTypeGenerator(v *TypeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	p := parser.NewParser(v.Colpath, cast.ToString(r["type"]))
 	dataType := p.DataType()
 	if p.ErrListener.LastErr != nil {

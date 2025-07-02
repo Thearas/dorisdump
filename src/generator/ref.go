@@ -2,7 +2,6 @@ package generator
 
 import (
 	"fmt"
-	"math"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -15,6 +14,8 @@ import (
 )
 
 // TODO: use disk to store refVals, now is in-memory impl.
+
+const DefaultRefLimit = 1000
 
 var (
 	_ Gen = &RefGen{}
@@ -81,12 +82,12 @@ func (g *RefGen) Gen() any {
 		logrus.Fatalln("empty ref value point to", g.TableColumn())
 	}
 
-	limit := int(math.Min(float64(g.Limit), float64(len(refVals))))
+	limit := min(g.Limit, len(refVals))
 
 	return refVals[gofakeit.IntN(limit)]
 }
 
-func NewRefGenerator(v *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewRefGenerator(v *TypeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	refGenMapLock.Lock()
 	defer refGenMapLock.Unlock()
 
@@ -96,7 +97,7 @@ func NewRefGenerator(v *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen,
 		return nil, fmt.Errorf("wrong ref, expect '<table>.<column>', got '%s'", tableColumn_)
 	}
 
-	limit := 1000
+	limit := DefaultRefLimit
 	if l := cast.ToInt(r["limit"]); l > 0 {
 		limit = l
 	}
@@ -115,7 +116,7 @@ func NewRefGenerator(v *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen,
 		sharedRefGen, ok = c2g[g.Column]
 		if ok {
 			// use the biggest limit
-			sharedRefGen.Limit = int(math.Max(float64(g.Limit), float64(sharedRefGen.Limit)))
+			sharedRefGen.Limit = max(g.Limit, sharedRefGen.Limit)
 
 			// share the same refVals for all ref which ref to the same table.column
 			g.refValsPtr = sharedRefGen.refValsPtr

@@ -65,11 +65,11 @@ Example:
 	--llm 'deepseek-chat' --llm-api-key 'sk-xxx' \
   	-q 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'`,
 	Aliases: []string{"g"},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
 		if err := completeGendataConfig(); err != nil {
@@ -166,7 +166,9 @@ Example:
 
 			// check ref deadlock
 			if len(zeroRefTableGens) == 0 {
-				remainTable2Refs := lo.SliceToMap(tableGens, func(tg *src.TableGen) (string, []string) { return tg.Name, slices.Collect(maps.Keys(tg.RefToTable)) })
+				remainTable2Refs := lo.SliceToMap(tableGens, func(tg *src.TableGen) (string, []string) {
+					return tg.Name, slices.Collect(maps.Keys(tg.RefToTable))
+				})
 				return fmt.Errorf("table refs deadlock: %v", remainTable2Refs)
 			}
 
@@ -322,12 +324,21 @@ func findTableStats(ddlFileName string) (*src.TableStats, error) {
 			continue
 		}
 		if tableStats.Columns[0].Method != "FULL" {
-			logrus.Warnf("Table stats '%s.%s' is '%s' in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n", db, table, tableStats.Columns[0].Method, dbStatsFile, db)
+			logrus.Warnf("Table stats '%s.%s' is '%s' in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n",
+				db, table,
+				tableStats.Columns[0].Method,
+				dbStatsFile,
+				db,
+			)
 		}
 		return tableStats, nil
 	}
 
-	logrus.Warnf("Table stats '%s.%s' not found in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n", db, table, dbStatsFile, db)
+	logrus.Warnf("Table stats '%s.%s' not found in '%s', better to dump with '--analyze' or run 'ANALYZE DATABASE `%s` WITH SYNC' before dumping\n",
+		db, table,
+		dbStatsFile,
+		db,
+	)
 	return nil, nil
 }
 

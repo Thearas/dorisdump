@@ -38,6 +38,9 @@ fmt:
 	@go fmt .
 	@goimports -l -w -local "github.com/Thearas/dodo" .
 
+lint:
+	@golangci-lint run
+
 addcmd:
 	cobra-cli --license apache --author "Thearas thearas850@gmail.com" add $(ARGS)
 

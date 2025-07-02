@@ -55,7 +55,7 @@ Example:
 		return initConfig(cmd)
 	},
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 
 		if err := completeImportConfig(); err != nil {

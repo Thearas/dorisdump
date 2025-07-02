@@ -32,7 +32,7 @@ var cleanCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initConfig(cmd)
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		return cleanAllFiles(false)
 	},
 }
@@ -45,10 +45,7 @@ func cleanAllFiles(force bool) error {
 	if err := cleanFile(GlobalConfig.DodoDataDir, force); err != nil {
 		return err
 	}
-	if err := cleanFile(GlobalConfig.OutputDir, force); err != nil {
-		return err
-	}
-	return nil
+	return cleanFile(GlobalConfig.OutputDir, force)
 }
 
 func cleanFile(path string, force bool) error {

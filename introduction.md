@@ -426,7 +426,7 @@ columns:
         - format: "my name is {{username}}"
         - gen:
             enum: [1, 2, 3]
-    weights: [0.25, 0.25, 0.25, 0.25]
+      weights: [0.25, 0.25, 0.25, 0.25]
 ```
 
 ##### ref

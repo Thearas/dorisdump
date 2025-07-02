@@ -26,7 +26,7 @@ var (
 	// NOTE: A bit hacky, but it works for now.
 	//
 	// Tested on v2.0.14+, v2.1.x and v3.0.x. Not sure if it also works on others Doris version.
-	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=`
+	stmtMatchFmt = `^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d*) \[[^\]]+\] \|Client=([^|]+)\|User=([^|]+)(?:\|Ctl=[^|]+)?\|Db=(%s)(?:\|CommandType=[^|]+)?\|State=%s\|(?:.+?)\|Time(?:\(ms\))?=(\d*)\|(?:.+?)\|QueryId=([a-z0-9-]+)\|IsQuery=%s\|(?:.+?)\|Stmt=(.+?)\|CpuTimeMS=` //nolint:all
 
 	// filterStmtRe filters out some statements from the audit log.
 	filterStmtRe = regexp.MustCompile("(?i)^(EXPLAIN|SHOW|USE)")
@@ -98,7 +98,6 @@ func ExtractQueriesFromAuditLogs(
 
 	counter := &atomic.Int32{}
 	for i, auditlogPath := range auditlogPaths {
-		i, auditlogPath := i, auditlogPath
 		g.Go(func() error {
 			f, err := os.Open(auditlogPath)
 			if err != nil {
@@ -216,7 +215,10 @@ func NewSimpleAuditLogScanner(opts AuditLogScanOpts) *SimpleAuditLogScanner {
 }
 
 func (s *SimpleAuditLogScanner) Init() {
-	s.re = regexp2.MustCompile(auditlogQueryRe(s.DBs, s.QueryStates, s.OnlySelect), regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled)
+	s.re = regexp2.MustCompile(
+		auditlogQueryRe(s.DBs, s.QueryStates, s.OnlySelect),
+		regexp2.Multiline|regexp2.Singleline|regexp2.Unicode|regexp2.Compiled,
+	)
 }
 
 func (s *SimpleAuditLogScanner) ScanOne(oneLog []byte) error {
@@ -251,7 +253,7 @@ func (s *SimpleAuditLogScanner) Consume(w SqlWriter) (int, error) {
 	return count, nil
 }
 
-func (s *SimpleAuditLogScanner) Close() {}
+func (*SimpleAuditLogScanner) Close() {}
 
 func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	time, client, user, db, durationMs, queryId, stmt := caps[0], caps[1], caps[2], caps[3], cast.ToInt64(caps[4]), caps[5], caps[6]
@@ -289,6 +291,7 @@ func (s *SimpleAuditLogScanner) onMatch(caps []string, skipOptsFilter bool) {
 	s.sqls = append(s.sqls, outputStmt)
 }
 
+//nolint:revive
 func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 	time, queryId, stmt string, durationMs int64,
 	skipOptsFilter bool,
@@ -337,7 +340,7 @@ func (s *SimpleAuditLogScanner) filterStmtFromMatch(
 
 // unescapeStmt unescapes the \\n, \\t and \\r in SQL statement.
 // NOTE: It will not unescape chars in string literals, comments and multi-line comments.
-func (s *SimpleAuditLogScanner) unescapeStmt(stmt string) string {
+func (*SimpleAuditLogScanner) unescapeStmt(stmt string) string {
 	var (
 		w           = strings.Builder{}
 		ignoreUntil = ""
@@ -386,7 +389,7 @@ func (s *SimpleAuditLogScanner) unescapeStmt(stmt string) string {
 	return w.String()
 }
 
-func (s *SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
+func (*SimpleAuditLogScanner) validateSQL(queryId, stmt string) error {
 	p := parser.NewParser(queryId, stmt)
 	_, err := p.Parse()
 	return err
@@ -406,6 +409,7 @@ func logStmtTruncated(queryId, stmt string) bool {
 	return truncated
 }
 
+//nolint:revive
 func auditlogQueryRe(dbs, states []string, onlySelect bool) string {
 	var dbFilter string
 	if len(dbs) > 0 {

@@ -235,7 +235,6 @@ func dumpSchemas(ctx context.Context) ([]*src.DBSchema, error) {
 
 	schemas := make([]*src.DBSchema, len(dbs))
 	for i, db := range dbs {
-		i, db := i, db
 		g.Go(func() error {
 			logrus.Infof("Dumping schemas from %s...\n", db)
 			conn, err := connectDB(db)
@@ -291,7 +290,6 @@ func outputSchemas(schemas []*src.DBSchema) error {
 
 	g := src.ParallelGroup(GlobalConfig.Parallel)
 	for _, s := range schemas {
-		s := s
 		g.Go(func() error {
 			// 1. write each schema into split file
 			for _, s := range s.Schemas {
@@ -442,6 +440,7 @@ func dumpQueriesFromFile(ctx context.Context, opts src.AuditLogScanOpts) (int, e
 	writers := make([]src.SqlWriter, len(auditLogFiles))
 	for i := range auditLogFiles {
 		writers[i] = NewQueryWriter(len(auditLogFiles), i)
+		//nolint:revive
 		defer writers[i].Close()
 	}
 
@@ -467,7 +466,7 @@ type queryWriter struct {
 	count    int
 }
 
-func NewQueryWriter(filecount, fileidx int) *queryWriter {
+func NewQueryWriter(filecount, fileidx int) src.SqlWriter {
 	format := outputQueryFileNameFormat(filecount)
 	name := fmt.Sprintf(format, fileidx)
 	path := filepath.Join(DumpConfig.OutputQueryDir, name)
@@ -623,7 +622,7 @@ func expandSSHPath(remotePath string) (string, error) {
 
 func connectDB(db string) (*sqlx.DB, error) {
 	if db == "" {
-		return nil, fmt.Errorf("database name is required")
+		return nil, errors.New("database name is required")
 	}
 	return src.NewDB(GlobalConfig.DBHost, GlobalConfig.DBPort, GlobalConfig.DBUser, GlobalConfig.DBPassword, db)
 }

@@ -21,7 +21,7 @@ func (g *StructGen) Gen() any {
 		return field.Name, field.Gen()
 	})
 
-	return json.RawMessage(MustJsonMarshal(field2Data))
+	return json.RawMessage(MustJSONMarshal(field2Data))
 }
 
 type StructFieldGen struct {

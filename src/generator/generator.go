@@ -41,9 +41,9 @@ type Gen interface {
 	Gen() any
 }
 
-type CustomGenConstructor = func(v *typeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error)
+type CustomGenConstructor = func(v *TypeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error)
 
-type typeVisitor struct {
+type TypeVisitor struct {
 	Colpath string  // the path of the column, e.g. "db.table.col"
 	GenRule GenRule // rules of generator
 
@@ -51,23 +51,23 @@ type typeVisitor struct {
 	TableRefs *[]string
 }
 
-func NewTypeVisitor(colpath string, genRule GenRule) *typeVisitor {
+func NewTypeVisitor(colpath string, genRule GenRule) *TypeVisitor {
 	if genRule == nil {
 		genRule = GenRule{}
 	}
-	return &typeVisitor{
+	return &TypeVisitor{
 		Colpath:   colpath,
 		GenRule:   genRule,
 		TableRefs: &[]string{},
 	}
 }
-func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
+func (v *TypeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 	baseType := v.GetBaseType(type_)
 
 	// Merge global (aka. default) generation rules.
 	v.MergeDefaultRule(baseType)
 	if logrus.GetLevel() > logrus.DebugLevel {
-		logrus.Tracef("gen rule of '%s': %s\n", v.Colpath, string(MustJsonMarshal(v.GenRule)))
+		logrus.Tracef("gen rule of '%s': %s\n", v.Colpath, string(MustJSONMarshal(v.GenRule)))
 	}
 
 	var (
@@ -141,10 +141,10 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 		case "BITMAP":
 			// Generate a random bitmap array with a length between lenMin and lenMax
 			lenMin, lenMax := v.GetLength()
-			min, max := CastMinMax[int64](min_, max_, baseType, v.Colpath)
+			minVal, maxVal := CastMinMax[int64](min_, max_, baseType, v.Colpath)
 			g = NewFuncGen(func() any {
-				return json.RawMessage(MustJsonMarshal(lo.RepeatBy(gofakeit.IntRange(lenMin, lenMax), func(_ int) int64 {
-					return rand.Int64N(max-min+1) + min
+				return json.RawMessage(MustJSONMarshal(lo.RepeatBy(gofakeit.IntRange(lenMin, lenMax), func(_ int) int64 {
+					return rand.Int64N(maxVal-minVal+1) + minVal
 				})))
 			})
 		case "JSON", "JSONB", "VARIANT":
@@ -169,24 +169,24 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 			enum := []int{0, 1}
 			g = NewFuncGen(func() any { return gofakeit.RandomInt(enum) }) // BOOLEAN is typically 0 or 1
 		case "TINYINT":
-			min, max := CastMinMax[int8](min_, max_, baseType, v.Colpath)
-			g = NewIntGen(min, max)
+			minVal, maxVal := CastMinMax[int8](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(minVal, maxVal)
 		case "SMALLINT":
-			min, max := CastMinMax[int16](min_, max_, baseType, v.Colpath)
-			g = NewIntGen(min, max)
+			minVal, maxVal := CastMinMax[int16](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(minVal, maxVal)
 		case "INT", "INTEGER":
-			min, max := CastMinMax[int32](min_, max_, baseType, v.Colpath)
-			g = NewIntGen(min, max)
+			minVal, maxVal := CastMinMax[int32](min_, max_, baseType, v.Colpath)
+			g = NewIntGen(minVal, maxVal)
 		case "BIGINT", "LARGEINT": // TODO: Need larger INT?
-			min, max := CastMinMax[int64](min_, max_, baseType, v.Colpath)
-			range_ := max - min + 1
-			g = NewFuncGen(func() int64 { return rand.Int64N(range_) + min })
+			minVal, maxVal := CastMinMax[int64](min_, max_, baseType, v.Colpath)
+			range_ := maxVal - minVal + 1
+			g = NewFuncGen(func() int64 { return rand.Int64N(range_) + minVal })
 		case "FLOAT":
-			min, max := CastMinMax[float32](min_, max_, baseType, v.Colpath)
-			g = NewFuncGen(func() any { return gofakeit.Float32Range(min, max) })
+			minVal, maxVal := CastMinMax[float32](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.Float32Range(minVal, maxVal) })
 		case "DOUBLE":
-			min, max := CastMinMax[float64](min_, max_, baseType, v.Colpath)
-			g = NewFuncGen(func() any { return gofakeit.Float64Range(min, max) })
+			minVal, maxVal := CastMinMax[float64](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.Float64Range(minVal, maxVal) })
 		case "DECIMAL", "DECIMALV2", "DECIMALV3": // TODO: Need larger DECIMAL?
 			var precision, scale int = 999, 999
 			if v.GetRule("precision") != nil {
@@ -222,16 +222,16 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				scale = s
 			}
 
-			var min, max int64
+			var minVal, maxVal int64
 			if min_ == nil {
-				min = -int64(math.Pow10(int(precision))) + 1 // Default min value
+				minVal = -int64(math.Pow10(int(precision))) + 1 // Default min value
 			} else {
-				min = cast.ToInt64(min_)
+				minVal = cast.ToInt64(min_)
 			}
 			if max_ == nil {
-				max = int64(math.Pow10(int(precision))) - 1 // Default max value
+				maxVal = int64(math.Pow10(int(precision))) - 1 // Default max value
 			} else {
-				max = cast.ToInt64(max_)
+				maxVal = cast.ToInt64(max_)
 			}
 
 			// TODO: Support larger precision
@@ -244,13 +244,13 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				var res [2]int64
 				if intLen == 0 {
 					res[0] = 0
-				} else if min < 0 && rand.Float32() < 0.5 {
-					delta := -float64(min)
+				} else if minVal < 0 && rand.Float32() < 0.5 {
+					delta := -float64(minVal)
 					n := int64(math.Min(delta, math.Pow10(intLen)-1))
 					res[0] = -rand.Int64N(n)
 				} else {
-					delta := float64(max) - math.Max(0, float64(min)) + 1
-					lowerBound := int64(math.Max(0, float64(min)))
+					delta := float64(maxVal) - math.Max(0, float64(minVal)) + 1
+					lowerBound := int64(math.Max(0, float64(minVal)))
 					n := int64(math.Min(delta, math.Pow10(intLen)-1))
 					res[0] = lowerBound + rand.Int64N(n)
 				}
@@ -265,11 +265,11 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 				return json.RawMessage(fmt.Sprintf("%d.%0*d", res[0], scale, res[1])) // Format as decimal string
 			})
 		case "DATE", "DATEV1", "DATEV2":
-			min, max := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
-			g = NewFuncGen(func() any { return gofakeit.DateRange(min, max).Format("2006-01-02") })
+			minVal, maxVal := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.DateRange(minVal, maxVal).Format("2006-01-02") })
 		case "DATETIME", "DATETIMEV1", "DATETIMEV2", "TIMESTAMP":
-			min, max := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
-			g = NewFuncGen(func() any { return gofakeit.DateRange(min, max).Format("2006-01-02 15:04:05") })
+			minVal, maxVal := CastMinMax[time.Time](min_, max_, baseType, v.Colpath)
+			g = NewFuncGen(func() any { return gofakeit.DateRange(minVal, maxVal).Format("2006-01-02 15:04:05") })
 		case "TEXT", "STRING":
 			lenMin, lenMax := v.GetLength()
 			lenMin = lo.Max([]int{1, lenMin})
@@ -358,7 +358,7 @@ func (v *typeVisitor) GetTypeGen(type_ parser.IDataTypeContext) Gen {
 	return g
 }
 
-func (v *typeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
+func (v *TypeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
 	switch ty := type_.(type) {
 	case *parser.ComplexDataTypeContext:
 		t = ty.GetComplex_().GetText()
@@ -370,11 +370,11 @@ func (v *typeVisitor) GetBaseType(type_ parser.IDataTypeContext) (t string) {
 	return strings.ToUpper(t)
 }
 
-func (v *typeVisitor) MergeDefaultRule(baseType string) *typeVisitor {
+func (v *TypeVisitor) MergeDefaultRule(baseType string) *TypeVisitor {
 	defaultGenRule, ok := DefaultTypeGenRules[baseType]
 	if !ok {
 		if ty_, ok := TypeAlias[baseType]; ok {
-			baseType = ty_
+			baseType = ty_ //nolint:revive
 		}
 		defaultGenRule, ok = DefaultTypeGenRules[baseType]
 		if !ok {
@@ -392,11 +392,11 @@ func (v *typeVisitor) MergeDefaultRule(baseType string) *typeVisitor {
 	return v
 }
 
-func (v *typeVisitor) HasGenRule() bool {
+func (v *TypeVisitor) HasGenRule() bool {
 	return len(v.GenRule) > 0
 }
 
-func (v *typeVisitor) GetRule(name string, defaultValue ...any) any {
+func (v *TypeVisitor) GetRule(name string, defaultValue ...any) any {
 	if !v.HasGenRule() {
 		return nil
 	}
@@ -409,11 +409,11 @@ func (v *typeVisitor) GetRule(name string, defaultValue ...any) any {
 	return nil
 }
 
-func (v *typeVisitor) GetMinMax() (min, max any) {
+func (v *TypeVisitor) GetMinMax() (any, any) {
 	return v.GetRule("min"), v.GetRule("max")
 }
 
-func (v *typeVisitor) GetLength() (min, max int) {
+func (v *TypeVisitor) GetLength() (minVal, maxVal int) {
 	l := v.GetRule("length")
 	if l == nil {
 		logrus.Fatalf("length not found for column '%s'\n", v.Colpath)
@@ -422,27 +422,27 @@ func (v *typeVisitor) GetLength() (min, max int) {
 	switch l := l.(type) {
 	case int, float32, float64:
 		length := cast.ToInt(l)
-		min, max = length, length
+		minVal, maxVal = length, length
 	case GenRule:
-		min, max = cast.ToInt(l["min"]), cast.ToInt(l["max"])
+		minVal, maxVal = cast.ToInt(l["min"]), cast.ToInt(l["max"])
 	}
-	if max < min {
-		logrus.Debugf("length max(%d) < min(%d), set max to min for column '%s'\n", max, min, v.Colpath)
-		min = max
+	if maxVal < minVal {
+		logrus.Debugf("length max(%d) < min(%d), set max to min for column '%s'\n", maxVal, minVal, v.Colpath)
+		minVal = maxVal
 	}
 	return
 }
 
-func (v *typeVisitor) ChildGenRule(name string) GenRule {
+func (v *TypeVisitor) ChildGenRule(name string) GenRule {
 	r := v.GetRule(name)
 	if r == nil {
 		return nil
 	}
-	return r.(GenRule)
+	return r.(GenRule) //nolint:revive
 }
 
-func (v *typeVisitor) GetChildGen(name string, childType parser.IDataTypeContext, childGenRule ...GenRule) Gen {
-	var visitor *typeVisitor
+func (v *TypeVisitor) GetChildGen(name string, childType parser.IDataTypeContext, childGenRule ...GenRule) Gen {
+	var visitor *TypeVisitor
 	if len(childGenRule) > 0 {
 		// If the child already has gen rule, use it
 		visitor = NewTypeVisitor(v.Colpath+"."+name, childGenRule[0])
@@ -456,7 +456,7 @@ func (v *typeVisitor) GetChildGen(name string, childType parser.IDataTypeContext
 	return visitor.GetTypeGen(childType)
 }
 
-func (v *typeVisitor) GetNullFrequency() float32 {
+func (v *TypeVisitor) GetNullFrequency() float32 {
 	nullFrequency, err := cast.ToFloat32E(v.GetRule("null_frequency", GLOBAL_NULL_FREQUENCY))
 	if err != nil || nullFrequency < 0 || nullFrequency > 1 {
 		logrus.Fatalf("Invalid null frequency '%v' for column '%s': %v\n", v.GetRule("null_frequency"), v.Colpath, err)
@@ -476,6 +476,6 @@ func NewFuncGen[T any](f func() T) Gen {
 	return &fgen[T]{f: f}
 }
 
-func NewIntGen[T int8 | int16 | int | int32](min, max T) Gen {
-	return NewFuncGen(func() int { return gofakeit.IntRange(int(min), int(max)) })
+func NewIntGen[T int8 | int16 | int | int32](minVal, maxVal T) Gen {
+	return NewFuncGen(func() int { return gofakeit.IntRange(int(minVal), int(maxVal)) })
 }

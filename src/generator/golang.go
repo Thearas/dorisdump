@@ -23,7 +23,7 @@ func (g *GolangGen) Gen() any {
 	return g.genF()
 }
 
-func NewGolangGenerator(_ *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewGolangGenerator(_ *TypeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	// The code snippet must have a function `func gen() any {...}`
 	codeSnippet, ok := r["golang"].(string)
 	if !ok {
@@ -41,7 +41,7 @@ func NewGolangGenerator(_ *typeVisitor, _ parser.IDataTypeContext, r GenRule) (G
 	// check if possible to use golang stdlib
 	if strings.Contains(code, "import") {
 		if err := i.Use(stdlib.Symbols); err != nil {
-			return nil, fmt.Errorf("golang import stdlib failed, err: %v\n", err)
+			return nil, fmt.Errorf("golang import stdlib failed, err: %v", err)
 		}
 	}
 	_, err := i.Eval(code)
@@ -55,7 +55,7 @@ func NewGolangGenerator(_ *typeVisitor, _ parser.IDataTypeContext, r GenRule) (G
 
 	genF, ok := v.Interface().(func() any)
 	if !ok {
-		return nil, fmt.Errorf("golang expect a function with signature: 'func gen() any'")
+		return nil, errors.New("golang expect a function with signature: 'func gen() any'")
 	}
 
 	return &GolangGen{

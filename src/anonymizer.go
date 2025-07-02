@@ -80,7 +80,7 @@ func StoreMiniHashDict(method, hashdictPath string) {
 		logrus.Errorf("Failed to encode hash dict file, err: %v\n", err)
 		return
 	}
-	b.Close()
+	_ = b.Close()
 
 	if err = os.Rename(newPath, hashdictPath); err != nil {
 		logrus.Errorf("Failed to replace hash dict file, err: %v\n", err)
@@ -191,17 +191,16 @@ func minifyHash(dict map[string]string, s string) string {
 	for {
 		var mini []rune
 		for i, c := range lastWord {
-			if c == 'z' {
-				mini = append(mini, 'a')
-				if i == len(lastWord)-1 {
-					mini = append(mini, 'a')
-				}
-			} else {
+			if c != 'z' {
 				mini = append(mini, c+1)
 				if i < len(lastWord)-1 {
 					mini = append(mini, []rune(lastWord)[i+1:]...)
 				}
 				break
+			}
+			mini = append(mini, 'a')
+			if i == len(lastWord)-1 {
+				mini = append(mini, 'a')
 			}
 		}
 

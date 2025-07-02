@@ -14,14 +14,13 @@ import (
 )
 
 func sshClientConfig(remoteUrl, privKey string) (cfg *ssh.ClientConfig, host, user, path string, err error) {
-	var url *url.URL
-	url, err = url.Parse(remoteUrl)
+	urlParsed, err := url.Parse(remoteUrl)
 	if err != nil {
 		return
 	}
-	user = url.User.Username()
-	host = url.Host
-	password, passInAddr := url.User.Password()
+	user = urlParsed.User.Username()
+	host = urlParsed.Host
+	password, passInAddr := urlParsed.User.Password()
 
 	var clientConfig ssh.ClientConfig
 	if passInAddr {
@@ -33,10 +32,10 @@ func sshClientConfig(remoteUrl, privKey string) (cfg *ssh.ClientConfig, host, us
 		}
 	}
 
-	return &clientConfig, host, user, url.Path, nil
+	return &clientConfig, host, user, urlParsed.Path, nil
 }
 
-func SshLs(ctx context.Context, privKey, remoteUrl string) ([]string, error) {
+func SshLs(_ context.Context, privKey, remoteUrl string) ([]string, error) {
 	clientConfig, host, _, remotePath, err := sshClientConfig(remoteUrl, privKey)
 	if err != nil {
 		return nil, err

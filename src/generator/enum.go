@@ -27,6 +27,7 @@ func (g *EnumGen) Gen() any {
 	return v
 }
 
+//nolint:revive
 func (g *EnumGen) gen() any {
 	if len(g.Weights) == 0 {
 		return g.Enum[gofakeit.IntN(len(g.Enum))]
@@ -43,7 +44,7 @@ func (g *EnumGen) gen() any {
 	panic("EnumGen.Gen(): unreachable")
 }
 
-func NewEnumGenerator(visitor *typeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewEnumGenerator(visitor *TypeVisitor, dataType parser.IDataTypeContext, r GenRule) (Gen, error) {
 	enum_ := r["enum"]
 	if enum_ == nil {
 		enum_ = cast.ToStringSlice(r["enums"])

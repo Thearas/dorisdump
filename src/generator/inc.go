@@ -19,7 +19,7 @@ func (g *IncGen) Gen() any {
 	return result
 }
 
-func NewIncGenerator(_ *typeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
+func NewIncGenerator(_ *TypeVisitor, _ parser.IDataTypeContext, r GenRule) (Gen, error) {
 	start := cast.ToInt64(r["start"])
 	step := cast.ToInt64(r["step"])
 	if step == 0 {

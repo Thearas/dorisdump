@@ -16,6 +16,7 @@ const (
 	StreamLoadMaxRetries = 3
 )
 
+//nolint:revive
 func StreamLoad(ctx context.Context, host, httpPort, user, password, db, table, file, fileProgress string, dryrun bool) error {
 	f, err := os.Open(file)
 	if err != nil {
@@ -34,7 +35,7 @@ func StreamLoad(ctx context.Context, host, httpPort, user, password, db, table, 
 		skipLines = 0
 		columns = ""
 	}
-	f.Close()
+	_ = f.Close()
 
 	// use curl to perform stream load
 	userpass := fmt.Sprintf("%s:%s", user, password)

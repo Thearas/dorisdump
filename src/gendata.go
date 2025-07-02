@@ -218,7 +218,7 @@ func (tg *TableGen) genOne(w *bufio.Writer, colIdxRefGens map[int]*gen.RefGen) {
 		} else if s, ok := val.(string); ok {
 			w.WriteString(s)
 		} else {
-			w.WriteString(fmt.Sprint(val))
+			fmt.Fprint(w, val)
 		}
 		if i != len(tg.colGens)-1 {
 			w.WriteRune(ColumnSeparator)

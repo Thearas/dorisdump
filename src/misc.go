@@ -150,6 +150,7 @@ func GetEncoding(name string) (encoding.Encoding, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid encoding: %s", name)
 	}
+	//nolint:revive
 	switch enc {
 	case simplifiedchinese.GBK:
 		enc = simplifiedchinese.GB18030
@@ -194,7 +195,7 @@ func (e *Utf8Encoder) Encode(b []byte) ([]byte, error) {
 type DummyEncoder struct {
 }
 
-func (e *DummyEncoder) Encode(b []byte) ([]byte, error) {
+func (*DummyEncoder) Encode(b []byte) ([]byte, error) {
 	return b, nil
 }
 

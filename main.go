@@ -32,11 +32,11 @@ func main() {
 		if perr != nil {
 			panic(perr)
 		}
-		pprof.StartCPUProfile(cpuF)
+		_ = pprof.StartCPUProfile(cpuF)
 		defer func() {
 			pprof.StopCPUProfile()
 			// runtime.GC()
-			pprof.WriteHeapProfile(memF)
+			_ = pprof.WriteHeapProfile(memF)
 		}()
 	}
 

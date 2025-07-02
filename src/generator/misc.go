@@ -13,9 +13,9 @@ import (
 )
 
 func CastMinMax[R int8 | int16 | int | int32 | int64 | float32 | float64 | time.Time](min_, max_ any, baseType, colpath string, errmsg ...string) (R, R) {
-	min, max, err := Cast2[R](min_, max_)
+	minVal, maxVal, err := Cast2[R](min_, max_)
 	if err != nil {
-		msg := fmt.Sprintf("Invalid min/max %s '%v/%v' for column '%s': %v, expect %T", baseType, min_, max_, colpath, err, min)
+		msg := fmt.Sprintf("Invalid min/max %s '%v/%v' for column '%s': %v, expect %T", baseType, min_, max_, colpath, err, minVal)
 		if len(errmsg) > 0 {
 			msg += ", " + errmsg[0]
 		}
@@ -23,29 +23,29 @@ func CastMinMax[R int8 | int16 | int | int32 | int64 | float32 | float64 | time.
 	}
 
 	minBigger := false
-	switch any(min).(type) {
+	switch any(minVal).(type) {
 	case int8:
-		minBigger = any(max).(int8) < any(min).(int8)
+		minBigger = any(maxVal).(int8) < any(minVal).(int8)
 	case int16:
-		minBigger = any(max).(int16) < any(min).(int16)
+		minBigger = any(maxVal).(int16) < any(minVal).(int16)
 	case int:
-		minBigger = any(max).(int) < any(min).(int)
+		minBigger = any(maxVal).(int) < any(minVal).(int)
 	case int32:
-		minBigger = any(max).(int32) < any(min).(int32)
+		minBigger = any(maxVal).(int32) < any(minVal).(int32)
 	case int64:
-		minBigger = any(max).(int64) < any(min).(int64)
+		minBigger = any(maxVal).(int64) < any(minVal).(int64)
 	case float32:
-		minBigger = any(max).(float32) < any(min).(float32)
+		minBigger = any(maxVal).(float32) < any(minVal).(float32)
 	case float64:
-		minBigger = any(max).(float64) < any(min).(float64)
+		minBigger = any(maxVal).(float64) < any(minVal).(float64)
 	case time.Time:
-		minBigger = any(max).(time.Time).Before(any(min).(time.Time))
+		minBigger = any(maxVal).(time.Time).Before(any(minVal).(time.Time))
 	}
 	if minBigger {
-		logrus.Warnf("Column '%s' max(%v) < min(%v), set max to min\n", colpath, max, min)
-		max = min
+		logrus.Warnf("Column '%s' max(%v) < min(%v), set max to min\n", colpath, maxVal, minVal)
+		maxVal = minVal
 	}
-	return min, max
+	return minVal, maxVal
 }
 
 type CastType interface {
@@ -87,10 +87,13 @@ func Cast[R CastType](v any) (r R, err error) {
 		return r, fmt.Errorf("unsupported cast type '%T' to '%T'", v, r)
 	}
 
-	return r_.(R), err
+	if converted, ok := r_.(R); ok {
+		return converted, err
+	}
+	panic("unreachable")
 }
 
-func MustJsonMarshal(v any) []byte {
+func MustJSONMarshal(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
 		panic(err)
@@ -98,7 +101,7 @@ func MustJsonMarshal(v any) []byte {
 	return data
 }
 
-func MustYamlUmarshal(s string) map[string]any {
+func MustYAMLUmarshal(s string) map[string]any {
 	result := map[string]any{}
 	if err := yaml.Unmarshal([]byte(s), result); err != nil {
 		panic(err)
@@ -111,7 +114,7 @@ func RandomStr(lenMin, lenMax int) string {
 
 	length := gofakeit.IntRange(lenMin, lenMax)
 	b := make([]byte, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		b[i] = allowed[rand.IntN(len(allowed))]
 	}
 	return string(b)

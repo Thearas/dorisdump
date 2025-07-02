@@ -19,7 +19,7 @@ type FormatGen struct {
 }
 
 func (g *FormatGen) Gen() any {
-	var result any = nil
+	var result any
 	if g.inner != nil {
 		result = g.inner.Gen()
 	}

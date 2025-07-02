@@ -68,7 +68,7 @@ fish:
 		case "fish":
 			cmd.Root().GenFishCompletion(os.Stdout, true)
 		case "print-help":
-			print(cmd.Long)
+			fmt.Fprint(os.Stderr, cmd.Long)
 		}
 	},
 }

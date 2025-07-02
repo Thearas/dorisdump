@@ -18,6 +18,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,7 +90,12 @@ func init() {
 	pFlags.IntVar(&ReplayConfig.ClientCount, "client-count", 0, "Set replay client count")
 	pFlags.Float32Var(&ReplayConfig.Speed, "speed", 1.0, "Replay speed, like 0.5, 2, 4, ...")
 	pFlags.IntVar(&ReplayConfig.MaxHashRows, "max-hash-rows", 0, "Number of query return rows to hash, useful when diff replay result")
-	pFlags.DurationVar(&ReplayConfig.MaxConnIdleTime, "max-conn-idle-time", 5*time.Second, "Max idle duration of a replay client connection, <= 0 means unlimited")
+	pFlags.DurationVar(
+		&ReplayConfig.MaxConnIdleTime,
+		"max-conn-idle-time",
+		5*time.Second,
+		"Max idle duration of a replay client connection, <= 0 means unlimited",
+	)
 
 	flags := replayCmd.Flags()
 	flags.BoolVar(&ReplayConfig.Clean, "clean", false, "Clean previous replay result")
@@ -97,7 +103,7 @@ func init() {
 
 func completeReplayConfig() (err error) {
 	if ReplayConfig.ReplayFile == "" {
-		return fmt.Errorf("replay file is required, please use --file flag")
+		return errors.New("replay file is required, please use --file flag")
 	}
 	if ReplayConfig.ReplayResultDir == "" {
 		ReplayConfig.ReplayResultDir = filepath.Join(GlobalConfig.OutputDir, "replay")
@@ -120,7 +126,7 @@ func completeReplayConfig() (err error) {
 	}
 
 	if ReplayConfig.Speed <= 0 {
-		return fmt.Errorf("replay speed must be > 0")
+		return errors.New("replay speed must be > 0")
 	}
 
 	ReplayConfig.DBs = lo.SliceToMap(GlobalConfig.DBs, func(s string) (string, struct{}) { return s, struct{}{} })

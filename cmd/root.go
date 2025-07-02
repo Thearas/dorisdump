@@ -33,8 +33,9 @@ import (
 )
 
 var (
-	GlobalConfig = Global{}
-	completionDB *sqlx.DB
+	GlobalConfig    = Global{}
+	completionDB    *sqlx.DB
+	DefaultParallel = 10
 )
 
 type Global struct {
@@ -83,7 +84,7 @@ or environment variables with prefix 'DORIS_', e.g.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		os.Exit(1) //nolint:revive
 	}
 }
 
@@ -92,8 +93,8 @@ func init() {
 	rootCmd.Flags().SortFlags = false
 
 	parallel := runtime.NumCPU()
-	if parallel > 10 {
-		parallel = 10
+	if parallel > DefaultParallel {
+		parallel = DefaultParallel
 	}
 
 	pFlags := rootCmd.PersistentFlags()
@@ -196,7 +197,11 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper, prefixs ...string) {
 
 			vals := []any{val}
 			if reflect.TypeOf(val).Kind() == reflect.Slice {
-				vals = val.([]any)
+				var ok bool
+				vals, ok = val.([]any)
+				if !ok {
+					panic(fmt.Sprintf("unexpected type %T for %s", val, configName))
+				}
 			}
 
 			flags := cmd.Flags()

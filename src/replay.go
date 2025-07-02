@@ -157,6 +157,7 @@ func (c *ReplayClient) writeResult(b []byte) (err error) {
 	return nil
 }
 
+//nolint:revive
 func (c *ReplayClient) Close(closefile bool) {
 	if c.connect != nil {
 		logrus.Traceln("client", c.client, "close idle conn")
@@ -174,8 +175,8 @@ func (c *ReplayClient) Close(closefile bool) {
 
 func (c *ReplayClient) closeResultFile() {
 	if c.resultFile != nil {
-		c.resultFile.Sync()
-		c.resultFile.Close()
+		_ = c.resultFile.Sync()
+		_ = c.resultFile.Close()
 		c.resultFile = nil
 	}
 }
@@ -224,7 +225,7 @@ func (c *ReplayClient) replay(ctx context.Context) error {
 				// prevent open too many files
 				c.closeResultFile()
 			}
-			if c.maxConnIdleTime > 0 && sleepDuration > c.maxConnIdleTime*time.Millisecond {
+			if c.maxConnIdleTime > 0 && sleepDuration > c.maxConnIdleTime {
 				// close conn if idle time is too long
 				c.Close(false)
 			}
@@ -296,15 +297,14 @@ func ReplaySqls(
 	minTs int64, parallel int,
 ) error {
 	if len(clientSqls) == 0 {
-		return fmt.Errorf("no sqls to replay")
+		return errors.New("no sqls to replay")
 	}
 	if parallel != len(clientSqls) {
 		logrus.Warnf("Parallel %d is not equal to client count %d", parallel, len(clientSqls))
-		if Confirm("Set parallel to client count") {
-			parallel = len(clientSqls)
-		} else {
+		if !Confirm("Set parallel to client count") {
 			return errors.New("parallel must be equal to client count")
 		}
+		parallel = len(clientSqls)
 	}
 
 	logrus.Infof("Replay with %d client, parallel %d, started at %v, speed %f\n",

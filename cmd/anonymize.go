@@ -53,10 +53,15 @@ var anonymizeCmd = &cobra.Command{
 			return err
 		}
 
-		src.SetupAnonymizer(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath, AnonymizeConfig.IdMinLength, AnonymizeConfig.ReserveIds...)
+		src.SetupAnonymizer(
+			AnonymizeConfig.Method,
+			AnonymizeConfig.HashDictPath,
+			AnonymizeConfig.IdMinLength,
+			AnonymizeConfig.ReserveIds...,
+		)
 
 		sql := src.AnonymizeSql(AnonymizeConfig.Method, "", input)
-		fmt.Println(sql)
+		_, _ = fmt.Println(sql)
 
 		// store anonymize hash dict
 		src.StoreMiniHashDict(AnonymizeConfig.Method, AnonymizeConfig.HashDictPath)

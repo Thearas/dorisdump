@@ -179,7 +179,7 @@ func GetCustomTableGenRule(table string) (rows int, colrules map[string]GenRule)
 		logrus.Debugf("no custom gen rule for table '%s'\n", table)
 		return 0, map[string]GenRule{}
 	}
-	tg := tg_.(GenRule)
+	tg := tg_.(GenRule) //nolint:revive
 
 	// get table row_count
 	rowCount, ok := tg["row_count"].(int)
