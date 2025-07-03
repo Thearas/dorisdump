@@ -22,9 +22,7 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
-  - [AI 生成数据](#ai-生成数据)
-    - [使用 OpenAI/Deepseek](#使用-openaideepseek)
-    - [使用 Google Jules](#使用-google-jules)
+  - [AI 生成数据](#ai-生成数据使用-openaideepseek)
 - [回放](#回放)
   - [回放速度和并发](#回放速度和并发)
   - [其他回放参数](#其他回放参数)
@@ -37,6 +35,7 @@
   - [大量分批回放](#大量分批回放)
   - [找出回放时长超过 1s 的 SQL](#找出回放时长超过-1s-的-sql)
   - [自动化](#自动化)
+  - [AI 自动复现用户 BUG](#ai-自动复现用户-bug)
 - [脱敏](#脱敏)
 - [FAQ](#faq)
   - [怎么把工具给客户，对生产环境有没有影响](#怎么把工具给客户对生产环境有没有影响)
@@ -490,11 +489,9 @@ columns:
         }
 ```
 
-### AI 生成数据
+### AI 生成数据（使用 OpenAI/Deepseek）
 
-AI 生成时可以传入查询，令生成的数据能被该查询查出来。有两种方法：
-
-#### 使用 OpenAI/Deepseek
+AI 生成时可以传入查询，令生成的数据能被该查询查出来。
 
 必须传入 `--llm` 和 `--llm-api-key` 两个参数，前者代表 OpenAI/Deepseek 的模型名称（比如 `deepseek-chat` 和 `deepseek-reasoner`），后者代表 API Key：
 
@@ -505,45 +502,11 @@ dodo gendata --dbs db1 --tables t1,t2 \
     --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'
 
 # 从任意 create-table 和 query 生成数据
-dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
+dodo gendata -C example/usercase/.dodo.yaml --ddl 'example/usercase/ddl/*.sql' --query "$(cat example/usercase/sql/*)"
 
 # 使用 `--prompt` 附加提示
 dodo gendata ... --prompt '每张表生成 1000 行数据'
 ```
-
-#### 使用 Google Jules
-
-使用 [Google Jules](https://jules.google.com) 获取 `gendata.yaml` 文件非常容易，全程点点点即可：
-
-1. Fork [dodo](https://github.com/Thearas/dodo) 仓库，然后在 [Google Jules](https://jules.google.com) 中打开它，并编写一些提示，例如：
-    > 将 `{{tables}}`、`{{column stats}}` 和 `{{queries}}` 分别替换为 dodo dump 导出的建表语句、列统计信息和查询语句。
-
-    ```markdown
-    为以下表、列统计信息（可选）和查询生成一个 gendata.yaml 配置（通过 `dodo gendata --genconf gendata.yaml` 命令使用）。
-
-    要求：
-    1. 确保执行查询能够返回结果
-
-    文档：
-    1. 配置数据生成指南：`introduction.md#generate-and-import-data`
-    2. 完整示例 `example/gendata.yaml`
-
-    提示：
-    - 不要为未用作条件的列（例如 JOIN 和 WHERE）生成规则。
-    - 生成规则 `format` 内置标签列表（例如 {{month}} 等占位符）可在 `src/generator/README.md` 中找到。
-
-    表：
-    {{tables}}
-
-    列统计：
-    {{column stats}}
-
-    查询：
-    {{queries}}
-    ```
-
-2. 点击 `Approve`，将生成的 `gendata.yaml` 内容复制到本地，并根据 dodo 的文档进行一些细微修改。
-3. 最后，在运行 dodo gendata 生成数据时，添加 `--genconf gendata.yaml`
 
 ## 回放
 
@@ -715,6 +678,46 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 ### 自动化
 
 比如写脚本导出/回放多个文件时，不方便手动输入 `y` 确认，可以设置环境变量 `DORIS_YES=1` 或 `DORIS_YES=0` 自动确认或否认。
+
+---
+
+### AI 自动复现用户 BUG
+
+首先需要一个目录存放用户的场景，目录结构跟以下一致，本示例在 [example/usercase](./example/usercase)：
+
+```sh
+├── ddl                       # 用户的建表语句，格式最好是 <db>.<table>.table.sql
+│   ├── example.ob.table.sql
+│   └── example.rb.table.sql
+├── sql                       # 用户的查询语句
+│   └── q0.sql
+└── prompt.txt                # Gemini 提示词，可以在里面提需求（比如每张表生成 10w 行），一般复制粘贴示例的即可
+```
+
+三步搞定：
+
+1. 安装 [`dodo`](./README.md#install)、[`Gemini CLI`](https://github.com/google-gemini/gemini-cli) 和 `mysql` 命令
+2. 克隆 [dodo](https://github.com/Thearas/dodo) 仓库到本地，并在仓库下创建 dodo 的配置文件 `dodo.yaml`：
+
+    ```sh
+    git clone https://github.com/Thearas/dodo.git
+    cd dodo
+
+    cat > dodo.yaml <<EOF
+    host: 127.0.0.1
+    port: 9030
+    http-port: 8030
+    user: root
+    dbs: [example]
+
+    llm: deepseek-chat    # or o3-mini, etc.
+    llm-api-key: sk-xxxx  # Your LLM API key
+    EOF
+    ```
+
+3. 在命令行跑 `gemini -s`，并在 `gemini` 对话框中输入 `dodo --config: @dodo.yaml, prompt: @example/usercase/prompt.txt`，回车
+
+然后看着它自主运行，我们偶尔批准下它的执行计划即可。
 
 ---
 

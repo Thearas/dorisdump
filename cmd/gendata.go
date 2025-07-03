@@ -123,6 +123,7 @@ Example:
 				return err
 			}
 			if !src.Confirm(fmt.Sprintf("Using LLM output config: '%s', please check it before going on", genconfPath)) {
+				logrus.Infoln("Aborted")
 				return nil
 			}
 			GendataConfig.GenConf = genconfPath
@@ -140,7 +141,10 @@ Example:
 			tableGens = append(tableGens, tg)
 		}
 
-		if GlobalConfig.DryRun || len(tableGens) == 0 {
+		if GlobalConfig.DryRun {
+			return nil
+		} else if len(tableGens) == 0 {
+			logrus.Infoln("No table to generate.")
 			return nil
 		}
 
@@ -242,11 +246,13 @@ func completeGendataConfig() (err error) {
 	}
 
 	// if --ddl are sql file(s), not need --dbs or --tables
-	ddlFiles, err := src.FileGlob(strings.Split(GendataConfig.DDL, ","))
-	if err != nil {
-		return err
+	ddlFiles, _ := src.FileGlob(strings.Split(GendataConfig.DDL, ","))
+	var isFile bool
+	if len(ddlFiles) > 0 {
+		f, err := os.Stat(ddlFiles[0])
+		isFile = err != nil && !f.IsDir()
 	}
-	if len(ddlFiles) > 1 {
+	if isFile {
 		for _, ddl := range ddlFiles {
 			if !strings.HasSuffix(ddl, ".sql") {
 				return fmt.Errorf("ddl file must ends with '.sql', got '%s'", ddl)

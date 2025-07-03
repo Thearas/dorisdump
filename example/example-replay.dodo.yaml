@@ -13,6 +13,3 @@ dbs: [example]
 # Replay queries from time to time (optional)
 # from: '2024-09-20 00:00:00'
 # to:   '2024-09-20 01:00:00'
-
-# Max SQL count to replay, -1 means unlimited (optional)
-count: 100

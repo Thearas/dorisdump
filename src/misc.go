@@ -2,7 +2,6 @@ package src
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -84,9 +83,9 @@ func Confirm(msg string) bool {
 	}
 	defaultYes := os.Getenv("DORIS_YES")
 	if defaultYes == "0" {
-		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("N")))
+		return false
 	} else if defaultYes != "" {
-		prompt.Stdin = io.NopCloser(bytes.NewReader([]byte("y")))
+		return true
 	}
 	result, _ := prompt.Run()
 	return result == "y"

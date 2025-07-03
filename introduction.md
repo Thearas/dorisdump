@@ -22,9 +22,7 @@
       - [ref](#ref)
       - [type](#type)
       - [golang](#golang)
-  - [AI Generation](#ai-generation)
-    - [Using OpenAI/Deepseek](#using-openaideepseek)
-    - [Using Google Jules](#using-google-jules)
+  - [AI Generation](#ai-generationvia-openaideepseek)
 - [Replay](#replay)
   - [Replay Speed and Concurrency](#replay-speed-and-concurrency)
   - [Other Replay Parameters](#other-replay-parameters)
@@ -37,6 +35,7 @@
   - [Large-scale Batch Replay](#large-scale-batch-replay)
   - [Find SQLs with Replay Duration Exceeding 1s](#find-sqls-with-replay-duration-exceeding-1s)
   - [Automation](#automation)
+  - [AI Automatic Reproduction of User BUGs](#ai-automatic-reproduction-of-user-bugs)
 - [Anonymization](#anonymization)
 - [FAQ](#faq)
   - [How to provide the tool to customers, and is there any impact on the production environment?](#how-to-provide-the-tool-to-customers-and-is-there-any-impact-on-the-production-environment)
@@ -493,11 +492,9 @@ columns:
         }
 ```
 
-### AI Generation
+### AI Generation（via OpenAI/Deepseek）
 
-When generating data using AI, you can pass in a query to ensure that the generated data can be retrieved by that query. Two ways:
-
-#### Using OpenAI/Deepseek
+When generating data using AI, you can pass in a query to ensure that the generated data can be retrieved by that query.
 
 You must pass the `--llm` and `--llm-api-key` parameters. The former represents the OpenAI/Deepseek model name (e.g., `deepseek-chat` and `deepseek-reasoner`), and the latter is the API Key:
 
@@ -508,45 +505,11 @@ dodo gendata --dbs db1 --tables t1,t2 \
     --query 'select * from t1 join t2 on t1.a = t2.b where t1.c IN ("a", "b", "c") and t2.d = 1'
 
 # Generate data from any create-table and query
-dodo gendata --llm 'deepseek-chat' --llm-api-key 'sk-xxx' --ddl create-table.sql --query 'select xxx'
+dodo gendata -C example/usercase/.dodo.yaml --ddl 'example/usercase/ddl/*.sql' --query "$(cat example/usercase/sql/*)"
 
 # Use --prompt to add additional hints
 dodo gendata ... --prompt 'Generate 1000 rows for each table'
 ```
-
-#### Using Google Jules
-
-With [Google Jules](https://jules.google.com), it's very easy to get a `gendata.yaml`:
-
-1. Fork [dodo](https://github.com/Thearas/dodo) repo, then open it in [Google Jules](https://jules.google.com) and write some prompts, for example:
-    > Replace `{{tables}}`, `{{column stats}}` and `{{queries}}` with the create table statement, column statistics and queries exported by dodo dump respectively
-
-    ```markdown
-    Generate a gendata.yaml config (used by `dodo gendata --genconf gendata.yaml`) for below tables, column-stats(optional) and queries.
-
-    Requirements:
-    1. Ensure that executing queries can return rows
-
-    Documents:
-    1. The guide config data generation: `introduction.md#generate-and-import-data` 
-    2. Full example `example/gendata.yaml` 
-
-    Tips:
-    - Do not generate rules for those columns that not been used as condition (like JOIN and WHERE).
-    - The list of generation rule `format` built-in tags(placeholder like {{month}}) can be found at `src/generator/README.md`
-
-    tables:
-    {{tables}}
-
-    column-stats:
-    {{column stats}}
-
-    queries:
-    {{queries}}
-    ```
-
-2. Click `Approve`, copy the generated `gendata.yaml` content to your local computer, and make some minor modifications according to dodo's documentation
-3. Finally, when running dodo gendata to generate data, add `--genconf gendata.yaml`
 
 ## Replay
 
@@ -718,6 +681,46 @@ rg -e '"durationMs":[6-9]\d{3}' -e '"durationMs":\d{5}' output/replay
 ### Automation
 
 For example, when writing scripts to dump/replay multiple files, it's inconvenient to manually input `y` for confirmation. You can set the environment variable `DORIS_YES=1` or `DORIS_YES=0` to automatically confirm or deny.
+
+---
+
+### AI Automatic Reproduction of User BUGs
+
+You’ll need a directory to store user scenarios, with the following structure (example location: [example/usercase](./example/usercase)):  
+
+```sh
+├── ddl                       # User's DDL statements (preferably named <db>.<table>.table.sql)
+│   ├── example.ob.table.sql
+│   └── example.rb.table.sql
+├── sql                       # User's queries
+│   └── q0.sql
+└── prompt.txt         # Gemini prompts (e.g., "generate 100k rows per table"). Usually copy-pasted from examples.
+```
+
+Three steps:
+
+1. Install [`dodo`](./README.md#install), [`Gemini CLI`](https://github.com/google-gemini/gemini-cli), and the `mysql` command
+2. Clone the [dodo](https://github.com/Thearas/dodo) repository locally and create the dodo config file `dodo.yaml`:
+
+    ```sh
+    git clone https://github.com/Thearas/dodo.git
+    cd dodo
+
+    cat > dodo.yaml <<EOF
+    host: 127.0.0.1
+    port: 9030
+    http-port: 8030
+    user: root
+    dbs: [example]
+
+    llm: deepseek-chat    # or o3-mini, etc.
+    llm-api-key: sk-xxxx  # Your LLM API key
+    EOF
+    ```
+
+3. Run `gemini -s` in the CLI, then type `dodo --config: @dodo.yaml, prompt: @example/usercase/prompt.txt` in the Gemini dialog and press Enter.
+
+It will then run autonomously. We only need to approve its execution plans.
 
 ---
 

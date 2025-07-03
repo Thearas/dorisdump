@@ -11,5 +11,5 @@ dbs: [example]
 #   - example.table2
 
 # if you want to download the audit log from a remote server (optional)
-# ssh_password: '******'
-# ssh_private_key: '/path/to/private_key'
+# ssh-password: '******'
+# ssh-private-key: '/path/to/private_key'

@@ -126,12 +126,18 @@ func completeImportConfig() (err error) {
 	}
 
 	table2datafiles := map[string][]string{}
-	// if --data is a data file, just load it
-	if stat, err := os.Stat(ImportConfig.Data); err == nil && !stat.IsDir() {
+	// if --data is data file(s), just load it
+	dataFiles, _ := src.FileGlob(strings.Split(ImportConfig.Data, ","))
+	var isFile bool
+	if len(dataFiles) > 0 {
+		f, err := os.Stat(dataFiles[0])
+		isFile = err != nil && !f.IsDir()
+	}
+	if isFile {
 		if len(GlobalConfig.Tables) != 1 {
-			return errors.New("expect only import one table when there is only one data file")
+			return errors.New("expect only import one table when specifying data file(s)")
 		}
-		table2datafiles[GlobalConfig.Tables[0]] = []string{ImportConfig.Data}
+		table2datafiles[GlobalConfig.Tables[0]] = dataFiles
 	} else if len(GlobalConfig.Tables) == 0 {
 		for _, db := range GlobalConfig.DBs {
 			dbPrefix := db + "."

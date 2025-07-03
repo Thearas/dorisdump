@@ -150,9 +150,7 @@ func (l *listener) ExitUnquotedIdentifier(ctx *UnquotedIdentifierContext) {
 	child := ctx.GetChild(0)
 	_, ok := child.(*NonReservedContext)
 	if ok {
-		// ignoreBuiltin = true
-		// child = nonReserved.GetChild(0)
-		return
+		child = child.GetChild(0)
 	}
 	l.modifySymbolText(child.(*antlr.TerminalNodeImpl))
 }

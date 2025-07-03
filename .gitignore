@@ -10,7 +10,7 @@ output
 *.interp
 *.g4.orig
 *.tar.gz
-dodo.yaml
+.dodo.yaml
 dodo-linux-*
 dodo-darwin-*
 *.pprof
