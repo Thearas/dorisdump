@@ -32,7 +32,7 @@ func init() {
 
 func Setup(genconf string) error {
 	SetupFormatTags()
-	return SetupDefaultGenRules(genconf)
+	return SetupGenRules(genconf)
 }
 
 type GenRule = map[string]any

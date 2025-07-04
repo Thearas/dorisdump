@@ -17,12 +17,11 @@ import (
 const (
 	ColumnSeparator    = '☆' // make me happy
 	DefaultGenRowCount = 1000
-	MaxGenRowCount     = 1_000_000
 )
 
 type GenRule = gen.GenRule
 
-func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen, error) {
+func NewTableGen(ddlfile, createTableStmt string, stats *TableStats, rows int) (*TableGen, error) {
 	// parse create-table statement
 	sqlId := ddlfile
 	if stats != nil {
@@ -50,13 +49,20 @@ func NewTableGen(ddlfile, createTableStmt string, stats *TableStats) (*TableGen,
 	}
 
 	// get custom table gen rule
-	rows, customColumnRule := gen.GetCustomTableGenRule(table)
+	rowCount, customColumnRule := gen.GetCustomTableGenRule(table)
 	colCount := len(c.ColumnDefs().GetCols())
+	// decide table row count
+	if rows <= 0 {
+		rows = DefaultGenRowCount
+	}
+	if rowCount > 0 {
+		rows = rowCount
+	}
 	tg := &TableGen{
 		Name:    table,
 		Columns: make([]string, 0, colCount),
 		DDLFile: ddlfile,
-		rows:    rows,
+		Rows:    rows,
 		colGens: make([]gen.Gen, 0, colCount),
 	}
 
@@ -146,27 +152,15 @@ type TableGen struct {
 	Name       string
 	Columns    []string
 	DDLFile    string
+	Rows       int
 	RefToTable map[string]struct{} // ref generator to other tables
 
 	streamloadColumns string
-	rows              int
 	colGens           []gen.Gen
 }
 
 // Gen generates multiple CSV line into writer.
 func (tg *TableGen) GenCSV(w *bufio.Writer, rows int) error {
-	if rows == 0 {
-		rows = DefaultGenRowCount
-	}
-	if tg.rows == 0 {
-		tg.rows = rows
-	}
-	if err := CheckGenRowCount(rows); err != nil {
-		return err
-	}
-
-	logrus.Infof("Generating data for table %s\n", tg.Name)
-
 	if tg.streamloadColumns != "" {
 		if _, err := w.WriteString(tg.streamloadColumns); err != nil {
 			return err
@@ -183,19 +177,16 @@ func (tg *TableGen) GenCSV(w *bufio.Writer, rows int) error {
 				colIdxRefGens[i] = refgen
 			}
 		}
-		logrus.Debugf("%d ref generator(s) point to %s\n", len(colIdxRefGens), tg.Name)
 	}
 
-	for l := range tg.rows {
+	for l := range rows {
 		tg.genOne(w, colIdxRefGens)
-		if l != tg.rows-1 {
+		if l != rows-1 {
 			if err := w.WriteByte('\n'); err != nil {
 				return err
 			}
 		}
 	}
-
-	logrus.Infof("Finish generating data for table %s\n", tg.Name)
 	return nil
 }
 
@@ -241,13 +232,4 @@ func (tg *TableGen) RemoveRefTable(t string) {
 		return
 	}
 	delete(tg.RefToTable, t)
-}
-
-func CheckGenRowCount(rows int) error {
-	if rows < 0 {
-		return fmt.Errorf("--rows/row_count must be a positive integer, got %d", rows)
-	} else if rows > MaxGenRowCount {
-		return fmt.Errorf("--rows/row_count must be smaller than 100_000, got %d", rows)
-	}
-	return nil
 }

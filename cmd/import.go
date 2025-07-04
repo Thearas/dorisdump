@@ -131,7 +131,7 @@ func completeImportConfig() (err error) {
 	var isFile bool
 	if len(dataFiles) > 0 {
 		f, err := os.Stat(dataFiles[0])
-		isFile = err != nil && !f.IsDir()
+		isFile = err == nil && !f.IsDir()
 	}
 	if isFile {
 		if len(GlobalConfig.Tables) != 1 {

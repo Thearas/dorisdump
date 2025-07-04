@@ -145,9 +145,9 @@ dodo gendata --dbs db1,db2
 # 给已导出的 table1 生成数据
 dodo gendata --tables db1.table1 # 或 --dbs db1 --tables table1
 
-# 无需事先导出，给任意一个 create table SQL 也能生成数据
+# 无需事先导出，给任意 create table SQL 也能生成数据
 # P.s. 不一定是 Doris，其他数据库比如 Hive 也行
-dodo gendata --ddl my_create_table.sql
+dodo gendata --ddl 'ddl/*.sql'
 
 
 # 给 db1 和 db2 的所有已生成数据的表导入数据
@@ -156,8 +156,8 @@ dodo import --dbs db1,db2
 # 给已生成数据的 table1 导入数据
 dodo import --tables db1.table1 # 或 --dbs db1 --tables table1
 
-# 导入任意一个 CSV 数据文件到 table1
-dodo import --tables db1.table1 --data my_data.csv
+# 导入任意 CSV 数据文件到 table1
+dodo import --tables db1.table1 --data 'my_table/*.csv'
 ```
 
 实现上，工具会按照 `--dbs` 和 `--tables` 参数，在两阶段分别做这些事：
@@ -174,7 +174,6 @@ dodo import --tables db1.table1 --data my_data.csv
 
 > [!TIP]
 >
-> - 每张表最多生成一百万条数据
 > - 导入时指定 `-Ldebug` 可以看到 `curl` 具体命令，方便复现和排查问题
 
 ### 默认的生成规则

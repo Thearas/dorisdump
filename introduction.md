@@ -147,7 +147,7 @@ dodo gendata --tables db1.table1 # or --dbs db1 --tables table1
 
 # Data can also be generated for any create table SQL without prior dump
 # P.S. It might not necessarily be Doris; other databases like Hive also work
-dodo gendata --ddl my_create_table.sql
+dodo gendata --ddl 'ddl/*.sql'
 
 # Generate data with config
 dodo gendata ... --genconf gendata.yaml
@@ -159,8 +159,8 @@ dodo import --dbs db1,db2
 # Import data for table1 with generated data
 dodo import --tables db1.table1 # or --dbs db1 --tables table1
 
-# Import any CSV data file into table1
-dodo import --tables db1.table1 --data my_data.csv
+# Import any CSV data file(s) into table1
+dodo import --tables db1.table1 --data 'my_table/*.csv'
 ```
 
 In implementation, the tool performs these actions in two stages based on the `--dbs` and `--tables` parameters:
@@ -177,7 +177,6 @@ In implementation, the tool performs these actions in two stages based on the `-
 
 > [!TIP]
 >
-> - A maximum of one million rows of data can be generated per table.
 > - Specifying `-Ldebug` during import shows the specific `curl` command, which is helpful for reproducing and troubleshooting issues.
 
 ### Default Generation Rules
@@ -700,7 +699,7 @@ You’ll need a directory to store user scenarios, with the following structure 
 Three steps:
 
 1. Install [`dodo`](./README.md#install), [`Gemini CLI`](https://github.com/google-gemini/gemini-cli), and the `mysql` command
-2. Clone the [dodo](https://github.com/Thearas/dodo) repository locally and create the dodo config file `dodo.yaml`:
+2. Clone the [dodo](https://github.com/Thearas/dodo) repository locally and create a dodo config file `dodo.yaml`:
 
     ```sh
     git clone https://github.com/Thearas/dodo.git

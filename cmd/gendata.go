@@ -43,6 +43,7 @@ type Gendata struct {
 	OutputDataDir string
 	GenConf       string
 	NumRows       int
+	RowsPerFile   int
 	LLM           string
 	LLMApiKey     string
 	Query         string
@@ -78,6 +79,9 @@ Example:
 		GlobalConfig.Parallel = lo.Min([]int{GlobalConfig.Parallel, len(GendataConfig.genFromDDLs)})
 
 		logrus.Infof("Generate data for %d table(s), parallel: %d\n", len(GendataConfig.genFromDDLs), GlobalConfig.Parallel)
+		if len(GendataConfig.genFromDDLs) == 0 {
+			return nil
+		}
 
 		// 1. Construct table generators
 		var (
@@ -100,9 +104,9 @@ Example:
 			statss[i] = stats
 		}
 		// send to LLM
-		if GendataConfig.LLM != "" {
+		if GendataConfig.GenConf == "" && GendataConfig.LLM != "" {
 			genconfPath := filepath.Join(GlobalConfig.DodoDataDir, "gendata.yaml")
-			logrus.Infof("Generating '%s' via LLM model: %s\n", genconfPath, GendataConfig.LLM)
+			logrus.Infof("Generating config '%s' via LLM model: %s\n", genconfPath, GendataConfig.LLM)
 			genconf, err := src.LLMGendataConfig(
 				ctx,
 				GendataConfig.LLMApiKey, "", GendataConfig.LLM, GendataConfig.Prompt,
@@ -133,7 +137,7 @@ Example:
 			return err
 		}
 		for i, ddlFile := range GendataConfig.genFromDDLs {
-			tg, err := src.NewTableGen(ddlFile, tables[i], statss[i])
+			tg, err := src.NewTableGen(ddlFile, tables[i], statss[i], GendataConfig.NumRows)
 			if err != nil {
 				return err
 			}
@@ -179,19 +183,35 @@ Example:
 			// Generate the tables with zero ref.
 			g := src.ParallelGroup(GlobalConfig.Parallel)
 			for _, tg := range zeroRefTableGens {
+				logrus.Infof("Generating data for table %s, rows: %d\n", tg.Name, tg.Rows)
 				g.Go(func() error {
-					o, err := createOutputGenDataWriter(tg.DDLFile)
-					if err != nil {
-						return err
-					}
-					defer o.Close()
+					rowsPerFile := min(GendataConfig.RowsPerFile, tg.Rows)
+					for i, end := range lo.RangeWithSteps(0, tg.Rows+rowsPerFile, rowsPerFile) {
+						rows := rowsPerFile
+						if end >= tg.Rows {
+							rows = tg.Rows % rowsPerFile
+						}
+						if rows == 0 {
+							break
+						}
+						o, err := createOutputGenDataWriter(tg.DDLFile, i+1)
+						if err != nil {
+							return err
+						}
 
-					w := bufio.NewWriterSize(o, 256*1024)
-					if err := tg.GenCSV(w, GendataConfig.NumRows); err != nil {
-						return err
+						w := bufio.NewWriterSize(o, 256*1024)
+						if err := tg.GenCSV(w, rows); err != nil {
+							_ = o.Close()
+							return err
+						}
+						if err := w.Flush(); err != nil {
+							_ = o.Close()
+							return err
+						}
+						_ = o.Close()
 					}
-
-					return w.Flush()
+					logrus.Infof("Finish generating data for table %s\n", tg.Name)
+					return nil
 				})
 
 				// the ref table data is generating, remove from all waiting tableGens
@@ -216,6 +236,7 @@ func init() {
 	pFlags.StringVarP(&GendataConfig.DDL, "ddl", "d", "", "Directory or file containing DDL (.table.sql) and stats (.stats.yaml) files")
 	pFlags.StringVarP(&GendataConfig.OutputDataDir, "output-data-dir", "o", "", "Directory where CSV files will be generated")
 	pFlags.IntVarP(&GendataConfig.NumRows, "rows", "r", 0, fmt.Sprintf("Number of rows to generate per table (default %d)", src.DefaultGenRowCount))
+	pFlags.IntVar(&GendataConfig.RowsPerFile, "rows-per-file", 20_000, "Number of rows to store in a CSV file")
 	pFlags.StringVarP(&GendataConfig.GenConf, "genconf", "c", "", "Generator config file")
 	pFlags.StringVarP(&GendataConfig.LLM, "llm", "l", "", "LLM model to use, e.g. 'deepseek-code', 'deepseek-chat', 'deepseek-reasoner'")
 	pFlags.StringVarP(&GendataConfig.LLMApiKey, "llm-api-key", "k", "", "LLM API key")
@@ -233,10 +254,6 @@ func completeGendataConfig() (err error) {
 		GendataConfig.OutputDataDir = filepath.Join(GlobalConfig.OutputDir, "gendata")
 	}
 
-	if err := src.CheckGenRowCount(GendataConfig.NumRows); err != nil {
-		return err
-	}
-
 	if GendataConfig.LLM != "" {
 		if GendataConfig.LLMApiKey == "" {
 			return errors.New("--llm-api-key must be provided when --llm is specified")
@@ -250,15 +267,10 @@ func completeGendataConfig() (err error) {
 	var isFile bool
 	if len(ddlFiles) > 0 {
 		f, err := os.Stat(ddlFiles[0])
-		isFile = err != nil && !f.IsDir()
+		isFile = err == nil && !f.IsDir()
 	}
 	if isFile {
-		for _, ddl := range ddlFiles {
-			if !strings.HasSuffix(ddl, ".sql") {
-				return fmt.Errorf("ddl file must ends with '.sql', got '%s'", ddl)
-			}
-			GendataConfig.genFromDDLs = append(GendataConfig.genFromDDLs, ddl)
-		}
+		GendataConfig.genFromDDLs = ddlFiles
 		return nil
 	}
 
@@ -352,13 +364,21 @@ func findTableStats(ddlFileName string) (*src.TableStats, error) {
 	return nil, nil
 }
 
-func createOutputGenDataWriter(ddlFileName string) (*os.File, error) {
+func createOutputGenDataWriter(ddlFileName string, idx int) (*os.File, error) {
 	ddlFileName = filepath.Base(ddlFileName)
 	dir := filepath.Join(GendataConfig.OutputDataDir, strings.TrimSuffix(strings.TrimSuffix(ddlFileName, ".table.sql"), ".sql"))
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, err
+	if idx == 1 {
+		// delete previous gen files
+		logrus.Debugf("Deleting previous generated data files in %s\n", dir)
+		if err := os.RemoveAll(dir); err != nil {
+			return nil, err
+		}
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, err
+		}
 	}
-	file := filepath.Join(dir, "1.csv")
+
+	file := filepath.Join(dir, fmt.Sprintf("%d.csv", idx))
 	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		logrus.Fatalln("Can not open output data file:", file, ", err:", err)
