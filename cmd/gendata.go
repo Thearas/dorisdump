@@ -187,7 +187,6 @@ Example:
 				g.Go(func() error {
 					rowsPerFile := min(GendataConfig.RowsPerFile, tg.Rows)
 					for i, end := range lo.RangeWithSteps(0, tg.Rows+rowsPerFile, rowsPerFile) {
-						fmt.Println("sadadda", i, end, tg.Rows, rowsPerFile)
 						rows := rowsPerFile
 						if end >= tg.Rows {
 							rows = tg.Rows % rowsPerFile
