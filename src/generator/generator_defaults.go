@@ -10,6 +10,7 @@ import (
 	"dario.cat/mergo"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"gopkg.in/yaml.v3"
 )
 
@@ -121,7 +122,7 @@ var (
 	}
 )
 
-func SetupDefaultGenRules(configFile string) error {
+func SetupGenRules(configFile string) error {
 	if configFile != "" {
 		b, err := os.ReadFile(configFile)
 		if err != nil {
@@ -182,10 +183,7 @@ func GetCustomTableGenRule(table string) (rows int, colrules map[string]GenRule)
 	tg := tg_.(GenRule) //nolint:revive
 
 	// get table row_count
-	rowCount, ok := tg["row_count"].(int)
-	if ok {
-		rows = rowCount
-	}
+	rows = cast.ToInt(tg["row_count"])
 
 	// get table columns gen rule
 	cgs, ok := tg["columns"].([]any)

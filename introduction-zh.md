@@ -174,7 +174,6 @@ dodo import --tables db1.table1 --data my_data.csv
 
 > [!TIP]
 >
-> - 每张表最多生成一百万条数据
 > - 导入时指定 `-Ldebug` 可以看到 `curl` 具体命令，方便复现和排查问题
 
 ### 默认的生成规则

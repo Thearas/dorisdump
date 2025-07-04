@@ -100,17 +100,17 @@ PROPERTIES (
 'bloom_filter_columns' = "dt_month, company_code"
 );`
 
-	tg, err := NewTableGen("create-table.sql", sql, nil)
+	rows := 50
+	tg, err := NewTableGen("create-table.sql", sql, nil, rows)
 	assert.NoError(t, err)
 	assert.Len(t, tg.colGens, 74)
 
 	b := &bytes.Buffer{}
 	w := bufio.NewWriter(b)
-	lines := 50
-	assert.NoError(t, tg.GenCSV(w, lines))
+	assert.NoError(t, tg.GenCSV(w, tg.Rows))
 	assert.NoError(t, w.Flush())
 
 	resultCSV := strings.Split(b.String(), "\n")
-	assert.Len(t, resultCSV, 1+50) // first line is columns info
+	assert.Len(t, resultCSV, 1+tg.Rows) // first line is columns info
 	assert.True(t, strings.HasPrefix(resultCSV[0], "columns:"))
 }

@@ -63,7 +63,6 @@ In implementation, the tool performs these actions in two stages based on the `-
 
 > [!TIP]
 >
-> - A maximum of one million rows of data can be generated per table.
 > - Specifying `-Ldebug` during import shows the specific `curl` command, which is helpful for reproducing and troubleshooting issues.
 
 ### Default Generation Rules
@@ -377,8 +376,6 @@ columns:
             return fmt.Sprintf("Is odd: %v.", i%2 == 1)
         }
 ```
-
-### AI Generation
 </document>
 
 <examples>

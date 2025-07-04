@@ -177,7 +177,6 @@ In implementation, the tool performs these actions in two stages based on the `-
 
 > [!TIP]
 >
-> - A maximum of one million rows of data can be generated per table.
 > - Specifying `-Ldebug` during import shows the specific `curl` command, which is helpful for reproducing and troubleshooting issues.
 
 ### Default Generation Rules
@@ -700,7 +699,7 @@ You’ll need a directory to store user scenarios, with the following structure 
 Three steps:
 
 1. Install [`dodo`](./README.md#install), [`Gemini CLI`](https://github.com/google-gemini/gemini-cli), and the `mysql` command
-2. Clone the [dodo](https://github.com/Thearas/dodo) repository locally and create the dodo config file `dodo.yaml`:
+2. Clone the [dodo](https://github.com/Thearas/dodo) repository locally and create a dodo config file `dodo.yaml`:
 
     ```sh
     git clone https://github.com/Thearas/dodo.git
