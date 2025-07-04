@@ -147,7 +147,7 @@ dodo gendata --tables db1.table1 # or --dbs db1 --tables table1
 
 # Data can also be generated for any create table SQL without prior dump
 # P.S. It might not necessarily be Doris; other databases like Hive also work
-dodo gendata --ddl my_create_table.sql
+dodo gendata --ddl 'ddl/*.sql'
 
 # Generate data with config
 dodo gendata ... --genconf gendata.yaml
@@ -159,8 +159,8 @@ dodo import --dbs db1,db2
 # Import data for table1 with generated data
 dodo import --tables db1.table1 # or --dbs db1 --tables table1
 
-# Import any CSV data file into table1
-dodo import --tables db1.table1 --data my_data.csv
+# Import any CSV data file(s) into table1
+dodo import --tables db1.table1 --data 'my_table/*.csv'
 ```
 
 In implementation, the tool performs these actions in two stages based on the `--dbs` and `--tables` parameters:
